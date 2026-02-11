@@ -184,6 +184,56 @@ td {
   td {
     padding: 6px;
   }
+
+  .table-wrap {
+    overflow-x: visible;
+  }
+
+  .stack-table {
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  .stack-table thead {
+    display: none;
+  }
+
+  .stack-table tbody,
+  .stack-table tr,
+  .stack-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .stack-table tr {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 10px;
+    padding: 4px 8px;
+    background: var(--surface-elevated);
+  }
+
+  .stack-table td {
+    border-bottom: 1px dashed var(--border);
+    white-space: normal;
+    word-break: break-word;
+    padding: 8px 4px;
+    display: grid;
+    grid-template-columns: 7.5em 1fr;
+    gap: 8px;
+    align-items: start;
+  }
+
+  .stack-table td:last-child {
+    border-bottom: 0;
+  }
+
+  .stack-table td::before {
+    content: attr(data-label);
+    color: var(--muted);
+    font-weight: 600;
+  }
+
 }
 
 

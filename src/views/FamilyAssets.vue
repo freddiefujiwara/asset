@@ -58,7 +58,7 @@ const totalDailyClass = computed(() =>
 
     <section v-for="group in familyGroups" :key="`table-${group.ownerLabel}`" class="table-wrap">
       <h3 class="section-title">{{ group.ownerLabel }}の明細（{{ group.items.length }}件）</h3>
-      <table>
+      <table class="stack-table">
         <thead>
           <tr>
             <th>種別</th>
@@ -70,11 +70,14 @@ const totalDailyClass = computed(() =>
         </thead>
         <tbody>
           <tr v-for="(item, idx) in group.items" :key="`${group.ownerLabel}-${idx}`">
-            <td>{{ item.type }}</td>
-            <td>{{ item.name }}</td>
-            <td>{{ item.institution }}</td>
-            <td>{{ formatYen(item.amountYen) }}</td>
-            <td :class="item.dailyMoveYen > 0 ? 'is-positive' : item.dailyMoveYen < 0 ? 'is-negative' : ''">
+            <td data-label="種別">{{ item.type }}</td>
+            <td data-label="名称">{{ item.name }}</td>
+            <td data-label="金融機関">{{ item.institution }}</td>
+            <td data-label="金額">{{ formatYen(item.amountYen) }}</td>
+            <td
+              data-label="前日比"
+              :class="item.dailyMoveYen > 0 ? 'is-positive' : item.dailyMoveYen < 0 ? 'is-negative' : ''"
+            >
               {{ item.dailyMoveYen == null ? "-" : formatSignedYen(item.dailyMoveYen) }}
             </td>
           </tr>

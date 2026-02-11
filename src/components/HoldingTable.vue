@@ -51,7 +51,7 @@ function cellClass(column, row) {
 <template>
   <section class="table-wrap">
     <h3 class="section-title">{{ title }}（{{ safeRows.length }}件）</h3>
-    <table>
+    <table class="stack-table">
       <thead>
         <tr>
           <th v-for="column in columns" :key="column.key">{{ column.label }}</th>
@@ -59,7 +59,12 @@ function cellClass(column, row) {
       </thead>
       <tbody>
         <tr v-for="(row, idx) in safeRows" :key="`${holdingRowKey(row)}__${idx}`">
-          <td v-for="column in columns" :key="column.key" :class="cellClass(column, row)">
+          <td
+            v-for="column in columns"
+            :key="column.key"
+            :class="cellClass(column, row)"
+            :data-label="column.label"
+          >
             {{ formatCell(column, row) }}
           </td>
         </tr>
