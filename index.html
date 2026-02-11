@@ -4,6 +4,26 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Asset Visualizer</title>
+    <script>
+      // Restore the original URL when redirected from /404.html on GitHub Pages.
+      (function () {
+        const query = window.location.search;
+        if (!query.startsWith("?/") || query.length < 3) {
+          return;
+        }
+
+        const path = query
+          .slice(2)
+          .split("&")
+          .map((part) => part.replace(/~and~/g, "&"))
+          .join("?")
+          .replace(/~1/g, ".")
+          .replace(/~0/g, "~");
+
+        const newUrl = `${window.location.pathname}${path}${window.location.hash}`;
+        window.history.replaceState(null, "", newUrl);
+      })();
+    </script>
   </head>
   <body>
     <div id="app"></div>
