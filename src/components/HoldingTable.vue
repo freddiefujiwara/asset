@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from "vue";
-import { formatYen, holdingRowKey } from "@/domain/format";
+import { dailyChangeYen, formatSignedYen, formatYen, holdingRowKey } from "@/domain/format";
 
 const props = defineProps({
   rows: { type: Array, default: () => [] },
@@ -14,6 +14,11 @@ const amountLikePattern = /金額|残高|評価額|価値/i;
 const nonAmountPattern = /コード|率|割合/i;
 
 function formatCell(column, row) {
+  if (column.key === "__dailyChange") {
+    const daily = dailyChangeYen(row);
+    return daily == null ? "-" : formatSignedYen(daily);
+  }
+
   const rawValue = row[column.key];
   if (rawValue == null) {
     return "-";
@@ -28,6 +33,19 @@ function formatCell(column, row) {
 
   return formatYen(rawValue);
 }
+
+function cellClass(column, row) {
+  if (column.key !== "__dailyChange") {
+    return "";
+  }
+
+  const daily = dailyChangeYen(row);
+  if (daily == null || daily === 0) {
+    return "";
+  }
+
+  return daily > 0 ? "is-positive" : "is-negative";
+}
 </script>
 
 <template>
@@ -41,7 +59,9 @@ function formatCell(column, row) {
       </thead>
       <tbody>
         <tr v-for="(row, idx) in safeRows" :key="`${holdingRowKey(row)}__${idx}`">
-          <td v-for="column in columns" :key="column.key">{{ formatCell(column, row) }}</td>
+          <td v-for="column in columns" :key="column.key" :class="cellClass(column, row)">
+            {{ formatCell(column, row) }}
+          </td>
         </tr>
       </tbody>
     </table>

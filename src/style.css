@@ -296,3 +296,19 @@ td {
     height: 140px;
   }
 }
+
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.is-positive {
+  color: #22c55e;
+}
+
+.is-negative {
+  color: #f87171;
+}

@@ -1,4 +1,5 @@
 import { toNumber } from "./parse";
+import { dailyChangeYen } from "./format";
 
 const OWNER_RULES = [
   { id: "wife", label: "妻", suffix: "@chipop" },
@@ -49,33 +50,42 @@ export function assetDisplayName(row) {
 
 export function summarizeFamilyAssets(holdings) {
   const groups = {
-    me: { ownerLabel: "私", totalYen: 0, items: [] },
-    wife: { ownerLabel: "妻", totalYen: 0, items: [] },
-    daughter: { ownerLabel: "娘", totalYen: 0, items: [] },
+    me: { ownerLabel: "私", totalYen: 0, stockFundYen: 0, dailyMoveYen: 0, hasDailyMove: false, items: [] },
+    wife: { ownerLabel: "妻", totalYen: 0, stockFundYen: 0, dailyMoveYen: 0, hasDailyMove: false, items: [] },
+    daughter: { ownerLabel: "娘", totalYen: 0, stockFundYen: 0, dailyMoveYen: 0, hasDailyMove: false, items: [] },
   };
 
   const categories = [
-    { key: "cashLike", label: "Cash Like" },
-    { key: "stocks", label: "Stocks" },
-    { key: "funds", label: "Funds" },
-    { key: "pensions", label: "Pensions" },
-    { key: "points", label: "Points" },
+    { key: "cashLike", label: "Cash Like", trackMove: false },
+    { key: "stocks", label: "Stocks", trackMove: true },
+    { key: "funds", label: "Funds", trackMove: true },
+    { key: "pensions", label: "Pensions", trackMove: false },
+    { key: "points", label: "Points", trackMove: false },
   ];
 
-  categories.forEach(({ key, label }) => {
+  categories.forEach(({ key, label, trackMove }) => {
     const rows = Array.isArray(holdings?.[key]) ? holdings[key] : [];
 
     rows.forEach((row) => {
       const owner = detectAssetOwner(row);
       const amountYen = assetAmountYen(row);
+      const move = dailyChangeYen(row);
       const item = {
         type: label,
         name: assetDisplayName(row),
         institution: row?.["保有金融機関"] ?? "-",
         amountYen,
+        dailyMoveYen: move,
       };
 
       groups[owner.id].totalYen += amountYen;
+      if (trackMove) {
+        groups[owner.id].stockFundYen += amountYen;
+        if (move != null) {
+          groups[owner.id].dailyMoveYen += move;
+          groups[owner.id].hasDailyMove = true;
+        }
+      }
       groups[owner.id].items.push(item);
     });
   });
