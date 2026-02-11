@@ -1,0 +1,55 @@
+<script setup>
+import { computed, onMounted } from "vue";
+import { storeToRefs } from "pinia";
+import { usePortfolioStore } from "@/stores/portfolio";
+import { formatYen } from "@/domain/format";
+import { summarizeFamilyAssets } from "@/domain/family";
+
+const store = usePortfolioStore();
+const { data, loading, error } = storeToRefs(store);
+
+onMounted(() => {
+  if (!data.value) {
+    store.fetchPortfolio();
+  }
+});
+
+const familyGroups = computed(() => summarizeFamilyAssets(data.value?.holdings));
+</script>
+
+<template>
+  <section>
+    <h2 class="section-title">家族別資産</h2>
+    <p v-if="loading">読み込み中...</p>
+    <p v-if="error" class="error">{{ error }}</p>
+
+    <div class="card-grid">
+      <article v-for="group in familyGroups" :key="group.ownerLabel" class="card">
+        <h3>{{ group.ownerLabel }}の資産</h3>
+        <p>{{ formatYen(group.totalYen) }}</p>
+      </article>
+    </div>
+
+    <section v-for="group in familyGroups" :key="`table-${group.ownerLabel}`" class="table-wrap">
+      <h3 class="section-title">{{ group.ownerLabel }}の明細（{{ group.items.length }}件）</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>種別</th>
+            <th>名称</th>
+            <th>金融機関</th>
+            <th>金額</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(item, idx) in group.items" :key="`${group.ownerLabel}-${idx}`">
+            <td>{{ item.type }}</td>
+            <td>{{ item.name }}</td>
+            <td>{{ item.institution }}</td>
+            <td>{{ formatYen(item.amountYen) }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </section>
+</template>

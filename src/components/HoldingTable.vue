@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from "vue";
-import { holdingRowKey } from "@/domain/format";
+import { formatYen, holdingRowKey } from "@/domain/format";
 
 const props = defineProps({
   rows: { type: Array, default: () => [] },
@@ -9,6 +9,25 @@ const props = defineProps({
 });
 
 const safeRows = computed(() => (Array.isArray(props.rows) ? props.rows : []));
+
+const amountLikePattern = /金額|残高|評価額|価値/i;
+const nonAmountPattern = /コード|率|割合/i;
+
+function formatCell(column, row) {
+  const rawValue = row[column.key];
+  if (rawValue == null) {
+    return "-";
+  }
+
+  const keyLabel = `${column.key}${column.label}`;
+  const shouldFormatAmount = amountLikePattern.test(keyLabel) && !nonAmountPattern.test(keyLabel);
+
+  if (!shouldFormatAmount) {
+    return rawValue;
+  }
+
+  return formatYen(rawValue);
+}
 </script>
 
 <template>
@@ -22,7 +41,7 @@ const safeRows = computed(() => (Array.isArray(props.rows) ? props.rows : []));
       </thead>
       <tbody>
         <tr v-for="(row, idx) in safeRows" :key="`${holdingRowKey(row)}__${idx}`">
-          <td v-for="column in columns" :key="column.key">{{ row[column.key] ?? "-" }}</td>
+          <td v-for="column in columns" :key="column.key">{{ formatCell(column, row) }}</td>
         </tr>
       </tbody>
     </table>

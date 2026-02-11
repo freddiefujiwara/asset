@@ -38,6 +38,7 @@ watch(theme, (nextTheme) => {
         <nav class="nav" aria-label="Primary">
           <RouterLink to="/dashboard">Dashboard</RouterLink>
           <RouterLink to="/holdings">Holdings</RouterLink>
+          <RouterLink to="/family-assets">Family</RouterLink>
         </nav>
         <button class="theme-toggle" type="button" @click="toggleTheme">
           {{ themeLabel }}モードへ

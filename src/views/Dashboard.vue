@@ -3,6 +3,7 @@ import { computed, onMounted } from "vue";
 import { storeToRefs } from "pinia";
 import { usePortfolioStore } from "@/stores/portfolio";
 import { formatYen } from "@/domain/format";
+import PieChart from "@/components/PieChart.vue";
 
 const store = usePortfolioStore();
 const { data, loading, error, source } = storeToRefs(store);
@@ -12,6 +13,20 @@ const totals = computed(() =>
 );
 const assetsByClass = computed(() => data.value?.summary?.assetsByClass ?? []);
 const liabilitiesByCategory = computed(() => data.value?.summary?.liabilitiesByCategory ?? []);
+
+const assetPie = computed(() =>
+  assetsByClass.value.map((item) => ({
+    label: item.name,
+    value: item.amountYen,
+  })),
+);
+
+const liabilityPie = computed(() =>
+  liabilitiesByCategory.value.map((item) => ({
+    label: item.category,
+    value: item.amountYen,
+  })),
+);
 
 onMounted(() => {
   if (!data.value) {
@@ -26,19 +41,27 @@ onMounted(() => {
     <p v-if="loading">読み込み中...</p>
     <p v-if="error" class="error">{{ error }}</p>
 
-    <div class="card-grid">
-      <article class="card">
-        <h2>総資産</h2>
-        <p>{{ formatYen(totals.assetsYen) }}</p>
-      </article>
-      <article class="card">
-        <h2>総負債</h2>
-        <p>{{ formatYen(totals.liabilitiesYen) }}</p>
-      </article>
-      <article class="card">
-        <h2>純資産</h2>
-        <p>{{ formatYen(totals.netWorthYen) }}</p>
-      </article>
+    <section class="table-wrap balance-sheet">
+      <h2 class="section-title">バランスシート</h2>
+      <div class="balance-grid">
+        <article class="balance-item">
+          <h3>総資産</h3>
+          <p>{{ formatYen(totals.assetsYen) }}</p>
+        </article>
+        <article class="balance-item">
+          <h3>総負債</h3>
+          <p>{{ formatYen(totals.liabilitiesYen) }}</p>
+        </article>
+        <article class="balance-item net-worth">
+          <h3>純資産</h3>
+          <p>{{ formatYen(totals.netWorthYen) }}</p>
+        </article>
+      </div>
+    </section>
+
+    <div class="chart-grid">
+      <PieChart title="資産内訳（円グラフ）" :data="assetPie" />
+      <PieChart title="負債内訳（円グラフ）" :data="liabilityPie" />
     </div>
 
     <section class="table-wrap">
