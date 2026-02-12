@@ -65,7 +65,7 @@ function stockPriceUrl(name) {
         <span>評価額合計: <strong class="amount-value">{{ formatYen(totalStockFund) }}</strong></span>
         <span>
           評価損益合計:
-          <strong :class="totalProfitClass">{{ formatSignedYen(totalProfitYen) }}</strong>
+          <strong :class="['amount-value', totalProfitClass]">{{ formatSignedYen(totalProfitYen) }}</strong>
         </span>
         <span>
           評価損益率:
@@ -92,7 +92,7 @@ function stockPriceUrl(name) {
         <p class="amount-value">{{ formatYen(group.totalYen) }}</p>
         <p class="meta">株・投信: <span class="amount-value">{{ formatYen(group.stockFundYen) }}</span></p>
         <p class="meta">
-          評価損益: <strong :class="signedClass(group.profitYen)">{{ formatSignedYen(group.profitYen) }}</strong>
+          評価損益: <strong :class="['amount-value', signedClass(group.profitYen)]">{{ formatSignedYen(group.profitYen) }}</strong>
         </p>
         <p class="meta">
           評価損益率:
@@ -143,7 +143,7 @@ function stockPriceUrl(name) {
             </td>
             <td data-label="金融機関">{{ item.institution }}</td>
             <td data-label="金額"><span class="amount-value">{{ formatYen(item.amountYen) }}</span></td>
-            <td data-label="評価損益" :class="signedClass(item.profitYen)">
+            <td data-label="評価損益" :class="['amount-value', signedClass(item.profitYen)]">
               {{ item.profitYen == null ? "-" : formatSignedYen(item.profitYen) }}
             </td>
             <td data-label="評価損益率" :class="signedClass(item.profitRatePct)">
