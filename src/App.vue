@@ -60,9 +60,9 @@ watch(privacyMode, (enabled) => {
       <h1>資産可視化ダッシュボード</h1>
       <div class="header-actions">
         <nav class="nav" aria-label="Primary">
-          <RouterLink to="/dashboard">Dashboard</RouterLink>
-          <RouterLink to="/holdings">Holdings</RouterLink>
-          <RouterLink to="/family-assets">Family</RouterLink>
+          <RouterLink to="/dashboard">ダッシュボード</RouterLink>
+          <RouterLink to="/holdings">保有資産</RouterLink>
+          <RouterLink to="/family-assets">家族別</RouterLink>
         </nav>
         <div class="header-buttons">
           <button class="theme-toggle" type="button" @click="togglePrivacy">

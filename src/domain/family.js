@@ -56,11 +56,11 @@ export function summarizeFamilyAssets(holdings) {
   };
 
   const categories = [
-    { key: "cashLike", label: "Cash Like", trackMove: false },
-    { key: "stocks", label: "Stocks", trackMove: true },
-    { key: "funds", label: "Funds", trackMove: true },
-    { key: "pensions", label: "Pensions", trackMove: false },
-    { key: "points", label: "Points", trackMove: false },
+    { key: "cashLike", label: "現金・預金", trackMove: false },
+    { key: "stocks", label: "株式", trackMove: true },
+    { key: "funds", label: "投資信託", trackMove: true },
+    { key: "pensions", label: "年金", trackMove: false },
+    { key: "points", label: "ポイント", trackMove: false },
   ];
 
   categories.forEach(({ key, label, trackMove }) => {

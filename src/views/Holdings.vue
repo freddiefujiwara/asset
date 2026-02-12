@@ -39,7 +39,7 @@ const dailyMoveClass = computed(() =>
 
 const configs = [
   {
-    title: "Cash Like",
+    title: "現金・預金",
     key: "cashLike",
     columns: [
       { key: "種類・名称", label: "名称" },
@@ -48,7 +48,7 @@ const configs = [
     ],
   },
   {
-    title: "Stocks",
+    title: "株式",
     key: "stocks",
     columns: [
       { key: "銘柄コード", label: "コード" },
@@ -59,7 +59,7 @@ const configs = [
     ],
   },
   {
-    title: "Funds",
+    title: "投資信託",
     key: "funds",
     columns: [
       { key: "銘柄名", label: "銘柄名" },
@@ -69,7 +69,7 @@ const configs = [
     ],
   },
   {
-    title: "Pensions",
+    title: "年金",
     key: "pensions",
     columns: [
       { key: "名称", label: "名称" },
@@ -78,7 +78,7 @@ const configs = [
     ],
   },
   {
-    title: "Points",
+    title: "ポイント",
     key: "points",
     columns: [
       { key: "名称", label: "名称" },
@@ -87,7 +87,7 @@ const configs = [
     ],
   },
   {
-    title: "Liabilities Detail",
+    title: "負債詳細",
     key: "liabilitiesDetail",
     columns: [
       { key: "種類", label: "種類" },
