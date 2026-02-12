@@ -53,6 +53,26 @@ describe("portfolio store", () => {
     });
   });
 
+
+  it("retries without bearer header when preflight is blocked", async () => {
+    globalThis.localStorage.getItem.mockReturnValue("token-123");
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockResolvedValueOnce(successResponse({ breakdown: [] }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const store = usePortfolioStore();
+    await store.fetchPortfolio();
+
+    expect(fetchMock).toHaveBeenNthCalledWith(1, expect.any(String), {
+      headers: { Authorization: "Bearer token-123" },
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(2, expect.any(String));
+    expect(store.source).toBe("live");
+    expect(store.error).toBe("");
+  });
+
   it("does not fallback to mock on auth error", async () => {
     vi.stubGlobal(
       "fetch",

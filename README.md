@@ -275,6 +275,8 @@ Possible side effects while DEBUG mode is enabled:
 - Anyone who can access the API endpoint may be able to view data without Google login.
 - The login gate can be bypassed when API data is returned with `200`.
 - Non-auth API failures still fall back to mock data, which can hide temporary API outages.
+- If the API does not allow `Authorization` header preflight on your origin, browser CORS can block bearer requests.
+  - This SPA retries once without the bearer header when it detects a preflight-like network failure, so DEBUG-mode APIs can still be viewed.
 
 For production, disable DEBUG mode in GAS and rely on server-side allowlist checks (`iss`/`aud`/`exp`/`email_verified` + allowed Gmail list).
 

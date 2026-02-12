@@ -10,6 +10,26 @@ function getGoogleIdToken() {
   return globalThis.localStorage?.getItem(ID_TOKEN_STORAGE_KEY) ?? "";
 }
 
+function isCorsLikeNetworkError(error) {
+  const message = (error?.message ?? "").toLowerCase();
+  return message.includes("failed to fetch") || message.includes("networkerror");
+}
+
+async function fetchPortfolioResponse() {
+  const idToken = getGoogleIdToken();
+  const headers = idToken ? { Authorization: `Bearer ${idToken}` } : undefined;
+
+  try {
+    return await fetch(API_URL, { headers });
+  } catch (error) {
+    if (!idToken || !isCorsLikeNetworkError(error)) {
+      throw error;
+    }
+
+    return await fetch(API_URL);
+  }
+}
+
 export const usePortfolioStore = defineStore("portfolio", {
   state: () => ({
     data: null,
@@ -22,9 +42,7 @@ export const usePortfolioStore = defineStore("portfolio", {
       this.loading = true;
       this.error = "";
       try {
-        const idToken = getGoogleIdToken();
-        const headers = idToken ? { Authorization: `Bearer ${idToken}` } : undefined;
-        const response = await fetch(API_URL, { headers });
+        const response = await fetchPortfolioResponse();
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
         }
