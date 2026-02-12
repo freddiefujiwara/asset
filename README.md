@@ -163,8 +163,8 @@ Shows:
 
 Owner detection rule is string-based:
 
-- contains `@chipop` -> wife
-- contains `@aojiru.pudding` -> daughter
+- contains sample tag `@wife-tag` -> wife
+- contains sample tag `@child-tag` -> daughter
 - else -> me
 
 The app groups rows from multiple categories and sums values.
