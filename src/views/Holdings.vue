@@ -76,7 +76,11 @@ const configs = HOLDING_TABLE_CONFIGS;
           >
             <p class="stock-tile-name">{{ tile.name }}</p>
             <span class="stock-tile-tooltip" role="tooltip">
-              {{ tile.name }}<br>評価額: <span class="amount-value">{{ formatYen(tile.value) }}</span>
+              {{ tile.name }}<br>
+              評価額: <span class="amount-value">{{ formatYen(tile.value) }}</span>
+              <template v-if="tile.dailyChange != null">
+                <br>前日比: <span :class="signedClass(tile.dailyChange)">{{ formatSignedYen(tile.dailyChange) }}</span>
+              </template>
             </span>
           </article>
         </div>
