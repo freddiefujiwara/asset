@@ -10,6 +10,7 @@ function getGoogleIdToken() {
   return globalThis.localStorage?.getItem(ID_TOKEN_STORAGE_KEY) ?? "";
 }
 
+// GAS endpoint accepts id_token as query parameter; append only when available.
 function buildApiUrlWithToken() {
   const idToken = getGoogleIdToken();
   if (!idToken) {

@@ -28,7 +28,8 @@ describe("portfolio store", () => {
       "breakdown-liability": [{ category: "カード", amount_yen: "200", percentage: "100" }],
     };
 
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(successResponse(payload)));
+    const fetchMock = vi.fn().mockResolvedValue(successResponse(payload));
+    vi.stubGlobal("fetch", fetchMock);
 
     const store = usePortfolioStore();
     await store.fetchPortfolio();
@@ -38,6 +39,9 @@ describe("portfolio store", () => {
     expect(store.source).toBe("live");
     expect(store.data.totals.assetsYen).toBe(1000);
     expect(store.data.totals.liabilitiesYen).toBe(200);
+
+    const calledUrl = fetchMock.mock.calls[0][0];
+    expect(calledUrl).not.toContain("id_token=");
   });
 
   it("sends token as query param when localStorage has google id token", async () => {
@@ -49,7 +53,21 @@ describe("portfolio store", () => {
     await store.fetchPortfolio();
 
     const calledUrl = fetchMock.mock.calls[0][0];
-    expect(calledUrl).toContain("id_token=token-123");
+    const url = new URL(calledUrl);
+    expect(url.searchParams.get("id_token")).toBe("token-123");
+  });
+
+  it("encodes id token safely when it contains reserved characters", async () => {
+    globalThis.localStorage.getItem.mockReturnValue("token+/=abc");
+    const fetchMock = vi.fn().mockResolvedValue(successResponse({ breakdown: [] }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const store = usePortfolioStore();
+    await store.fetchPortfolio();
+
+    const calledUrl = fetchMock.mock.calls[0][0];
+    const url = new URL(calledUrl);
+    expect(url.searchParams.get("id_token")).toBe("token+/=abc");
   });
 
   it("shows cors error and does not fallback to mock when request is blocked", async () => {
