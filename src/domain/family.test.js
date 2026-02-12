@@ -16,8 +16,8 @@ describe("family domain", () => {
   it("summarizes holdings and daily moves by owner", () => {
     const groups = summarizeFamilyAssets({
       cashLike: [{ 種類・名称: "普通預金@chipop", 残高: "100" }],
-      stocks: [{ 銘柄名: "ETF@aojiru.pudding", 評価額: "200", 前日比: "20" }],
-      funds: [{ 銘柄名: "All Country", 評価額: "300", 前日比: "-10" }],
+      stocks: [{ 銘柄名: "ETF@aojiru.pudding", 評価額: "200", 前日比: "20", 評価損益: "50", 評価損益率: "33.3" }],
+      funds: [{ 銘柄名: "All Country", 評価額: "300", 前日比: "-10", 評価損益: "30", 評価損益率: "11.1" }],
       pensions: [],
       points: [],
     });
@@ -25,5 +25,29 @@ describe("family domain", () => {
     expect(groups.find((g) => g.ownerLabel === "妻")?.totalYen).toBe(100);
     expect(groups.find((g) => g.ownerLabel === "娘")?.dailyMoveYen).toBe(20);
     expect(groups.find((g) => g.ownerLabel === "私")?.dailyMoveYen).toBe(-10);
+    expect(groups.find((g) => g.ownerLabel === "娘")?.profitYen).toBe(50);
+    expect(groups.find((g) => g.ownerLabel === "私")?.profitRatePct).toBeCloseTo(11.111, 3);
+    expect(groups.find((g) => g.ownerLabel === "娘")?.items[0]?.profitRatePct).toBe(33.3);
   });
+
+  it("returns null group profit rate when principal is zero", () => {
+    const groups = summarizeFamilyAssets({
+      cashLike: [],
+      stocks: [{ 銘柄名: "HighRisk", 評価額: "100", 評価損益: "100", 評価損益率: "999" }],
+      funds: [],
+      pensions: [],
+      points: [],
+    });
+
+    expect(groups.find((g) => g.ownerLabel === "私")?.profitRatePct).toBeNull();
+  });
+
+  it("treats missing holdings object safely", () => {
+    const groups = summarizeFamilyAssets();
+
+    expect(groups).toHaveLength(3);
+    expect(groups.every((group) => group.totalYen === 0)).toBe(true);
+    expect(groups.every((group) => group.profitRatePct === 0)).toBe(true);
+  });
+
 });

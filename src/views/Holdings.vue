@@ -1,5 +1,6 @@
 <script setup>
-import { computed, onMounted } from "vue";
+import { computed, nextTick, onMounted, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { storeToRefs } from "pinia";
 import { usePortfolioStore } from "@/stores/portfolio";
 import HoldingTable from "@/components/HoldingTable.vue";
@@ -7,12 +8,51 @@ import { dailyChangeYen, formatSignedYen, formatYen } from "@/domain/format";
 import { toNumber } from "@/domain/parse";
 
 const store = usePortfolioStore();
+const route = useRoute();
+const router = useRouter();
 const { data, loading, error } = storeToRefs(store);
 
-onMounted(() => {
+let pendingInitialHash = "";
+let restoredInitialHash = false;
+
+function scrollToPendingHash() {
+  if (!pendingInitialHash) {
+    return;
+  }
+
+  const target = document.querySelector(pendingInitialHash);
+  if (target) {
+    target.scrollIntoView({ block: "start" });
+  }
+}
+
+async function restoreInitialHashIfReady() {
+  if (restoredInitialHash || !pendingInitialHash || loading.value || !data.value) {
+    return;
+  }
+
+  restoredInitialHash = true;
+  await nextTick();
+  await router.replace({ path: route.path, hash: pendingInitialHash });
+  await nextTick();
+  scrollToPendingHash();
+}
+
+onMounted(async () => {
+  if (route.hash) {
+    pendingInitialHash = route.hash;
+    await router.replace({ path: route.path, hash: "" });
+  }
+
   if (!data.value) {
     store.fetchPortfolio();
   }
+
+  restoreInitialHashIfReady();
+});
+
+watch([loading, data], () => {
+  restoreInitialHashIfReady();
 });
 
 const holdings = computed(
@@ -54,6 +94,8 @@ const configs = [
       { key: "銘柄コード", label: "コード" },
       { key: "銘柄名", label: "銘柄名" },
       { key: "評価額", label: "評価額" },
+      { key: "評価損益", label: "評価損益" },
+      { key: "評価損益率", label: "評価損益率" },
       { key: "__dailyChange", label: "前日比" },
       { key: "保有金融機関", label: "金融機関" },
     ],
@@ -64,6 +106,8 @@ const configs = [
     columns: [
       { key: "銘柄名", label: "銘柄名" },
       { key: "評価額", label: "評価額" },
+      { key: "評価損益", label: "評価損益" },
+      { key: "評価損益率", label: "評価損益率" },
       { key: "__dailyChange", label: "前日比" },
       { key: "保有金融機関", label: "金融機関" },
     ],
@@ -74,6 +118,7 @@ const configs = [
     columns: [
       { key: "名称", label: "名称" },
       { key: "現在価値", label: "現在価値" },
+      { key: "評価損益", label: "評価損益" },
       { key: "評価損益率", label: "評価損益率" },
     ],
   },
