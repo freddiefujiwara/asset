@@ -387,6 +387,11 @@ td {
 }
 
 @media (max-width: 700px) {
+  .balance-map {
+    min-width: 280px;
+    height: 220px;
+  }
+
   .pie-layout {
     flex-direction: column;
     align-items: flex-start;
