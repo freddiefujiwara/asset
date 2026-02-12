@@ -100,7 +100,7 @@ const configs = [
 </script>
 
 <template>
-  <section>
+  <section id="holdings-top">
     <p v-if="loading">読み込み中...</p>
     <p v-if="error" class="error">{{ error }}</p>
 
@@ -117,12 +117,13 @@ const configs = [
       </div>
     </section>
 
-    <HoldingTable
-      v-for="config in configs"
-      :key="config.key"
-      :title="config.title"
-      :rows="holdings[config.key]"
-      :columns="config.columns"
-    />
+    <nav class="section-jump" aria-label="保有資産の小カテゴリ">
+      <a v-for="config in configs" :key="`jump-${config.key}`" :href="`#section-${config.key}`">{{ config.title }}</a>
+    </nav>
+
+    <section v-for="config in configs" :id="`section-${config.key}`" :key="config.key" class="section-block">
+      <HoldingTable :title="config.title" :rows="holdings[config.key]" :columns="config.columns" />
+      <p class="back-top-wrap"><a href="#holdings-top">↑ トップへ戻る</a></p>
+    </section>
   </section>
 </template>

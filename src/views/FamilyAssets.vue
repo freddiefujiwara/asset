@@ -24,7 +24,7 @@ const totalDailyClass = computed(() =>
 </script>
 
 <template>
-  <section>
+  <section id="family-top">
     <h2 class="section-title">家族別資産</h2>
     <p v-if="loading">読み込み中...</p>
     <p v-if="error" class="error">{{ error }}</p>
@@ -42,6 +42,12 @@ const totalDailyClass = computed(() =>
       </div>
     </section>
 
+    <nav class="section-jump" aria-label="家族別資産の小カテゴリ">
+      <a v-for="group in familyGroups" :key="`jump-${group.ownerLabel}`" :href="`#family-${group.ownerLabel}`">
+        {{ group.ownerLabel }}
+      </a>
+    </nav>
+
     <div class="card-grid">
       <article v-for="group in familyGroups" :key="group.ownerLabel" class="card">
         <h3>{{ group.ownerLabel }}の資産</h3>
@@ -56,7 +62,12 @@ const totalDailyClass = computed(() =>
       </article>
     </div>
 
-    <section v-for="group in familyGroups" :key="`table-${group.ownerLabel}`" class="table-wrap">
+    <section
+      v-for="group in familyGroups"
+      :id="`family-${group.ownerLabel}`"
+      :key="`table-${group.ownerLabel}`"
+      class="section-block table-wrap"
+    >
       <h3 class="section-title">{{ group.ownerLabel }}の明細（{{ group.items.length }}件）</h3>
       <table class="stack-table">
         <thead>
@@ -83,6 +94,7 @@ const totalDailyClass = computed(() =>
           </tr>
         </tbody>
       </table>
+      <p class="back-top-wrap"><a href="#family-top">↑ トップへ戻る</a></p>
     </section>
   </section>
 </template>

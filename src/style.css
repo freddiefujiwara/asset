@@ -188,6 +188,14 @@ td {
     width: fit-content;
   }
 
+  .section-jump {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--bg);
+    padding: 6px 0;
+  }
+
   table {
     font-size: 12px;
   }
@@ -379,4 +387,32 @@ td {
 :root[data-private="on"] .amount-value {
   filter: blur(0.34rem);
   user-select: none;
+}
+
+
+.section-jump {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 14px;
+}
+
+.section-jump a,
+.back-top-wrap a {
+  display: inline-block;
+  text-decoration: none;
+  color: var(--link);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: var(--surface-elevated);
+  font-size: 0.9rem;
+}
+
+.section-block {
+  scroll-margin-top: 10px;
+}
+
+.back-top-wrap {
+  margin: 8px 0 2px;
 }
