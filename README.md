@@ -266,6 +266,43 @@ Saved key: `asset-privacy`
 
 ---
 
+## Debug API mode on gh-pages
+
+If the GAS API is in DEBUG mode and returns data without authentication, this SPA will still render the app even when `asset-google-id-token` is empty. This is intentional for debug flows.
+
+Possible side effects while DEBUG mode is enabled:
+
+- Anyone who can access the API endpoint may be able to view data without Google login.
+- The login gate can be bypassed when API data is returned with `200`.
+- Non-auth API failures still fall back to mock data, which can hide temporary API outages.
+- If GAS CORS settings are missing, browser requests are blocked and this SPA shows a CORS error (no mock fallback for signed-in flows).
+- This SPA now sends the ID token as `id_token` query parameter to avoid `Authorization` preflight issues on custom domains.
+- GAS should validate `id_token` from query string the same way it validated bearer tokens before (`iss`/`aud`/`exp`/`email_verified` + allowlist).
+- If your GAS still only reads bearer header, update token extraction to read query too:
+
+```js
+function extractIdToken_(event) {
+  const headers = event?.headers || {};
+  const auth = headers.Authorization || headers.authorization || "";
+  const bearer = auth.match(/^Bearer\s+(.+)$/i);
+  if (bearer) return bearer[1];
+  return event?.parameter?.id_token || "";
+}
+```
+
+For production, disable DEBUG mode in GAS and rely on server-side allowlist checks (`iss`/`aud`/`exp`/`email_verified` + allowed Gmail list).
+
+## Env (for Google Sign-In)
+
+Set this in `.env.local` when using Google login UI:
+
+```bash
+VITE_GOOGLE_CLIENT_ID=your-web-client-id.apps.googleusercontent.com
+```
+
+
+---
+
 ## How to run
 
 ```bash
@@ -301,6 +338,7 @@ There are unit tests for these domain files:
 These tests check parsing, normalization safety, and family aggregation logic.
 
 ---
+
 
 ## Notes for future improvements
 

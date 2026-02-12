@@ -7,7 +7,7 @@ export function usePortfolioData() {
   const { data, loading, error, source } = storeToRefs(store);
 
   onMounted(() => {
-    if (!data.value) {
+    if (!data.value && !loading.value && !error.value) {
       store.fetchPortfolio();
     }
   });
