@@ -98,6 +98,7 @@ describe("portfolio store", () => {
 
 
   it("shows guidance when GAS still expects bearer token", async () => {
+    globalThis.localStorage.getItem.mockReturnValue("");
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(successResponse({ status: 401, error: "missing id token" })),
@@ -109,6 +110,38 @@ describe("portfolio store", () => {
     expect(store.source).toBe("");
     expect(store.data).toBe(null);
     expect(store.error).toContain("GAS must read e.parameter.id_token");
+  });
+
+  it("retries once when api returns missing id token even though token exists", async () => {
+    globalThis.localStorage.getItem.mockReturnValue("token-123");
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(successResponse({ status: 401, error: "missing id token" }))
+      .mockResolvedValueOnce(successResponse({ breakdown: [] }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const store = usePortfolioStore();
+    await store.fetchPortfolio();
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(store.error).toBe("");
+    expect(store.source).toBe("live");
+  });
+
+  it("allows retry after auth error", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(successResponse({ status: 403, error: "forbidden email" }))
+      .mockResolvedValueOnce(successResponse({ breakdown: [] }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const store = usePortfolioStore();
+    await store.fetchPortfolio();
+    await store.fetchPortfolio();
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(store.source).toBe("live");
+    expect(store.error).toBe("");
   });
 
   it("falls back to mock data when api request fails", async () => {

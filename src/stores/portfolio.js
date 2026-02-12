@@ -33,30 +33,44 @@ export const usePortfolioStore = defineStore("portfolio", {
       if (this.loading) {
         return;
       }
-      if (this.error.startsWith("AUTH ") || this.error.startsWith("CORS blocked")) {
+      if (this.error.startsWith("CORS blocked")) {
         return;
       }
 
       this.loading = true;
       this.error = "";
       try {
-        const response = await fetch(buildApiUrlWithToken());
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-
-        const json = await response.json();
-        if (json?.status === 401 || json?.status === 403) {
-          const authMessage = json.error ?? "unauthorized";
-          if (authMessage === "missing id token") {
-            throw new Error("AUTH 401: missing id token (GAS must read e.parameter.id_token)");
+        let didRetryMissingIdToken = false;
+        while (true) {
+          const response = await fetch(buildApiUrlWithToken());
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
           }
-          throw new Error(`AUTH ${json.status}: ${authMessage}`);
-        }
 
-        const payload = json?.data ?? json;
-        this.data = normalizePortfolio(payload);
-        this.source = "live";
+          const json = await response.json();
+          if (json?.status === 401 || json?.status === 403) {
+            const authMessage = json.error ?? "unauthorized";
+            if (
+              authMessage === "missing id token"
+              && getGoogleIdToken()
+              && !didRetryMissingIdToken
+            ) {
+              didRetryMissingIdToken = true;
+              continue;
+            }
+
+            if (authMessage === "missing id token") {
+              throw new Error("AUTH 401: missing id token (GAS must read e.parameter.id_token)");
+            }
+
+            throw new Error(`AUTH ${json.status}: ${authMessage}`);
+          }
+
+          const payload = json?.data ?? json;
+          this.data = normalizePortfolio(payload);
+          this.source = "live";
+          break;
+        }
       } catch (error) {
         const message = error?.message ?? "unknown error";
         if (message.startsWith("AUTH ")) {
