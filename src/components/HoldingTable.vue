@@ -45,8 +45,8 @@ function stockPriceUrl(name) {
   return `https://www.google.com/search?q=${encodeURIComponent(`${String(name ?? "")} 株価`)}`;
 }
 
-function isStockNameColumn(column) {
-  return props.title === "株式" && column.key === "銘柄名";
+function isStockNameColumn(column, row) {
+  return column.key === "銘柄名" && row?.["銘柄コード"];
 }
 
 function cellClass(column, row) {
@@ -81,7 +81,7 @@ function cellClass(column, row) {
             :data-label="column.label"
           >
             <a
-              v-if="isStockNameColumn(column)"
+              v-if="isStockNameColumn(column, row)"
               class="stock-link"
               :href="stockPriceUrl(row[column.key])"
               target="_blank"
