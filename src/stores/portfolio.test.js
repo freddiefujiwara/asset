@@ -40,7 +40,7 @@ describe("portfolio store", () => {
     expect(store.data.totals.liabilitiesYen).toBe(200);
   });
 
-  it("sends bearer token when localStorage has google id token", async () => {
+  it("sends token as query param when localStorage has google id token", async () => {
     globalThis.localStorage.getItem.mockReturnValue("token-123");
     const fetchMock = vi.fn().mockResolvedValue(successResponse({ breakdown: [] }));
     vi.stubGlobal("fetch", fetchMock);
@@ -48,13 +48,11 @@ describe("portfolio store", () => {
     const store = usePortfolioStore();
     await store.fetchPortfolio();
 
-    expect(fetchMock).toHaveBeenCalledWith(expect.any(String), {
-      headers: { Authorization: "Bearer token-123" },
-    });
+    const calledUrl = fetchMock.mock.calls[0][0];
+    expect(calledUrl).toContain("id_token=token-123");
   });
 
-
-  it("shows cors error and does not fallback to mock when bearer request is blocked", async () => {
+  it("shows cors error and does not fallback to mock when request is blocked", async () => {
     globalThis.localStorage.getItem.mockReturnValue("token-123");
     const fetchMock = vi.fn().mockRejectedValue(new TypeError("Failed to fetch"));
     vi.stubGlobal("fetch", fetchMock);
@@ -63,12 +61,9 @@ describe("portfolio store", () => {
     await store.fetchPortfolio();
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock).toHaveBeenCalledWith(expect.any(String), {
-      headers: { Authorization: "Bearer token-123" },
-    });
     expect(store.source).toBe("");
     expect(store.data).toBe(null);
-    expect(store.error).toContain("CORS blocked Authorization header");
+    expect(store.error).toContain("CORS blocked API request");
   });
 
   it("does not fallback to mock on auth error", async () => {
@@ -88,7 +83,6 @@ describe("portfolio store", () => {
     expect(store.loading).toBe(false);
   });
 
-
   it("does not retry automatically after terminal CORS error", async () => {
     globalThis.localStorage.getItem.mockReturnValue("token-123");
     const fetchMock = vi.fn().mockRejectedValue(new TypeError("Failed to fetch"));
@@ -99,7 +93,7 @@ describe("portfolio store", () => {
     await store.fetchPortfolio();
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(store.error).toContain("CORS blocked Authorization header");
+    expect(store.error).toContain("CORS blocked API request");
   });
 
   it("falls back to mock data when api request fails", async () => {

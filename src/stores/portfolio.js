@@ -5,30 +5,20 @@ import sampleApi from "@/mocks/sampleApi.json";
 const API_URL =
   "https://script.google.com/macros/s/AKfycbxjQAp6rtSCUTz4T5J96_-zCs9Vrae-7uhZXY7ZIukOZP5fs_HIf44aOAfcN3XfPkis/exec";
 const ID_TOKEN_STORAGE_KEY = "asset-google-id-token";
-const DEBUG_UNAUTH_RETRY_ENABLED = import.meta.env.VITE_DEBUG_ALLOW_UNAUTH_RETRY === "true";
 
 function getGoogleIdToken() {
   return globalThis.localStorage?.getItem(ID_TOKEN_STORAGE_KEY) ?? "";
 }
 
-function isCorsLikeNetworkError(error) {
-  const message = (error?.message ?? "").toLowerCase();
-  return message.includes("failed to fetch") || message.includes("networkerror");
-}
-
-async function fetchPortfolioResponse() {
+function buildApiUrlWithToken() {
   const idToken = getGoogleIdToken();
-  const headers = idToken ? { Authorization: `Bearer ${idToken}` } : undefined;
-
-  try {
-    return await fetch(API_URL, { headers });
-  } catch (error) {
-    if (!idToken || !DEBUG_UNAUTH_RETRY_ENABLED || !isCorsLikeNetworkError(error)) {
-      throw error;
-    }
-
-    return await fetch(API_URL);
+  if (!idToken) {
+    return API_URL;
   }
+
+  const url = new URL(API_URL);
+  url.searchParams.set("id_token", idToken);
+  return url.toString();
 }
 
 export const usePortfolioStore = defineStore("portfolio", {
@@ -50,7 +40,7 @@ export const usePortfolioStore = defineStore("portfolio", {
       this.loading = true;
       this.error = "";
       try {
-        const response = await fetchPortfolioResponse();
+        const response = await fetch(buildApiUrlWithToken());
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
         }
@@ -72,8 +62,8 @@ export const usePortfolioStore = defineStore("portfolio", {
           return;
         }
 
-        if (getGoogleIdToken() && isCorsLikeNetworkError(error)) {
-          this.error = "CORS blocked Authorization header. Check GAS deployment CORS settings.";
+        if (getGoogleIdToken() && message.toLowerCase().includes("failed to fetch")) {
+          this.error = "CORS blocked API request. Ensure GAS doGet returns Access-Control-Allow-Origin.";
           this.data = null;
           this.source = "";
           return;

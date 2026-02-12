@@ -275,9 +275,9 @@ Possible side effects while DEBUG mode is enabled:
 - Anyone who can access the API endpoint may be able to view data without Google login.
 - The login gate can be bypassed when API data is returned with `200`.
 - Non-auth API failures still fall back to mock data, which can hide temporary API outages.
-- If the API does not allow `Authorization` header preflight on your origin, browser CORS can block bearer requests.
-  - Default behavior: show a CORS error and stop (no mock fallback) to avoid hiding production auth/CORS misconfiguration.
-  - Optional debug-only fallback: set `VITE_DEBUG_ALLOW_UNAUTH_RETRY=true` to retry once without bearer header.
+- If GAS CORS settings are missing, browser requests are blocked and this SPA shows a CORS error (no mock fallback for signed-in flows).
+- This SPA now sends the ID token as `id_token` query parameter to avoid `Authorization` preflight issues on custom domains.
+- GAS should validate `id_token` from query string the same way it validated bearer tokens before (`iss`/`aud`/`exp`/`email_verified` + allowlist).
 
 For production, disable DEBUG mode in GAS and rely on server-side allowlist checks (`iss`/`aud`/`exp`/`email_verified` + allowed Gmail list).
 
@@ -287,11 +287,8 @@ Set this in `.env.local` when using Google login UI:
 
 ```bash
 VITE_GOOGLE_CLIENT_ID=your-web-client-id.apps.googleusercontent.com
-# optional, DEBUG mode only
-# VITE_DEBUG_ALLOW_UNAUTH_RETRY=true
 ```
 
-For gh-pages builds via GitHub Actions, add `VITE_DEBUG_ALLOW_UNAUTH_RETRY` as a Repository Variable only if you intentionally want debug fallback behavior in deployed builds.
 
 ---
 
