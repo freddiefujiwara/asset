@@ -5,6 +5,7 @@ import sampleApi from "@/mocks/sampleApi.json";
 const API_URL =
   "https://script.google.com/macros/s/AKfycbxjQAp6rtSCUTz4T5J96_-zCs9Vrae-7uhZXY7ZIukOZP5fs_HIf44aOAfcN3XfPkis/exec";
 const ID_TOKEN_STORAGE_KEY = "asset-google-id-token";
+const DEBUG_UNAUTH_RETRY_ENABLED = import.meta.env.VITE_DEBUG_ALLOW_UNAUTH_RETRY === "true";
 
 function getGoogleIdToken() {
   return globalThis.localStorage?.getItem(ID_TOKEN_STORAGE_KEY) ?? "";
@@ -22,7 +23,7 @@ async function fetchPortfolioResponse() {
   try {
     return await fetch(API_URL, { headers });
   } catch (error) {
-    if (!idToken || !isCorsLikeNetworkError(error)) {
+    if (!idToken || !DEBUG_UNAUTH_RETRY_ENABLED || !isCorsLikeNetworkError(error)) {
       throw error;
     }
 
@@ -59,6 +60,13 @@ export const usePortfolioStore = defineStore("portfolio", {
         const message = error?.message ?? "unknown error";
         if (message.startsWith("AUTH ")) {
           this.error = message;
+          this.data = null;
+          this.source = "";
+          return;
+        }
+
+        if (getGoogleIdToken() && isCorsLikeNetworkError(error)) {
+          this.error = "CORS blocked Authorization header. Check GAS deployment CORS settings.";
           this.data = null;
           this.source = "";
           return;

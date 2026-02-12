@@ -54,23 +54,21 @@ describe("portfolio store", () => {
   });
 
 
-  it("retries without bearer header when preflight is blocked", async () => {
+  it("shows cors error and does not fallback to mock when bearer request is blocked", async () => {
     globalThis.localStorage.getItem.mockReturnValue("token-123");
-    const fetchMock = vi
-      .fn()
-      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
-      .mockResolvedValueOnce(successResponse({ breakdown: [] }));
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError("Failed to fetch"));
     vi.stubGlobal("fetch", fetchMock);
 
     const store = usePortfolioStore();
     await store.fetchPortfolio();
 
-    expect(fetchMock).toHaveBeenNthCalledWith(1, expect.any(String), {
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(expect.any(String), {
       headers: { Authorization: "Bearer token-123" },
     });
-    expect(fetchMock).toHaveBeenNthCalledWith(2, expect.any(String));
-    expect(store.source).toBe("live");
-    expect(store.error).toBe("");
+    expect(store.source).toBe("");
+    expect(store.data).toBe(null);
+    expect(store.error).toContain("CORS blocked Authorization header");
   });
 
   it("does not fallback to mock on auth error", async () => {

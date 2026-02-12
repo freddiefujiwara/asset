@@ -276,7 +276,8 @@ Possible side effects while DEBUG mode is enabled:
 - The login gate can be bypassed when API data is returned with `200`.
 - Non-auth API failures still fall back to mock data, which can hide temporary API outages.
 - If the API does not allow `Authorization` header preflight on your origin, browser CORS can block bearer requests.
-  - This SPA retries once without the bearer header when it detects a preflight-like network failure, so DEBUG-mode APIs can still be viewed.
+  - Default behavior: show a CORS error and stop (no mock fallback) to avoid hiding production auth/CORS misconfiguration.
+  - Optional debug-only fallback: set `VITE_DEBUG_ALLOW_UNAUTH_RETRY=true` to retry once without bearer header.
 
 For production, disable DEBUG mode in GAS and rely on server-side allowlist checks (`iss`/`aud`/`exp`/`email_verified` + allowed Gmail list).
 
@@ -286,6 +287,8 @@ Set this in `.env.local` when using Google login UI:
 
 ```bash
 VITE_GOOGLE_CLIENT_ID=your-web-client-id.apps.googleusercontent.com
+# optional, DEBUG mode only
+# VITE_DEBUG_ALLOW_UNAUTH_RETRY=true
 ```
 
 ---
