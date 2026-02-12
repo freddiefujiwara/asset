@@ -64,7 +64,12 @@ const configs = HOLDING_TABLE_CONFIGS;
             :key="`${tile.name}-${tile.value}`"
             class="stock-tile"
             :class="tile.isNegative ? 'is-negative-box' : 'is-positive-box'"
-            :style="{ '--col-span': tile.columnSpan, '--row-span': tile.rowSpan }"
+            :style="{
+              left: `${tile.x}%`,
+              top: `${tile.y}%`,
+              width: `${tile.width}%`,
+              height: `${tile.height}%`,
+            }"
           >
             <p class="stock-tile-name">{{ tile.name }}</p>
             <p class="stock-tile-value amount-value">{{ formatYen(tile.value) }}</p>

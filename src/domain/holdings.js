@@ -115,19 +115,57 @@ export function stockTiles(stocks) {
       return b.value - a.value;
     });
 
-  const maxValue = prepared[0]?.value ?? 1;
+  if (!prepared.length) {
+    return [];
+  }
 
-  return prepared.map((entry) => {
-    const width = Math.max(2, Math.round((entry.value / maxValue) * 12));
-    const columnSpan = Math.min(12, width);
+  const layouted = [];
+  layoutTreemap(prepared, 0, 0, 100, 100, layouted);
 
-    return {
-      name: entry.row?.["銘柄名"] ?? entry.row?.["銘柄コード"] ?? "名称未設定",
-      value: entry.value,
-      dailyChange: entry.dailyChange,
-      columnSpan,
-      rowSpan: columnSpan >= 8 ? 2 : 1,
-      isNegative: entry.dailyChange != null && entry.dailyChange < 0,
-    };
-  });
+  return layouted.map((entry) => ({
+    name: entry.row?.["銘柄名"] ?? entry.row?.["銘柄コード"] ?? "名称未設定",
+    value: entry.value,
+    dailyChange: entry.dailyChange,
+    isNegative: entry.dailyChange != null && entry.dailyChange < 0,
+    x: entry.x,
+    y: entry.y,
+    width: entry.width,
+    height: entry.height,
+  }));
+}
+
+function layoutTreemap(items, x, y, width, height, output) {
+  if (!items.length) {
+    return;
+  }
+
+  if (items.length === 1) {
+    output.push({ ...items[0], x, y, width, height });
+    return;
+  }
+
+  const total = items.reduce((sum, item) => sum + item.value, 0);
+  const target = total / 2;
+
+  let splitIndex = 1;
+  let leftSum = items[0].value;
+  while (splitIndex < items.length - 1 && leftSum < target) {
+    leftSum += items[splitIndex].value;
+    splitIndex += 1;
+  }
+
+  const leftItems = items.slice(0, splitIndex);
+  const rightItems = items.slice(splitIndex);
+  const leftRatio = leftSum / total;
+
+  if (width >= height) {
+    const leftWidth = width * leftRatio;
+    layoutTreemap(leftItems, x, y, leftWidth, height, output);
+    layoutTreemap(rightItems, x + leftWidth, y, width - leftWidth, height, output);
+    return;
+  }
+
+  const topHeight = height * leftRatio;
+  layoutTreemap(leftItems, x, y, width, topHeight, output);
+  layoutTreemap(rightItems, x, y + topHeight, width, height - topHeight, output);
 }

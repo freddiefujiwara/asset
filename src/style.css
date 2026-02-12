@@ -390,11 +390,7 @@ td {
   }
 
   .stock-tile-grid {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-  }
-
-  .stock-tile {
-    grid-column: span min(var(--col-span), 6);
+    aspect-ratio: 4 / 3;
   }
 }
 
@@ -449,21 +445,23 @@ td {
 }
 
 .stock-tile-grid {
-  display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 8px;
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 5;
+  min-height: 260px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--surface-elevated);
 }
 
 .stock-tile {
-  grid-column: span var(--col-span);
-  grid-row: span var(--row-span);
-  border-radius: 8px;
-  border: 1px solid color-mix(in oklab, var(--border), #ffffff 8%);
+  position: absolute;
+  border: 1px solid color-mix(in oklab, var(--border), #ffffff 14%);
   padding: 10px;
-  min-height: 76px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  overflow: hidden;
 }
 
 .stock-tile-name,

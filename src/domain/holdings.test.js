@@ -38,15 +38,15 @@ describe("holdings domain", () => {
       name: "A",
       value: 200,
       isNegative: false,
-      columnSpan: 12,
-      rowSpan: 2,
     });
     expect(tiles[1]).toMatchObject({
       name: "B",
       value: 100,
       isNegative: true,
-      columnSpan: 6,
-      rowSpan: 1,
     });
+
+    const firstArea = tiles[0].width * tiles[0].height;
+    const secondArea = tiles[1].width * tiles[1].height;
+    expect(Math.round((firstArea / secondArea) * 10) / 10).toBe(2);
   });
 });
