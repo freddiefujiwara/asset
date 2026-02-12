@@ -1,7 +1,36 @@
 import { toNumber } from "./parse";
 
+const DAILY_CHANGE_KEYS = [
+  "前日比",
+  "前日からの値動き",
+  "前日損益",
+  "前日比損益",
+  "評価損益",
+  "当日損益",
+];
+
 export function formatYen(value) {
   return `¥${toNumber(value).toLocaleString("ja-JP")}`;
+}
+
+export function formatSignedYen(value) {
+  const amount = toNumber(value);
+  const sign = amount > 0 ? "+" : amount < 0 ? "-" : "±";
+  return `${sign}¥${Math.abs(amount).toLocaleString("ja-JP")}`;
+}
+
+export function dailyChangeYen(row) {
+  if (!row || typeof row !== "object") {
+    return null;
+  }
+
+  for (const key of DAILY_CHANGE_KEYS) {
+    if (key in row) {
+      return toNumber(row[key]);
+    }
+  }
+
+  return null;
 }
 
 export function holdingRowKey(row) {
