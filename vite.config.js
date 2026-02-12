@@ -28,5 +28,21 @@ export default defineConfig({
         statements: 100,
       },
     },
+    coverage: {
+      provider: "v8",
+      reportsDirectory: "./coverage",
+      reporter: ["text", "html"],
+      include: [
+        "src/domain/**/*.js",
+        "src/stores/**/*.js",
+      ],
+      all: true,
+      thresholds: {
+        lines: 100,
+        functions: 100,
+        branches: 100,
+        statements: 100,
+      },
+    },
   },
 });

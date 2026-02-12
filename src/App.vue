@@ -2,6 +2,119 @@
 import { RouterLink, RouterView } from "vue-router";
 import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { usePortfolioStore } from "@/stores/portfolio";
+const ID_TOKEN_STORAGE_KEY = "asset-google-id-token";
+const idToken = ref("");
+const googleReady = ref(false);
+const googleButtonRoot = ref(null);
+
+const portfolioStore = usePortfolioStore();
+const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
+const hasGoogleClientId = computed(() => Boolean(googleClientId));
+const authError = computed(() => portfolioStore.error.startsWith("AUTH "));
+const hasData = computed(() => Boolean(portfolioStore.data));
+const initialLoading = computed(() => portfolioStore.loading && !hasData.value);
+const canUseApp = computed(() => hasData.value || Boolean(idToken.value));
+const needsLogin = computed(() => !initialLoading.value && !canUseApp.value && authError.value);
+const showLoginGate = computed(() => !initialLoading.value && !canUseApp.value);
+function readSavedToken() {
+  idToken.value = localStorage.getItem(ID_TOKEN_STORAGE_KEY) || "";
+}
+
+function clearPortfolioState() {
+  portfolioStore.data = null;
+  portfolioStore.error = "";
+  portfolioStore.source = "";
+}
+
+function logout() {
+  localStorage.removeItem(ID_TOKEN_STORAGE_KEY);
+  idToken.value = "";
+  clearPortfolioState();
+  portfolioStore.fetchPortfolio();
+}
+
+function handleGoogleCredential(response) {
+  const credential = response?.credential;
+  if (!credential) {
+    return;
+  }
+  localStorage.setItem(ID_TOKEN_STORAGE_KEY, credential);
+  idToken.value = credential;
+  portfolioStore.fetchPortfolio();
+}
+
+function renderGoogleButton() {
+  if (!googleReady.value || !googleButtonRoot.value) {
+    return;
+  }
+
+  if (!googleClientId || !window.google?.accounts?.id) {
+    return;
+  }
+
+  googleButtonRoot.value.innerHTML = "";
+  window.google.accounts.id.initialize({
+    client_id: googleClientId,
+    callback: handleGoogleCredential,
+  });
+  window.google.accounts.id.renderButton(googleButtonRoot.value, {
+    theme: "outline",
+    size: "large",
+    text: "signin_with",
+    shape: "pill",
+  });
+}
+
+function loadGoogleScript() {
+  if (window.google?.accounts?.id) {
+    googleReady.value = true;
+    return;
+  }
+
+  const script = document.createElement("script");
+  script.src = "https://accounts.google.com/gsi/client";
+  script.async = true;
+  script.defer = true;
+  script.onload = () => {
+    googleReady.value = true;
+    renderGoogleButton();
+  };
+  document.head.appendChild(script);
+}
+
+  readSavedToken();
+  loadGoogleScript();
+  if (!portfolioStore.data && !portfolioStore.error) {
+    portfolioStore.fetchPortfolio();
+  }
+
+
+watch(
+  () => [googleReady.value, showLoginGate.value],
+  async () => {
+    await nextTick();
+    if (showLoginGate.value) {
+      renderGoogleButton();
+    }
+  },
+  { immediate: true },
+);
+          <button v-if="idToken" class="theme-toggle" type="button" @click="logout">
+            ログアウト
+          </button>
+      <p v-if="initialLoading">読み込み中...</p>
+      <section v-else-if="showLoginGate" class="table-wrap auth-gate">
+        <h2 class="section-title">Googleログインが必要です</h2>
+        <p class="meta">許可されたアカウントでサインインしてください。</p>
+        <p v-if="authError" class="error">
+          認証エラーが発生しました。別アカウントで再ログインしてください。({{ portfolioStore.error }})
+        </p>
+        <div ref="googleButtonRoot" class="google-login-button"></div>
+        <p v-if="!hasGoogleClientId" class="error">
+          VITE_GOOGLE_CLIENT_ID が未設定です。
+        </p>
+      </section>
+      <RouterView v-else />
 
 const THEME_STORAGE_KEY = "asset-theme";
 const PRIVACY_STORAGE_KEY = "asset-privacy";

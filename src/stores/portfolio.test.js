@@ -19,6 +19,82 @@ describe("portfolio store", () => {
       setItem: vi.fn(),
       removeItem: vi.fn(),
     });
+  it("sends token as query param when localStorage has google id token", async () => {
+    globalThis.localStorage.getItem.mockReturnValue("token-123");
+    const fetchMock = vi.fn().mockResolvedValue(successResponse({ breakdown: [] }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const store = usePortfolioStore();
+    await store.fetchPortfolio();
+
+    const calledUrl = fetchMock.mock.calls[0][0];
+    expect(calledUrl).toContain("id_token=token-123");
+  });
+
+  it("shows cors error and does not fallback to mock when request is blocked", async () => {
+    globalThis.localStorage.getItem.mockReturnValue("token-123");
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError("Failed to fetch"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const store = usePortfolioStore();
+    await store.fetchPortfolio();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(store.source).toBe("");
+    expect(store.data).toBe(null);
+    expect(store.error).toContain("CORS blocked API request");
+  });
+
+  it("does not fallback to mock on auth error", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        successResponse({ status: 403, error: "forbidden email" }),
+      ),
+    );
+
+    const store = usePortfolioStore();
+    await store.fetchPortfolio();
+
+    expect(store.source).toBe("");
+    expect(store.error).toContain("AUTH 403");
+    expect(store.data).toBe(null);
+    expect(store.loading).toBe(false);
+  });
+
+  it("does not retry automatically after terminal CORS error", async () => {
+    globalThis.localStorage.getItem.mockReturnValue("token-123");
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError("Failed to fetch"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const store = usePortfolioStore();
+    await store.fetchPortfolio();
+    await store.fetchPortfolio();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(store.error).toContain("CORS blocked API request");
+  });
+
+
+  it("shows guidance when GAS still expects bearer token", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(successResponse({ status: 401, error: "missing id token" })),
+    );
+
+    const store = usePortfolioStore();
+    await store.fetchPortfolio();
+
+    expect(store.source).toBe("");
+    expect(store.data).toBe(null);
+    expect(store.error).toContain("GAS must read e.parameter.id_token");
+  });
+
+    vi.stubGlobal("localStorage", {
+      getItem: vi.fn().mockReturnValue(""),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+    });
   });
 
   it("loads live data when api request succeeds", async () => {

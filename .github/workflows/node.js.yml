@@ -24,6 +24,8 @@ jobs:
     - run: npm run build
       env:
         VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
+      env:
+        VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
     - name: Generate OGP Image from GAS JSON
       run: |
         # URL-encoded title: Asset

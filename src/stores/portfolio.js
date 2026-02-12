@@ -20,6 +20,54 @@ function buildApiUrlWithToken() {
   url.searchParams.set("id_token", idToken);
   return url.toString();
 }
+      if (this.loading) {
+        return;
+      }
+      if (this.error.startsWith("AUTH ") || this.error.startsWith("CORS blocked")) {
+        return;
+      }
+
+        const response = await fetch(buildApiUrlWithToken());
+
+        if (json?.status === 401 || json?.status === 403) {
+          const authMessage = json.error ?? "unauthorized";
+          if (authMessage === "missing id token") {
+            throw new Error("AUTH 401: missing id token (GAS must read e.parameter.id_token)");
+          }
+          throw new Error(`AUTH ${json.status}: ${authMessage}`);
+        }
+
+        const payload = json?.data ?? json;
+        this.data = normalizePortfolio(payload);
+        const message = error?.message ?? "unknown error";
+        if (message.startsWith("AUTH ")) {
+          this.error = message;
+          this.data = null;
+          this.source = "";
+          return;
+        }
+
+        if (getGoogleIdToken() && message.toLowerCase().includes("failed to fetch")) {
+          this.error = "CORS blocked API request. Ensure GAS doGet returns Access-Control-Allow-Origin.";
+          this.data = null;
+          this.source = "";
+          return;
+        }
+
+        this.error = `${message} (fallback to mock)`;
+  return globalThis.localStorage?.getItem(ID_TOKEN_STORAGE_KEY) ?? "";
+}
+
+function buildApiUrlWithToken() {
+  const idToken = getGoogleIdToken();
+  if (!idToken) {
+    return API_URL;
+  }
+
+  const url = new URL(API_URL);
+  url.searchParams.set("id_token", idToken);
+  return url.toString();
+}
 
 export const usePortfolioStore = defineStore("portfolio", {
   state: () => ({
