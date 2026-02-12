@@ -88,6 +88,20 @@ describe("portfolio store", () => {
     expect(store.loading).toBe(false);
   });
 
+
+  it("does not retry automatically after terminal CORS error", async () => {
+    globalThis.localStorage.getItem.mockReturnValue("token-123");
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError("Failed to fetch"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const store = usePortfolioStore();
+    await store.fetchPortfolio();
+    await store.fetchPortfolio();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(store.error).toContain("CORS blocked Authorization header");
+  });
+
   it("falls back to mock data when api request fails", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network down")));
 

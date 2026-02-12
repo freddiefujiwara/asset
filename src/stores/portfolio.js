@@ -40,6 +40,13 @@ export const usePortfolioStore = defineStore("portfolio", {
   }),
   actions: {
     async fetchPortfolio() {
+      if (this.loading) {
+        return;
+      }
+      if (this.error.startsWith("AUTH ") || this.error.startsWith("CORS blocked")) {
+        return;
+      }
+
       this.loading = true;
       this.error = "";
       try {

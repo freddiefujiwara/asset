@@ -122,7 +122,7 @@ onMounted(() => {
 
   readSavedToken();
   loadGoogleScript();
-  if (!portfolioStore.data) {
+  if (!portfolioStore.data && !portfolioStore.error) {
     portfolioStore.fetchPortfolio();
   }
 
