@@ -107,7 +107,7 @@ const configs = [
     <section class="table-wrap">
       <h3 class="section-title">株式・投信サマリー</h3>
       <div class="summary-row">
-        <span>評価額合計: <strong>{{ formatYen(stocksAndFundsTotal) }}</strong></span>
+        <span>評価額合計: <strong class="amount-value">{{ formatYen(stocksAndFundsTotal) }}</strong></span>
         <span>
           前日比合計:
           <strong :class="dailyMoveClass">

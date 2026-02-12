@@ -66,6 +66,13 @@ body {
   gap: 12px;
 }
 
+.header-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .nav {
   display: flex;
   flex-wrap: wrap;
@@ -170,6 +177,11 @@ td {
   .header-actions {
     justify-content: space-between;
     flex-wrap: wrap;
+  }
+
+  .header-buttons {
+    width: 100%;
+    justify-content: flex-start;
   }
 
   .theme-toggle {
@@ -361,4 +373,10 @@ td {
 
 .is-negative {
   color: #f87171;
+}
+
+
+:root[data-private="on"] .amount-value {
+  filter: blur(0.34rem);
+  user-select: none;
 }

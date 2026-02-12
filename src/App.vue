@@ -2,31 +2,55 @@
 import { RouterLink, RouterView } from "vue-router";
 import { computed, onMounted, ref, watch } from "vue";
 
-const STORAGE_KEY = "asset-theme";
+const THEME_STORAGE_KEY = "asset-theme";
+const PRIVACY_STORAGE_KEY = "asset-privacy";
+
 const theme = ref("dark");
+const privacyMode = ref(false);
 
 const isDark = computed(() => theme.value === "dark");
 const themeLabel = computed(() => (isDark.value ? "ライト" : "ダーク"));
+const privacyLabel = computed(() => (privacyMode.value ? "金額表示" : "金額モザイク"));
 
 const applyTheme = (nextTheme) => {
   document.documentElement.setAttribute("data-theme", nextTheme);
+};
+
+const applyPrivacy = (enabled) => {
+  document.documentElement.setAttribute("data-private", enabled ? "on" : "off");
 };
 
 const toggleTheme = () => {
   theme.value = isDark.value ? "light" : "dark";
 };
 
+const togglePrivacy = () => {
+  privacyMode.value = !privacyMode.value;
+};
+
 onMounted(() => {
-  const savedTheme = localStorage.getItem(STORAGE_KEY);
+  const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
   if (savedTheme === "light" || savedTheme === "dark") {
     theme.value = savedTheme;
   }
+
+  const savedPrivacy = localStorage.getItem(PRIVACY_STORAGE_KEY);
+  if (savedPrivacy === "on") {
+    privacyMode.value = true;
+  }
+
   applyTheme(theme.value);
+  applyPrivacy(privacyMode.value);
 });
 
 watch(theme, (nextTheme) => {
-  localStorage.setItem(STORAGE_KEY, nextTheme);
+  localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
   applyTheme(nextTheme);
+});
+
+watch(privacyMode, (enabled) => {
+  localStorage.setItem(PRIVACY_STORAGE_KEY, enabled ? "on" : "off");
+  applyPrivacy(enabled);
 });
 </script>
 
@@ -40,9 +64,14 @@ watch(theme, (nextTheme) => {
           <RouterLink to="/holdings">Holdings</RouterLink>
           <RouterLink to="/family-assets">Family</RouterLink>
         </nav>
-        <button class="theme-toggle" type="button" @click="toggleTheme">
-          {{ themeLabel }}モードへ
-        </button>
+        <div class="header-buttons">
+          <button class="theme-toggle" type="button" @click="togglePrivacy">
+            {{ privacyLabel }}
+          </button>
+          <button class="theme-toggle" type="button" @click="toggleTheme">
+            {{ themeLabel }}モードへ
+          </button>
+        </div>
       </div>
     </header>
     <main>

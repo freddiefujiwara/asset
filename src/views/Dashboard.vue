@@ -46,15 +46,15 @@ onMounted(() => {
       <div class="balance-grid">
         <article class="balance-item">
           <h3>総資産</h3>
-          <p>{{ formatYen(totals.assetsYen) }}</p>
+          <p class="amount-value">{{ formatYen(totals.assetsYen) }}</p>
         </article>
         <article class="balance-item">
           <h3>総負債</h3>
-          <p>{{ formatYen(totals.liabilitiesYen) }}</p>
+          <p class="amount-value">{{ formatYen(totals.liabilitiesYen) }}</p>
         </article>
         <article class="balance-item net-worth">
           <h3>純資産</h3>
-          <p>{{ formatYen(totals.netWorthYen) }}</p>
+          <p class="amount-value">{{ formatYen(totals.netWorthYen) }}</p>
         </article>
       </div>
     </section>
@@ -77,7 +77,7 @@ onMounted(() => {
         <tbody>
           <tr v-for="item in assetsByClass" :key="item.name">
             <td>{{ item.name }}</td>
-            <td>{{ formatYen(item.amountYen) }}</td>
+            <td><span class="amount-value">{{ formatYen(item.amountYen) }}</span></td>
             <td>{{ item.percentage }}</td>
           </tr>
         </tbody>
@@ -97,7 +97,7 @@ onMounted(() => {
         <tbody>
           <tr v-for="item in liabilitiesByCategory" :key="item.category">
             <td>{{ item.category }}</td>
-            <td>{{ formatYen(item.amountYen) }}</td>
+            <td><span class="amount-value">{{ formatYen(item.amountYen) }}</span></td>
             <td>{{ item.percentage }}</td>
           </tr>
         </tbody>

@@ -32,7 +32,7 @@ const totalDailyClass = computed(() =>
     <section class="table-wrap">
       <h3 class="section-title">株式・投信サマリー（家族合算）</h3>
       <div class="summary-row">
-        <span>評価額合計: <strong>{{ formatYen(totalStockFund) }}</strong></span>
+        <span>評価額合計: <strong class="amount-value">{{ formatYen(totalStockFund) }}</strong></span>
         <span>
           前日比合計:
           <strong :class="totalDailyClass">
@@ -45,8 +45,8 @@ const totalDailyClass = computed(() =>
     <div class="card-grid">
       <article v-for="group in familyGroups" :key="group.ownerLabel" class="card">
         <h3>{{ group.ownerLabel }}の資産</h3>
-        <p>{{ formatYen(group.totalYen) }}</p>
-        <p class="meta">株・投信: {{ formatYen(group.stockFundYen) }}</p>
+        <p class="amount-value">{{ formatYen(group.totalYen) }}</p>
+        <p class="meta">株・投信: <span class="amount-value">{{ formatYen(group.stockFundYen) }}</span></p>
         <p class="meta">
           前日比:
           <strong :class="group.dailyMoveYen > 0 ? 'is-positive' : group.dailyMoveYen < 0 ? 'is-negative' : ''">
@@ -73,7 +73,7 @@ const totalDailyClass = computed(() =>
             <td data-label="種別">{{ item.type }}</td>
             <td data-label="名称">{{ item.name }}</td>
             <td data-label="金融機関">{{ item.institution }}</td>
-            <td data-label="金額">{{ formatYen(item.amountYen) }}</td>
+            <td data-label="金額"><span class="amount-value">{{ formatYen(item.amountYen) }}</span></td>
             <td
               data-label="前日比"
               :class="item.dailyMoveYen > 0 ? 'is-positive' : item.dailyMoveYen < 0 ? 'is-negative' : ''"

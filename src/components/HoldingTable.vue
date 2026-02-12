@@ -13,6 +13,15 @@ const safeRows = computed(() => (Array.isArray(props.rows) ? props.rows : []));
 const amountLikePattern = /金額|残高|評価額|価値/i;
 const nonAmountPattern = /コード|率|割合/i;
 
+function isAmountColumn(column) {
+  if (column.key === "__dailyChange") {
+    return false;
+  }
+
+  const keyLabel = `${column.key}${column.label}`;
+  return amountLikePattern.test(keyLabel) && !nonAmountPattern.test(keyLabel);
+}
+
 function formatCell(column, row) {
   if (column.key === "__dailyChange") {
     const daily = dailyChangeYen(row);
@@ -24,10 +33,7 @@ function formatCell(column, row) {
     return "-";
   }
 
-  const keyLabel = `${column.key}${column.label}`;
-  const shouldFormatAmount = amountLikePattern.test(keyLabel) && !nonAmountPattern.test(keyLabel);
-
-  if (!shouldFormatAmount) {
+  if (!isAmountColumn(column)) {
     return rawValue;
   }
 
@@ -65,7 +71,7 @@ function cellClass(column, row) {
             :class="cellClass(column, row)"
             :data-label="column.label"
           >
-            {{ formatCell(column, row) }}
+            <span :class="isAmountColumn(column) ? 'amount-value' : ''">{{ formatCell(column, row) }}</span>
           </td>
         </tr>
       </tbody>
