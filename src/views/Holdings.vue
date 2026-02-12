@@ -15,6 +15,17 @@ const { data, loading, error } = storeToRefs(store);
 let pendingInitialHash = "";
 let restoredInitialHash = false;
 
+function scrollToPendingHash() {
+  if (!pendingInitialHash) {
+    return;
+  }
+
+  const target = document.querySelector(pendingInitialHash);
+  if (target) {
+    target.scrollIntoView({ block: "start" });
+  }
+}
+
 async function restoreInitialHashIfReady() {
   if (restoredInitialHash || !pendingInitialHash || loading.value || !data.value) {
     return;
@@ -23,6 +34,8 @@ async function restoreInitialHashIfReady() {
   restoredInitialHash = true;
   await nextTick();
   await router.replace({ path: route.path, hash: pendingInitialHash });
+  await nextTick();
+  scrollToPendingHash();
 }
 
 onMounted(async () => {
