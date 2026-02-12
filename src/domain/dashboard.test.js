@@ -48,4 +48,15 @@ describe("balanceSheetLayout", () => {
     expect(layout.liabilitiesHeightPct).toBe(0);
     expect(layout.netWorthHeightPct).toBe(100);
   });
+
+  it("handles case where rightTotal is zero but total is positive", () => {
+    const layout = balanceSheetLayout({
+      assetsYen: 1000,
+      liabilitiesYen: 0,
+      netWorthYen: 0,
+    });
+
+    expect(layout.assetsWidthPct).toBe(100);
+    expect(layout.liabilitiesHeightPct).toBe(50);
+  });
 });

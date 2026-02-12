@@ -172,7 +172,83 @@ describe("portfolio store", () => {
     await store.fetchPortfolio();
 
     expect(store.source).toBe("mock");
+    expect(store.source).toBe("mock");
     expect(store.error).toContain("HTTP 503");
     expect(store.loading).toBe(false);
   });
+
+  it("returns early if already loading", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Promise(() => {})); // never resolves
+    vi.stubGlobal("fetch", fetchMock);
+
+    const store = usePortfolioStore();
+    const firstCall = store.fetchPortfolio();
+    expect(store.loading).toBe(true);
+
+    const secondCall = store.fetchPortfolio();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await secondCall;
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("handles payload in data property", async () => {
+    const payload = {
+      data: {
+        breakdown: [],
+        "total-liability": [],
+      }
+    };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(successResponse(payload)));
+    const store = usePortfolioStore();
+    await store.fetchPortfolio();
+    expect(store.source).toBe("live");
+  });
+
+  it("handles errors without message", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue({})); // No .message
+    const store = usePortfolioStore();
+    await store.fetchPortfolio();
+    expect(store.error).toContain("unknown error");
+  });
+
+  it("falls back to mock if Failed to Fetch occurs without token", async () => {
+    globalThis.localStorage.getItem.mockReturnValue("");
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
+    const store = usePortfolioStore();
+    await store.fetchPortfolio();
+    expect(store.source).toBe("mock");
+  });
+
+  it("handles missing error field in auth response", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(successResponse({ status: 401 })), // no error field
+    );
+    const store = usePortfolioStore();
+    await store.fetchPortfolio();
+    expect(store.error).toContain("unauthorized");
+  });
+
+  it("handles missing localStorage or null token safely", async () => {
+    // Test ?? "" when getItem returns null
+    globalThis.localStorage.getItem.mockReturnValue(null);
+    const fetchMock = vi.fn().mockResolvedValue(successResponse({ breakdown: [] }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const store = usePortfolioStore();
+    await store.fetchPortfolio();
+    expect(fetchMock.mock.calls[0][0]).not.toContain("id_token=");
+
+    // Test globalThis.localStorage?. fallback (by deleting it)
+    const originalLocalStorage = globalThis.localStorage;
+    delete globalThis.localStorage;
+    try {
+      // Need to re-create store or re-trigger buildApiUrlWithToken?
+      // usePortfolioStore is already defined, but getGoogleIdToken is called inside actions
+      await store.fetchPortfolio();
+    } finally {
+      globalThis.localStorage = originalLocalStorage;
+    }
+  });
+
 });

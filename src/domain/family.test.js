@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assetAmountYen, detectAssetOwner, summarizeFamilyAssets } from "./family";
+import { assetAmountYen, detectAssetOwner, summarizeFamilyAssets, assetDisplayName, ownerFromText } from "./family";
 
 describe("family domain", () => {
   it("detects owner suffix", () => {
@@ -48,6 +48,34 @@ describe("family domain", () => {
     expect(groups).toHaveLength(3);
     expect(groups.every((group) => group.totalYen === 0)).toBe(true);
     expect(groups.every((group) => group.profitRatePct === 0)).toBe(true);
+  });
+
+  it("handles null or non-object in detectAssetOwner", () => {
+    expect(detectAssetOwner(null).id).toBe("me");
+    expect(detectAssetOwner("not an object").id).toBe("me");
+  });
+
+  it("handles null or non-object in assetAmountYen", () => {
+    expect(assetAmountYen(null)).toBe(0);
+    expect(assetAmountYen(undefined)).toBe(0);
+  });
+
+  it("returns zero if no amount field found in assetAmountYen", () => {
+    expect(assetAmountYen({ no_amount: "100" })).toBe(0);
+  });
+
+  it("handles null text in ownerFromText", () => {
+    expect(ownerFromText(null).id).toBe("me");
+    expect(ownerFromText(undefined).id).toBe("me");
+  });
+
+  it("falls through all fields in assetDisplayName", () => {
+    expect(assetDisplayName({})).toBe("-");
+    expect(assetDisplayName({ "種類": "TypeA" })).toBe("TypeA");
+    expect(assetDisplayName({ "名称": "NameB" })).toBe("NameB");
+    expect(assetDisplayName({ "銘柄名": "StockC" })).toBe("StockC");
+    expect(assetDisplayName({ "種類・名称": "CategoryD" })).toBe("CategoryD");
+    expect(assetDisplayName({ "名称・説明": "FullE" })).toBe("FullE");
   });
 
 });

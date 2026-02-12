@@ -140,10 +140,6 @@ export function stockTiles(stocks) {
 }
 
 function layoutTreemap(items, x, y, width, height, output) {
-  if (!items.length) {
-    return;
-  }
-
   if (items.length === 1) {
     output.push({ ...items[0], x, y, width, height });
     return;

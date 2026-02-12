@@ -27,7 +27,7 @@ function evaluationProfitRate(row) {
   return toNumber(row["評価損益率"]);
 }
 
-function ownerFromText(text) {
+export function ownerFromText(text) {
   const normalized = String(text ?? "").toLowerCase();
   const matched = OWNER_RULES.find((rule) => normalized.includes(rule.suffix));
   return matched ? { id: matched.id, label: matched.label } : DEFAULT_OWNER;

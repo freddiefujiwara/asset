@@ -56,4 +56,28 @@ describe("normalizePortfolio", () => {
     expect(normalized.holdings.pensions[0]["評価損益"]).toBe("20000");
   });
 
+  it("handles null or non-object in pensions array safely", () => {
+    const api = {
+      details__portfolio_det_pns__t0: [null, "not-an-object"],
+    };
+    const normalized = normalizePortfolio(api);
+    expect(normalized.holdings.pensions[0]).toBeNull();
+    expect(normalized.holdings.pensions[1]).toBe("not-an-object");
+  });
+
+  it("handles null api input", () => {
+    const normalized = normalizePortfolio(null);
+    expect(normalized.totals.assetsYen).toBe(0);
+  });
+
+  it("handles missing category in breakdown items", () => {
+    const api = {
+      breakdown: [{}],
+      "breakdown-liability": [{}],
+    };
+    const normalized = normalizePortfolio(api);
+    expect(normalized.summary.assetsByClass[0].name).toBe("");
+    expect(normalized.summary.liabilitiesByCategory[0].category).toBe("");
+  });
+
 });
