@@ -94,3 +94,40 @@ export function stockFundSummary(holdings) {
     dailyMoveTotal,
   };
 }
+
+export function stockTiles(stocks) {
+  const safeRows = Array.isArray(stocks) ? stocks : [];
+  const prepared = safeRows
+    .map((row, idx) => {
+      const value = toNumber(row?.["評価額"]);
+      return {
+        row,
+        idx,
+        value,
+        dailyChange: dailyChangeYen(row),
+      };
+    })
+    .filter((entry) => entry.value > 0)
+    .sort((a, b) => {
+      if (a.value === b.value) {
+        return a.idx - b.idx;
+      }
+      return b.value - a.value;
+    });
+
+  const maxValue = prepared[0]?.value ?? 1;
+
+  return prepared.map((entry) => {
+    const width = Math.max(2, Math.round((entry.value / maxValue) * 12));
+    const columnSpan = Math.min(12, width);
+
+    return {
+      name: entry.row?.["銘柄名"] ?? entry.row?.["銘柄コード"] ?? "名称未設定",
+      value: entry.value,
+      dailyChange: entry.dailyChange,
+      columnSpan,
+      rowSpan: columnSpan >= 8 ? 2 : 1,
+      isNegative: entry.dailyChange != null && entry.dailyChange < 0,
+    };
+  });
+}
