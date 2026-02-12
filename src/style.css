@@ -470,7 +470,12 @@ td {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  overflow: hidden;
+  overflow: visible;
+}
+
+.stock-tile:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--link), #ffffff 25%);
+  outline-offset: -2px;
 }
 
 .stock-tile-name {
@@ -486,6 +491,32 @@ td {
   line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.stock-tile-tooltip {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  z-index: 2;
+  max-width: min(320px, calc(100vw - 32px));
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: color-mix(in oklab, #020617 88%, var(--surface));
+  color: #f8fafc;
+  border: 1px solid color-mix(in oklab, #ffffff 18%, transparent);
+  font-size: 0.78rem;
+  line-height: 1.35;
+  box-shadow: 0 4px 14px rgb(2 6 23 / 0.35);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(4px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.stock-tile:hover .stock-tile-tooltip,
+.stock-tile:focus-visible .stock-tile-tooltip {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .is-positive-box {

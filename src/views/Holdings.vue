@@ -64,7 +64,7 @@ const configs = HOLDING_TABLE_CONFIGS;
             :key="`${tile.name}-${tile.value}`"
             class="stock-tile"
             :class="tile.isNegative ? 'is-negative-box' : 'is-positive-box'"
-            :title="`${tile.name}\n評価額: ${formatYen(tile.value)}`"
+            tabindex="0"
             :aria-label="`${tile.name} 評価額 ${formatYen(tile.value)}`"
             :style="{
               left: `${tile.x}%`,
@@ -75,6 +75,9 @@ const configs = HOLDING_TABLE_CONFIGS;
             }"
           >
             <p class="stock-tile-name">{{ tile.name }}</p>
+            <span class="stock-tile-tooltip" role="tooltip">
+              {{ tile.name }}<br>評価額: {{ formatYen(tile.value) }}
+            </span>
           </article>
         </div>
       </section>
