@@ -31,6 +31,23 @@ describe("normalizePortfolio", () => {
     expect(normalized.holdings.liabilitiesDetail).toEqual([]);
   });
 
+
+  it("keeps pension profit when value already exists", () => {
+    const normalized = normalizePortfolio({
+      details__portfolio_det_pns__t0: [{ 名称: "Corporate DC", 現在価値: "120000", 評価損益率: "20", 評価損益: "999" }],
+    });
+
+    expect(normalized.holdings.pensions[0]["評価損益"]).toBe("999");
+  });
+
+  it("does not derive pension profit when denominator becomes zero", () => {
+    const normalized = normalizePortfolio({
+      details__portfolio_det_pns__t0: [{ 名称: "Edge", 現在価値: "120000", 評価損益率: "-100" }],
+    });
+
+    expect(normalized.holdings.pensions[0]["評価損益"]).toBeUndefined();
+  });
+
   it("derives pension profit from current value and profit rate", () => {
     const normalized = normalizePortfolio({
       details__portfolio_det_pns__t0: [{ 名称: "iDeCo", 現在価値: "120000", 評価損益率: "20" }],
