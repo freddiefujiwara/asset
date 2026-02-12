@@ -291,6 +291,8 @@ VITE_GOOGLE_CLIENT_ID=your-web-client-id.apps.googleusercontent.com
 # VITE_DEBUG_ALLOW_UNAUTH_RETRY=true
 ```
 
+For gh-pages builds via GitHub Actions, add `VITE_DEBUG_ALLOW_UNAUTH_RETRY` as a Repository Variable only if you intentionally want debug fallback behavior in deployed builds.
+
 ---
 
 ## How to run

@@ -24,6 +24,7 @@ jobs:
     - run: npm run build
       env:
         VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
+        VITE_DEBUG_ALLOW_UNAUTH_RETRY: ${{ vars.VITE_DEBUG_ALLOW_UNAUTH_RETRY }}
     - name: Generate OGP Image from GAS JSON
       run: |
         # URL-encoded title: Asset
