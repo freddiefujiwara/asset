@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from "vue";
 import { dailyChangeYen, formatSignedYen, formatYen, holdingRowKey } from "@/domain/format";
+import { toNumber } from "@/domain/parse";
 
 const props = defineProps({
   rows: { type: Array, default: () => [] },
@@ -56,16 +57,19 @@ function isStockNameColumn(column, row) {
 }
 
 function cellClass(column, row) {
-  if (column.key !== "__dailyChange") {
+  let value = null;
+
+  if (column.key === "__dailyChange") {
+    value = dailyChangeYen(row);
+  } else if (column.key === "評価損益" || column.key === "評価損益率") {
+    value = toNumber(row?.[column.key]);
+  }
+
+  if (value == null || value === 0) {
     return "";
   }
 
-  const daily = dailyChangeYen(row);
-  if (daily == null || daily === 0) {
-    return "";
-  }
-
-  return daily > 0 ? "is-positive" : "is-negative";
+  return value > 0 ? "is-positive" : "is-negative";
 }
 </script>
 

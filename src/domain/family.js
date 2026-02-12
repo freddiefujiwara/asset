@@ -10,6 +10,31 @@ const DEFAULT_OWNER = { id: "me", label: "私" };
 
 const ASSET_FIELD_CANDIDATES = ["残高", "評価額", "現在価値", "現在の価値", "amount_yen", "金額"];
 
+function evaluationProfitYen(row) {
+  if (!row || typeof row !== "object" || !("評価損益" in row)) {
+    return null;
+  }
+
+  return toNumber(row["評価損益"]);
+}
+
+function evaluationProfitRate(row) {
+  if (!row || typeof row !== "object" || !("評価損益率" in row)) {
+    return null;
+  }
+
+  return toNumber(row["評価損益率"]);
+}
+
+function totalProfitRate(stockFundYen, profitYen) {
+  const principal = stockFundYen - profitYen;
+  if (principal === 0) {
+    return stockFundYen === 0 && profitYen === 0 ? 0 : null;
+  }
+
+  return (profitYen / principal) * 100;
+}
+
 function ownerFromText(text) {
   const normalized = String(text ?? "").toLowerCase();
   const matched = OWNER_RULES.find((rule) => normalized.includes(rule.suffix));
@@ -50,9 +75,9 @@ export function assetDisplayName(row) {
 
 export function summarizeFamilyAssets(holdings) {
   const groups = {
-    me: { ownerLabel: "私", totalYen: 0, stockFundYen: 0, dailyMoveYen: 0, hasDailyMove: false, items: [] },
-    wife: { ownerLabel: "妻", totalYen: 0, stockFundYen: 0, dailyMoveYen: 0, hasDailyMove: false, items: [] },
-    daughter: { ownerLabel: "娘", totalYen: 0, stockFundYen: 0, dailyMoveYen: 0, hasDailyMove: false, items: [] },
+    me: { ownerLabel: "私", totalYen: 0, stockFundYen: 0, dailyMoveYen: 0, hasDailyMove: false, profitYen: 0, profitRatePct: null, items: [] },
+    wife: { ownerLabel: "妻", totalYen: 0, stockFundYen: 0, dailyMoveYen: 0, hasDailyMove: false, profitYen: 0, profitRatePct: null, items: [] },
+    daughter: { ownerLabel: "娘", totalYen: 0, stockFundYen: 0, dailyMoveYen: 0, hasDailyMove: false, profitYen: 0, profitRatePct: null, items: [] },
   };
 
   const categories = [
@@ -70,12 +95,16 @@ export function summarizeFamilyAssets(holdings) {
       const owner = detectAssetOwner(row);
       const amountYen = assetAmountYen(row);
       const move = dailyChangeYen(row);
+      const profit = evaluationProfitYen(row);
+      const profitRate = evaluationProfitRate(row);
       const item = {
         type: label,
         name: assetDisplayName(row),
         institution: row?.["保有金融機関"] ?? "-",
         amountYen,
         dailyMoveYen: move,
+        profitYen: profit,
+        profitRatePct: profitRate,
       };
 
       groups[owner.id].totalYen += amountYen;
@@ -85,9 +114,16 @@ export function summarizeFamilyAssets(holdings) {
           groups[owner.id].dailyMoveYen += move;
           groups[owner.id].hasDailyMove = true;
         }
+        if (profit != null) {
+          groups[owner.id].profitYen += profit;
+        }
       }
       groups[owner.id].items.push(item);
     });
+  });
+
+  [groups.me, groups.wife, groups.daughter].forEach((group) => {
+    group.profitRatePct = totalProfitRate(group.stockFundYen, group.profitYen);
   });
 
   return [groups.me, groups.wife, groups.daughter];

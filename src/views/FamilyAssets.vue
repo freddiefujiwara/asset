@@ -21,6 +21,31 @@ const totalDailyMove = computed(() => familyGroups.value.reduce((sum, group) => 
 const totalDailyClass = computed(() =>
   totalDailyMove.value > 0 ? "is-positive" : totalDailyMove.value < 0 ? "is-negative" : "",
 );
+const totalProfitYen = computed(() => familyGroups.value.reduce((sum, group) => sum + group.profitYen, 0));
+const totalProfitClass = computed(() =>
+  totalProfitYen.value > 0 ? "is-positive" : totalProfitYen.value < 0 ? "is-negative" : "",
+);
+const totalProfitRate = computed(() => {
+  const principal = totalStockFund.value - totalProfitYen.value;
+  if (principal === 0) {
+    return totalStockFund.value === 0 && totalProfitYen.value === 0 ? 0 : null;
+  }
+
+  return (totalProfitYen.value / principal) * 100;
+});
+
+function formatSignedPercent(value) {
+  if (value == null) {
+    return "-";
+  }
+
+  const sign = value > 0 ? "+" : value < 0 ? "-" : "±";
+  return `${sign}${Math.abs(value).toFixed(2)}%`;
+}
+
+function signedClass(value) {
+  return value > 0 ? "is-positive" : value < 0 ? "is-negative" : "";
+}
 
 function stockPriceUrl(name) {
   return `https://www.google.com/search?q=${encodeURIComponent(`${String(name ?? "")} 株価`)}`;
@@ -38,6 +63,14 @@ function stockPriceUrl(name) {
       <h3 class="section-title">株式・投信サマリー（家族合算）</h3>
       <div class="summary-row">
         <span>評価額合計: <strong class="amount-value">{{ formatYen(totalStockFund) }}</strong></span>
+        <span>
+          評価損益合計:
+          <strong :class="totalProfitClass">{{ formatSignedYen(totalProfitYen) }}</strong>
+        </span>
+        <span>
+          評価損益率:
+          <strong :class="signedClass(totalProfitRate)">{{ formatSignedPercent(totalProfitRate) }}</strong>
+        </span>
         <span>
           前日比合計:
           <strong :class="totalDailyClass">
@@ -59,8 +92,15 @@ function stockPriceUrl(name) {
         <p class="amount-value">{{ formatYen(group.totalYen) }}</p>
         <p class="meta">株・投信: <span class="amount-value">{{ formatYen(group.stockFundYen) }}</span></p>
         <p class="meta">
+          評価損益: <strong :class="signedClass(group.profitYen)">{{ formatSignedYen(group.profitYen) }}</strong>
+        </p>
+        <p class="meta">
+          評価損益率:
+          <strong :class="signedClass(group.profitRatePct)">{{ formatSignedPercent(group.profitRatePct) }}</strong>
+        </p>
+        <p class="meta">
           前日比:
-          <strong :class="group.dailyMoveYen > 0 ? 'is-positive' : group.dailyMoveYen < 0 ? 'is-negative' : ''">
+          <strong :class="signedClass(group.dailyMoveYen)">
             {{ group.hasDailyMove ? formatSignedYen(group.dailyMoveYen) : "-" }}
           </strong>
         </p>
@@ -81,6 +121,8 @@ function stockPriceUrl(name) {
             <th>名称</th>
             <th>金融機関</th>
             <th>金額</th>
+            <th>評価損益</th>
+            <th>評価損益率</th>
             <th>前日比</th>
           </tr>
         </thead>
@@ -101,9 +143,15 @@ function stockPriceUrl(name) {
             </td>
             <td data-label="金融機関">{{ item.institution }}</td>
             <td data-label="金額"><span class="amount-value">{{ formatYen(item.amountYen) }}</span></td>
+            <td data-label="評価損益" :class="signedClass(item.profitYen)">
+              {{ item.profitYen == null ? "-" : formatSignedYen(item.profitYen) }}
+            </td>
+            <td data-label="評価損益率" :class="signedClass(item.profitRatePct)">
+              {{ formatSignedPercent(item.profitRatePct) }}
+            </td>
             <td
               data-label="前日比"
-              :class="item.dailyMoveYen > 0 ? 'is-positive' : item.dailyMoveYen < 0 ? 'is-negative' : ''"
+              :class="signedClass(item.dailyMoveYen)"
             >
               {{ item.dailyMoveYen == null ? "-" : formatSignedYen(item.dailyMoveYen) }}
             </td>
