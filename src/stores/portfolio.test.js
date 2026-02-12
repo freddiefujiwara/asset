@@ -96,6 +96,21 @@ describe("portfolio store", () => {
     expect(store.error).toContain("CORS blocked API request");
   });
 
+
+  it("shows guidance when GAS still expects bearer token", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(successResponse({ status: 401, error: "missing id token" })),
+    );
+
+    const store = usePortfolioStore();
+    await store.fetchPortfolio();
+
+    expect(store.source).toBe("");
+    expect(store.data).toBe(null);
+    expect(store.error).toContain("GAS must read e.parameter.id_token");
+  });
+
   it("falls back to mock data when api request fails", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network down")));
 

@@ -47,7 +47,11 @@ export const usePortfolioStore = defineStore("portfolio", {
 
         const json = await response.json();
         if (json?.status === 401 || json?.status === 403) {
-          throw new Error(`AUTH ${json.status}: ${json.error ?? "unauthorized"}`);
+          const authMessage = json.error ?? "unauthorized";
+          if (authMessage === "missing id token") {
+            throw new Error("AUTH 401: missing id token (GAS must read e.parameter.id_token)");
+          }
+          throw new Error(`AUTH ${json.status}: ${authMessage}`);
         }
 
         const payload = json?.data ?? json;

@@ -278,6 +278,17 @@ Possible side effects while DEBUG mode is enabled:
 - If GAS CORS settings are missing, browser requests are blocked and this SPA shows a CORS error (no mock fallback for signed-in flows).
 - This SPA now sends the ID token as `id_token` query parameter to avoid `Authorization` preflight issues on custom domains.
 - GAS should validate `id_token` from query string the same way it validated bearer tokens before (`iss`/`aud`/`exp`/`email_verified` + allowlist).
+- If your GAS still only reads bearer header, update token extraction to read query too:
+
+```js
+function extractIdToken_(event) {
+  const headers = event?.headers || {};
+  const auth = headers.Authorization || headers.authorization || "";
+  const bearer = auth.match(/^Bearer\s+(.+)$/i);
+  if (bearer) return bearer[1];
+  return event?.parameter?.id_token || "";
+}
+```
 
 For production, disable DEBUG mode in GAS and rely on server-side allowlist checks (`iss`/`aud`/`exp`/`email_verified` + allowed Gmail list).
 
