@@ -119,6 +119,10 @@ export function stockTiles(stocks) {
     return [];
   }
 
+  const maxValue = prepared[0].value;
+  const minValue = prepared[prepared.length - 1].value;
+  const range = Math.max(1, maxValue - minValue);
+
   const layouted = [];
   layoutTreemap(prepared, 0, 0, 100, 100, layouted);
 
@@ -131,6 +135,7 @@ export function stockTiles(stocks) {
     y: entry.y,
     width: entry.width,
     height: entry.height,
+    fontScale: 0.9 + ((entry.value - minValue) / range) * 0.9,
   }));
 }
 

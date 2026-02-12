@@ -44,6 +44,7 @@ describe("holdings domain", () => {
       value: 100,
       isNegative: true,
     });
+    expect(tiles[0].fontScale).toBeGreaterThan(tiles[1].fontScale);
 
     const firstArea = tiles[0].width * tiles[0].height;
     const secondArea = tiles[1].width * tiles[1].height;

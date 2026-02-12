@@ -69,10 +69,10 @@ const configs = HOLDING_TABLE_CONFIGS;
               top: `${tile.y}%`,
               width: `${tile.width}%`,
               height: `${tile.height}%`,
+              '--name-scale': tile.fontScale,
             }"
           >
             <p class="stock-tile-name">{{ tile.name }}</p>
-            <p class="stock-tile-value amount-value">{{ formatYen(tile.value) }}</p>
           </article>
         </div>
       </section>
