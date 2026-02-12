@@ -163,6 +163,22 @@ td {
   margin: 0 0 8px;
 }
 
+.sort-button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  padding: 0;
+  cursor: pointer;
+}
+
+.sort-button:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+
 .meta {
   color: var(--muted);
 }
