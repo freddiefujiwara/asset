@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EMPTY_HOLDINGS, HOLDING_TABLE_CONFIGS, stockFundSummary } from "./holdings";
+import { EMPTY_HOLDINGS, HOLDING_TABLE_CONFIGS, stockFundSummary, stockTiles } from "./holdings";
 
 describe("holdings domain", () => {
   it("provides stable default shape", () => {
@@ -24,5 +24,30 @@ describe("holdings domain", () => {
     expect(summary.totalYen).toBe(400);
     expect(summary.dailyMoves).toEqual([10, -20]);
     expect(summary.dailyMoveTotal).toBe(-10);
+  });
+
+  it("builds stock tiles sorted by valuation with sign color flag", () => {
+    const tiles = stockTiles([
+      { 銘柄名: "A", 評価額: "200", 前日比: "10" },
+      { 銘柄名: "B", 評価額: "100", 前日比: "-1" },
+      { 銘柄名: "C", 評価額: "0", 前日比: "0" },
+    ]);
+
+    expect(tiles).toHaveLength(2);
+    expect(tiles[0]).toMatchObject({
+      name: "A",
+      value: 200,
+      isNegative: false,
+    });
+    expect(tiles[1]).toMatchObject({
+      name: "B",
+      value: 100,
+      isNegative: true,
+    });
+    expect(tiles[0].fontScale).toBeGreaterThan(tiles[1].fontScale);
+
+    const firstArea = tiles[0].width * tiles[0].height;
+    const secondArea = tiles[1].width * tiles[1].height;
+    expect(Math.round((firstArea / secondArea) * 10) / 10).toBe(2);
   });
 });

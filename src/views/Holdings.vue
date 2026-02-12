@@ -4,7 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 import HoldingTable from "@/components/HoldingTable.vue";
 import { formatSignedYen, formatYen } from "@/domain/format";
 import { signedClass } from "@/domain/signed";
-import { EMPTY_HOLDINGS, HOLDING_TABLE_CONFIGS, stockFundSummary } from "@/domain/holdings";
+import { EMPTY_HOLDINGS, HOLDING_TABLE_CONFIGS, stockFundSummary, stockTiles as buildStockTiles } from "@/domain/holdings";
 import { usePortfolioData } from "@/composables/usePortfolioData";
 import { useInitialHashRestore } from "@/composables/useInitialHashRestore";
 
@@ -26,6 +26,7 @@ const stocksAndFundsTotal = computed(() => summary.value.totalYen);
 const dailyMoves = computed(() => summary.value.dailyMoves);
 const dailyMoveTotal = computed(() => summary.value.dailyMoveTotal);
 const dailyMoveClass = computed(() => signedClass(dailyMoveTotal.value));
+const stockTiles = computed(() => buildStockTiles(holdings.value.stocks));
 
 const configs = HOLDING_TABLE_CONFIGS;
 
@@ -55,6 +56,31 @@ const configs = HOLDING_TABLE_CONFIGS;
     </nav>
 
     <section v-for="config in configs" :id="`section-${config.key}`" :key="config.key" class="section-block">
+      <section v-if="config.key === 'stocks' && stockTiles.length" class="table-wrap">
+        <h3 class="section-title">保有銘柄（評価額）</h3>
+        <div class="stock-tile-grid">
+          <article
+            v-for="tile in stockTiles"
+            :key="`${tile.name}-${tile.value}`"
+            class="stock-tile"
+            :class="tile.isNegative ? 'is-negative-box' : 'is-positive-box'"
+            tabindex="0"
+            :aria-label="`${tile.name} 評価額 ${formatYen(tile.value)}`"
+            :style="{
+              left: `${tile.x}%`,
+              top: `${tile.y}%`,
+              width: `${tile.width}%`,
+              height: `${tile.height}%`,
+              '--name-scale': tile.fontScale,
+            }"
+          >
+            <p class="stock-tile-name">{{ tile.name }}</p>
+            <span class="stock-tile-tooltip" role="tooltip">
+              {{ tile.name }}<br>評価額: <span class="amount-value">{{ formatYen(tile.value) }}</span>
+            </span>
+          </article>
+        </div>
+      </section>
       <HoldingTable :title="config.title" :rows="holdings[config.key]" :columns="config.columns" />
       <p class="back-top-wrap"><a href="#holdings-top">↑ トップへ戻る</a></p>
     </section>

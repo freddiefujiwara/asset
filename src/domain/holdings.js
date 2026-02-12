@@ -94,3 +94,83 @@ export function stockFundSummary(holdings) {
     dailyMoveTotal,
   };
 }
+
+export function stockTiles(stocks) {
+  const safeRows = Array.isArray(stocks) ? stocks : [];
+  const prepared = safeRows
+    .map((row, idx) => {
+      const value = toNumber(row?.["評価額"]);
+      return {
+        row,
+        idx,
+        value,
+        dailyChange: dailyChangeYen(row),
+      };
+    })
+    .filter((entry) => entry.value > 0)
+    .sort((a, b) => {
+      if (a.value === b.value) {
+        return a.idx - b.idx;
+      }
+      return b.value - a.value;
+    });
+
+  if (!prepared.length) {
+    return [];
+  }
+
+  const maxValue = prepared[0].value;
+  const minValue = prepared[prepared.length - 1].value;
+  const range = Math.max(1, maxValue - minValue);
+
+  const layouted = [];
+  layoutTreemap(prepared, 0, 0, 100, 100, layouted);
+
+  return layouted.map((entry) => ({
+    name: entry.row?.["銘柄名"] ?? entry.row?.["銘柄コード"] ?? "名称未設定",
+    value: entry.value,
+    dailyChange: entry.dailyChange,
+    isNegative: entry.dailyChange != null && entry.dailyChange < 0,
+    x: entry.x,
+    y: entry.y,
+    width: entry.width,
+    height: entry.height,
+    fontScale: 0.9 + ((entry.value - minValue) / range) * 0.9,
+  }));
+}
+
+function layoutTreemap(items, x, y, width, height, output) {
+  if (!items.length) {
+    return;
+  }
+
+  if (items.length === 1) {
+    output.push({ ...items[0], x, y, width, height });
+    return;
+  }
+
+  const total = items.reduce((sum, item) => sum + item.value, 0);
+  const target = total / 2;
+
+  let splitIndex = 1;
+  let leftSum = items[0].value;
+  while (splitIndex < items.length - 1 && leftSum < target) {
+    leftSum += items[splitIndex].value;
+    splitIndex += 1;
+  }
+
+  const leftItems = items.slice(0, splitIndex);
+  const rightItems = items.slice(splitIndex);
+  const leftRatio = leftSum / total;
+
+  if (width >= height) {
+    const leftWidth = width * leftRatio;
+    layoutTreemap(leftItems, x, y, leftWidth, height, output);
+    layoutTreemap(rightItems, x + leftWidth, y, width - leftWidth, height, output);
+    return;
+  }
+
+  const topHeight = height * leftRatio;
+  layoutTreemap(leftItems, x, y, width, topHeight, output);
+  layoutTreemap(rightItems, x, y + topHeight, width, height - topHeight, output);
+}
