@@ -76,7 +76,7 @@ const configs = HOLDING_TABLE_CONFIGS;
           >
             <p class="stock-tile-name">{{ tile.name }}</p>
             <span class="stock-tile-tooltip" role="tooltip">
-              {{ tile.name }}<br>評価額: {{ formatYen(tile.value) }}
+              {{ tile.name }}<br>評価額: <span class="amount-value">{{ formatYen(tile.value) }}</span>
             </span>
           </article>
         </div>
