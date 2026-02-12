@@ -1,12 +1,10 @@
 <script setup>
-import { computed, onMounted } from "vue";
-import { storeToRefs } from "pinia";
-import { usePortfolioStore } from "@/stores/portfolio";
+import { computed } from "vue";
 import { formatYen } from "@/domain/format";
 import PieChart from "@/components/PieChart.vue";
+import { usePortfolioData } from "@/composables/usePortfolioData";
 
-const store = usePortfolioStore();
-const { data, loading, error, source } = storeToRefs(store);
+const { data, loading, error, source } = usePortfolioData();
 
 const totals = computed(() =>
   data.value?.totals ?? { assetsYen: 0, liabilitiesYen: 0, netWorthYen: 0 },
@@ -27,12 +25,6 @@ const liabilityPie = computed(() =>
     value: item.amountYen,
   })),
 );
-
-onMounted(() => {
-  if (!data.value) {
-    store.fetchPortfolio();
-  }
-});
 </script>
 
 <template>
