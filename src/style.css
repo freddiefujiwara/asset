@@ -284,10 +284,18 @@ td {
   margin-bottom: 20px;
 }
 
-.balance-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+.balance-map {
+  display: flex;
+  gap: 10px;
+  height: 280px;
+  min-width: 560px;
+}
+
+.balance-right {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
 }
 
 .balance-item {
@@ -313,8 +321,16 @@ td {
   font-weight: 700;
 }
 
-.net-worth {
-  grid-column: 1 / -1;
+.balance-assets {
+  background: color-mix(in oklab, #22c55e 20%, var(--surface-elevated));
+}
+
+.balance-liabilities {
+  background: color-mix(in oklab, #ef4444 18%, var(--surface-elevated));
+}
+
+.balance-net-worth {
+  background: color-mix(in oklab, #3b82f6 22%, var(--surface-elevated));
 }
 
 .chart-grid {
@@ -371,14 +387,6 @@ td {
 }
 
 @media (max-width: 700px) {
-  .balance-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .net-worth {
-    grid-column: auto;
-  }
-
   .pie-layout {
     flex-direction: column;
     align-items: flex-start;

@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from "vue";
 import { formatYen } from "@/domain/format";
+import { balanceSheetLayout } from "@/domain/dashboard";
 import PieChart from "@/components/PieChart.vue";
 import { usePortfolioData } from "@/composables/usePortfolioData";
 
@@ -11,6 +12,7 @@ const totals = computed(() =>
 );
 const assetsByClass = computed(() => data.value?.summary?.assetsByClass ?? []);
 const liabilitiesByCategory = computed(() => data.value?.summary?.liabilitiesByCategory ?? []);
+const balanceLayout = computed(() => balanceSheetLayout(totals.value));
 
 const assetPie = computed(() =>
   assetsByClass.value.map((item) => ({
@@ -35,19 +37,24 @@ const liabilityPie = computed(() =>
 
     <section class="table-wrap balance-sheet">
       <h2 class="section-title">バランスシート</h2>
-      <div class="balance-grid">
-        <article class="balance-item">
+      <div class="balance-map" role="img" aria-label="左が資産、右上が負債、右下が純資産のバランスシート図">
+        <article
+          class="balance-item balance-assets"
+          :style="{ width: `${balanceLayout.assetsWidthPct}%` }"
+        >
           <h3>総資産</h3>
           <p class="amount-value">{{ formatYen(totals.assetsYen) }}</p>
         </article>
-        <article class="balance-item">
-          <h3>総負債</h3>
-          <p class="amount-value">{{ formatYen(totals.liabilitiesYen) }}</p>
-        </article>
-        <article class="balance-item net-worth">
-          <h3>純資産</h3>
-          <p class="amount-value">{{ formatYen(totals.netWorthYen) }}</p>
-        </article>
+        <section class="balance-right" :style="{ width: `${balanceLayout.rightWidthPct}%` }">
+          <article class="balance-item balance-liabilities" :style="{ height: `${balanceLayout.liabilitiesHeightPct}%` }">
+            <h3>総負債</h3>
+            <p class="amount-value">{{ formatYen(totals.liabilitiesYen) }}</p>
+          </article>
+          <article class="balance-item balance-net-worth" :style="{ height: `${balanceLayout.netWorthHeightPct}%` }">
+            <h3>純資産</h3>
+            <p class="amount-value">{{ formatYen(totals.netWorthYen) }}</p>
+          </article>
+        </section>
       </div>
     </section>
 
