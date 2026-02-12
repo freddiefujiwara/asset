@@ -21,6 +21,11 @@ const totalDailyMove = computed(() => familyGroups.value.reduce((sum, group) => 
 const totalDailyClass = computed(() =>
   totalDailyMove.value > 0 ? "is-positive" : totalDailyMove.value < 0 ? "is-negative" : "",
 );
+
+function stockPriceUrl(name) {
+  return `https://www.google.com/search?q=${encodeURIComponent(`${String(name ?? "")} 株価`)}`;
+}
+
 </script>
 
 <template>
@@ -82,7 +87,18 @@ const totalDailyClass = computed(() =>
         <tbody>
           <tr v-for="(item, idx) in group.items" :key="`${group.ownerLabel}-${idx}`">
             <td data-label="種別">{{ item.type }}</td>
-            <td data-label="名称">{{ item.name }}</td>
+            <td data-label="名称">
+              <a
+                v-if="item.type === '株式'"
+                class="stock-link"
+                :href="stockPriceUrl(item.name)"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {{ item.name }}
+              </a>
+              <template v-else>{{ item.name }}</template>
+            </td>
             <td data-label="金融機関">{{ item.institution }}</td>
             <td data-label="金額"><span class="amount-value">{{ formatYen(item.amountYen) }}</span></td>
             <td

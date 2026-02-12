@@ -89,6 +89,13 @@ body {
   color: var(--link-active);
 }
 
+
+.stock-link {
+  color: var(--link);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .theme-toggle {
   border: 1px solid var(--border);
   background: var(--surface-elevated);

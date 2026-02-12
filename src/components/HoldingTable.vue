@@ -40,6 +40,15 @@ function formatCell(column, row) {
   return formatYen(rawValue);
 }
 
+
+function stockPriceUrl(name) {
+  return `https://www.google.com/search?q=${encodeURIComponent(`${String(name ?? "")} 株価`)}`;
+}
+
+function isStockNameColumn(column) {
+  return props.title === "株式" && column.key === "銘柄名";
+}
+
 function cellClass(column, row) {
   if (column.key !== "__dailyChange") {
     return "";
@@ -71,7 +80,16 @@ function cellClass(column, row) {
             :class="cellClass(column, row)"
             :data-label="column.label"
           >
-            <span :class="isAmountColumn(column) ? 'amount-value' : ''">{{ formatCell(column, row) }}</span>
+            <a
+              v-if="isStockNameColumn(column)"
+              class="stock-link"
+              :href="stockPriceUrl(row[column.key])"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {{ formatCell(column, row) }}
+            </a>
+            <span v-else :class="isAmountColumn(column) ? 'amount-value' : ''">{{ formatCell(column, row) }}</span>
           </td>
         </tr>
       </tbody>
