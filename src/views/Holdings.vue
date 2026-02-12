@@ -1,5 +1,6 @@
 <script setup>
-import { computed, onMounted } from "vue";
+import { computed, nextTick, onMounted, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { storeToRefs } from "pinia";
 import { usePortfolioStore } from "@/stores/portfolio";
 import HoldingTable from "@/components/HoldingTable.vue";
@@ -7,12 +8,38 @@ import { dailyChangeYen, formatSignedYen, formatYen } from "@/domain/format";
 import { toNumber } from "@/domain/parse";
 
 const store = usePortfolioStore();
+const route = useRoute();
+const router = useRouter();
 const { data, loading, error } = storeToRefs(store);
 
-onMounted(() => {
+let pendingInitialHash = "";
+let restoredInitialHash = false;
+
+async function restoreInitialHashIfReady() {
+  if (restoredInitialHash || !pendingInitialHash || loading.value || !data.value) {
+    return;
+  }
+
+  restoredInitialHash = true;
+  await nextTick();
+  await router.replace({ path: route.path, hash: pendingInitialHash });
+}
+
+onMounted(async () => {
+  if (route.hash) {
+    pendingInitialHash = route.hash;
+    await router.replace({ path: route.path, hash: "" });
+  }
+
   if (!data.value) {
     store.fetchPortfolio();
   }
+
+  restoreInitialHashIfReady();
+});
+
+watch([loading, data], () => {
+  restoreInitialHashIfReady();
 });
 
 const holdings = computed(
