@@ -458,6 +458,7 @@ td {
   position: absolute;
   border: 1px solid color-mix(in oklab, var(--border), #ffffff 14%);
   padding: 10px;
+  cursor: help;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
