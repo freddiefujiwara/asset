@@ -54,6 +54,8 @@ const configs = [
       { key: "銘柄コード", label: "コード" },
       { key: "銘柄名", label: "銘柄名" },
       { key: "評価額", label: "評価額" },
+      { key: "評価損益", label: "評価損益" },
+      { key: "評価損益率", label: "評価損益率" },
       { key: "__dailyChange", label: "前日比" },
       { key: "保有金融機関", label: "金融機関" },
     ],
@@ -64,6 +66,8 @@ const configs = [
     columns: [
       { key: "銘柄名", label: "銘柄名" },
       { key: "評価額", label: "評価額" },
+      { key: "評価損益", label: "評価損益" },
+      { key: "評価損益率", label: "評価損益率" },
       { key: "__dailyChange", label: "前日比" },
       { key: "保有金融機関", label: "金融機関" },
     ],

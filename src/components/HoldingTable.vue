@@ -10,8 +10,9 @@ const props = defineProps({
 
 const safeRows = computed(() => (Array.isArray(props.rows) ? props.rows : []));
 
-const amountLikePattern = /金額|残高|評価額|価値/i;
+const amountLikePattern = /金額|残高|評価額|価値|損益/i;
 const nonAmountPattern = /コード|率|割合/i;
+const percentPattern = /率|割合/i;
 
 function isAmountColumn(column) {
   if (column.key === "__dailyChange") {
@@ -34,6 +35,11 @@ function formatCell(column, row) {
   }
 
   if (!isAmountColumn(column)) {
+    if (percentPattern.test(`${column.key}${column.label}`)) {
+      const value = String(rawValue);
+      return value.includes("%") ? value : `${value}%`;
+    }
+
     return rawValue;
   }
 
