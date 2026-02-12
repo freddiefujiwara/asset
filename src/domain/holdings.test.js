@@ -37,11 +37,13 @@ describe("holdings domain", () => {
     expect(tiles[0]).toMatchObject({
       name: "A",
       value: 200,
+      dailyChange: 10,
       isNegative: false,
     });
     expect(tiles[1]).toMatchObject({
       name: "B",
       value: 100,
+      dailyChange: -1,
       isNegative: true,
     });
     expect(tiles[0].fontScale).toBeGreaterThan(tiles[1].fontScale);
