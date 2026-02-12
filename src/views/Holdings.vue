@@ -118,6 +118,7 @@ const configs = [
     columns: [
       { key: "名称", label: "名称" },
       { key: "現在価値", label: "現在価値" },
+      { key: "評価損益", label: "評価損益" },
       { key: "評価損益率", label: "評価損益率" },
     ],
   },

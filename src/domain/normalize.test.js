@@ -30,4 +30,13 @@ describe("normalizePortfolio", () => {
     expect(normalized.holdings.stocks).toEqual([]);
     expect(normalized.holdings.liabilitiesDetail).toEqual([]);
   });
+
+  it("derives pension profit from current value and profit rate", () => {
+    const normalized = normalizePortfolio({
+      details__portfolio_det_pns__t0: [{ 名称: "iDeCo", 現在価値: "120000", 評価損益率: "20" }],
+    });
+
+    expect(normalized.holdings.pensions[0]["評価損益"]).toBe("20000");
+  });
+
 });
