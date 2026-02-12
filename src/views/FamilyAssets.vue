@@ -1,91 +1,31 @@
 <script setup>
-import { computed, nextTick, onMounted, watch } from "vue";
+import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { storeToRefs } from "pinia";
-import { usePortfolioStore } from "@/stores/portfolio";
 import { formatSignedYen, formatYen } from "@/domain/format";
 import { summarizeFamilyAssets } from "@/domain/family";
+import { formatSignedPercent, signedClass, totalProfitRate } from "@/domain/signed";
+import { usePortfolioData } from "@/composables/usePortfolioData";
+import { useInitialHashRestore } from "@/composables/useInitialHashRestore";
 
-const store = usePortfolioStore();
 const route = useRoute();
 const router = useRouter();
-const { data, loading, error } = storeToRefs(store);
+const { data, loading, error } = usePortfolioData();
 
-let pendingInitialHash = "";
-let restoredInitialHash = false;
-
-function scrollToPendingHash() {
-  if (!pendingInitialHash) {
-    return;
-  }
-
-  const target = document.querySelector(pendingInitialHash);
-  if (target) {
-    target.scrollIntoView({ block: "start" });
-  }
-}
-
-async function restoreInitialHashIfReady() {
-  if (restoredInitialHash || !pendingInitialHash || loading.value || !data.value) {
-    return;
-  }
-
-  restoredInitialHash = true;
-  await nextTick();
-  await router.replace({ path: route.path, hash: pendingInitialHash });
-  await nextTick();
-  scrollToPendingHash();
-}
-
-onMounted(async () => {
-  if (route.hash) {
-    pendingInitialHash = route.hash;
-    await router.replace({ path: route.path, hash: "" });
-  }
-
-  if (!data.value) {
-    store.fetchPortfolio();
-  }
-
-  restoreInitialHashIfReady();
-});
-
-watch([loading, data], () => {
-  restoreInitialHashIfReady();
+useInitialHashRestore({
+  route,
+  router,
+  loading,
+  isReady: computed(() => Boolean(data.value)),
 });
 
 const familyGroups = computed(() => summarizeFamilyAssets(data.value?.holdings));
 const totalStockFund = computed(() => familyGroups.value.reduce((sum, group) => sum + group.stockFundYen, 0));
 const hasAnyDailyMove = computed(() => familyGroups.value.some((group) => group.hasDailyMove));
 const totalDailyMove = computed(() => familyGroups.value.reduce((sum, group) => sum + group.dailyMoveYen, 0));
-const totalDailyClass = computed(() =>
-  totalDailyMove.value > 0 ? "is-positive" : totalDailyMove.value < 0 ? "is-negative" : "",
-);
+const totalDailyClass = computed(() => signedClass(totalDailyMove.value));
 const totalProfitYen = computed(() => familyGroups.value.reduce((sum, group) => sum + group.profitYen, 0));
-const totalProfitClass = computed(() =>
-  totalProfitYen.value > 0 ? "is-positive" : totalProfitYen.value < 0 ? "is-negative" : "",
-);
-const totalProfitRate = computed(() => {
-  const principal = totalStockFund.value - totalProfitYen.value;
-  if (principal === 0) {
-    return totalStockFund.value === 0 && totalProfitYen.value === 0 ? 0 : null;
-  }
-
-  return (totalProfitYen.value / principal) * 100;
-});
-
-function formatSignedPercent(value) {
-  if (value == null) {
-    return "-";
-  }
-
-  const sign = value > 0 ? "+" : value < 0 ? "-" : "±";
-  return `${sign}${Math.abs(value).toFixed(2)}%`;
-}
-
-function signedClass(value) {
-  return value > 0 ? "is-positive" : value < 0 ? "is-negative" : "";
-}
+const totalProfitClass = computed(() => signedClass(totalProfitYen.value));
+const totalProfitRatePct = computed(() => totalProfitRate(totalStockFund.value, totalProfitYen.value));
 
 function stockPriceUrl(name) {
   return `https://www.google.com/search?q=${encodeURIComponent(`${String(name ?? "")} 株価`)}`;
@@ -109,7 +49,7 @@ function stockPriceUrl(name) {
         </span>
         <span>
           評価損益率:
-          <strong :class="signedClass(totalProfitRate)">{{ formatSignedPercent(totalProfitRate) }}</strong>
+          <strong :class="signedClass(totalProfitRatePct)">{{ formatSignedPercent(totalProfitRatePct) }}</strong>
         </span>
         <span>
           前日比合計:

@@ -1,5 +1,6 @@
 import { toNumber } from "./parse";
 import { dailyChangeYen } from "./format";
+import { totalProfitRate } from "./signed";
 
 const OWNER_RULES = [
   { id: "wife", label: "妻", suffix: "@chipop" },
@@ -24,15 +25,6 @@ function evaluationProfitRate(row) {
   }
 
   return toNumber(row["評価損益率"]);
-}
-
-function totalProfitRate(stockFundYen, profitYen) {
-  const principal = stockFundYen - profitYen;
-  if (principal === 0) {
-    return stockFundYen === 0 && profitYen === 0 ? 0 : null;
-  }
-
-  return (profitYen / principal) * 100;
 }
 
 function ownerFromText(text) {
