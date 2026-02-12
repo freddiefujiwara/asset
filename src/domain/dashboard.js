@@ -20,10 +20,16 @@ export function balanceSheetLayout(totals) {
     };
   }
 
-  const assetsWidthPct = (assetsYen / total) * 100;
+  let assetsWidthPct = (assetsYen / total) * 100;
+  if (assetsYen > 0 && rightTotal > 0) {
+    assetsWidthPct = Math.max(20, Math.min(80, assetsWidthPct));
+  }
   const rightWidthPct = 100 - assetsWidthPct;
 
-  const liabilitiesHeightPct = rightTotal > 0 ? (liabilitiesYen / rightTotal) * 100 : 50;
+  let liabilitiesHeightPct = rightTotal > 0 ? (liabilitiesYen / rightTotal) * 100 : 50;
+  if (liabilitiesYen > 0 && netWorthYen > 0) {
+    liabilitiesHeightPct = Math.max(20, Math.min(80, liabilitiesHeightPct));
+  }
   const netWorthHeightPct = 100 - liabilitiesHeightPct;
 
   return {

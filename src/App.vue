@@ -141,6 +141,15 @@ watch(privacyMode, (enabled) => {
 });
 
 watch(
+  () => portfolioStore.error,
+  (newError) => {
+    if (newError.startsWith("AUTH ") && idToken.value) {
+      logout();
+    }
+  },
+);
+
+watch(
   () => [googleReady.value, showLoginGate.value],
   async () => {
     await nextTick();
