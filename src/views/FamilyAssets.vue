@@ -1,17 +1,57 @@
 <script setup>
-import { computed, onMounted } from "vue";
+import { computed, nextTick, onMounted, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { storeToRefs } from "pinia";
 import { usePortfolioStore } from "@/stores/portfolio";
 import { formatSignedYen, formatYen } from "@/domain/format";
 import { summarizeFamilyAssets } from "@/domain/family";
 
 const store = usePortfolioStore();
+const route = useRoute();
+const router = useRouter();
 const { data, loading, error } = storeToRefs(store);
 
-onMounted(() => {
+let pendingInitialHash = "";
+let restoredInitialHash = false;
+
+function scrollToPendingHash() {
+  if (!pendingInitialHash) {
+    return;
+  }
+
+  const target = document.querySelector(pendingInitialHash);
+  if (target) {
+    target.scrollIntoView({ block: "start" });
+  }
+}
+
+async function restoreInitialHashIfReady() {
+  if (restoredInitialHash || !pendingInitialHash || loading.value || !data.value) {
+    return;
+  }
+
+  restoredInitialHash = true;
+  await nextTick();
+  await router.replace({ path: route.path, hash: pendingInitialHash });
+  await nextTick();
+  scrollToPendingHash();
+}
+
+onMounted(async () => {
+  if (route.hash) {
+    pendingInitialHash = route.hash;
+    await router.replace({ path: route.path, hash: "" });
+  }
+
   if (!data.value) {
     store.fetchPortfolio();
   }
+
+  restoreInitialHashIfReady();
+});
+
+watch([loading, data], () => {
+  restoreInitialHashIfReady();
 });
 
 const familyGroups = computed(() => summarizeFamilyAssets(data.value?.holdings));
