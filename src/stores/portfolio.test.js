@@ -14,6 +14,11 @@ describe("portfolio store", () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     vi.unstubAllGlobals();
+    vi.stubGlobal("localStorage", {
+      getItem: vi.fn().mockReturnValue(""),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+    });
   });
 
   it("loads live data when api request succeeds", async () => {
@@ -33,6 +38,36 @@ describe("portfolio store", () => {
     expect(store.source).toBe("live");
     expect(store.data.totals.assetsYen).toBe(1000);
     expect(store.data.totals.liabilitiesYen).toBe(200);
+  });
+
+  it("sends bearer token when localStorage has google id token", async () => {
+    globalThis.localStorage.getItem.mockReturnValue("token-123");
+    const fetchMock = vi.fn().mockResolvedValue(successResponse({ breakdown: [] }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const store = usePortfolioStore();
+    await store.fetchPortfolio();
+
+    expect(fetchMock).toHaveBeenCalledWith(expect.any(String), {
+      headers: { Authorization: "Bearer token-123" },
+    });
+  });
+
+  it("does not fallback to mock on auth error", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        successResponse({ status: 403, error: "forbidden email" }),
+      ),
+    );
+
+    const store = usePortfolioStore();
+    await store.fetchPortfolio();
+
+    expect(store.source).toBe("");
+    expect(store.error).toContain("AUTH 403");
+    expect(store.data).toBe(null);
+    expect(store.loading).toBe(false);
   });
 
   it("falls back to mock data when api request fails", async () => {

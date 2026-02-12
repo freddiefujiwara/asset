@@ -439,3 +439,15 @@ td {
 .back-top-wrap {
   margin: 8px 0 2px;
 }
+
+.auth-gate {
+  max-width: 520px;
+  margin: 24px auto;
+  text-align: center;
+}
+
+.google-login-button {
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;
+}
