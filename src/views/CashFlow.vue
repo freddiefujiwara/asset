@@ -65,6 +65,7 @@ const sixMonthAverages = computed(() =>
 );
 
 const uniqueMonths = computed(() => getUniqueMonths(cashFlowRaw.value));
+const copyTargetMonths = computed(() => uniqueMonths.value.slice(0, 6));
 const uniqueLargeCategories = computed(() => getUniqueLargeCategories(cashFlowRaw.value));
 const uniqueSmallCategories = computed(() =>
   getUniqueSmallCategories(cashFlowRaw.value, largeCategoryFilter.value),
@@ -110,16 +111,19 @@ const copyText = async (text) => {
   document.body.removeChild(textArea);
 };
 
-const copyMfcfResponse = async () => {
+const copyMonthlyMfcfResponse = async (month) => {
   const split = getSplitResponse();
   if (!split) {
     copyStatus.value = "コピー対象のレスポンスがありません";
     return;
   }
 
+  const mfcfRows = Array.isArray(split.mfcf) ? split.mfcf : [];
+  const targetRows = mfcfRows.filter((item) => item?.date?.startsWith(month));
+
   try {
-    await copyText(JSON.stringify(split.mfcf ?? [], null, 2));
-    copyStatus.value = "キャッシュフローをコピーしました";
+    await copyText(JSON.stringify(targetRows, null, 2));
+    copyStatus.value = `${month.replace("-", "")}分のキャッシュフローをコピーしました`;
   } catch {
     copyStatus.value = "コピーに失敗しました";
   }
@@ -156,8 +160,14 @@ const resetFilters = () => {
     <p v-if="error" class="error">{{ error }}</p>
 
     <div class="table-wrap api-actions">
-      <button class="theme-toggle" type="button" @click="copyMfcfResponse">
-        キャッシュフローをコピー
+      <button
+        v-for="month in copyTargetMonths"
+        :key="month"
+        class="theme-toggle"
+        type="button"
+        @click="copyMonthlyMfcfResponse(month)"
+      >
+        {{ month.replace('-', '') }}分をコピー
       </button>
       <button class="theme-toggle" type="button" @click="copyNonMfcfResponse">
         資産状況をコピー
