@@ -22,9 +22,9 @@ export function calculateRiskAssets(portfolio) {
 /**
  * Estimate monthly basic expenses from cash flow.
  * Returns a breakdown by category and excludes special expenses.
- * Subtracts the monthly investment amount if it's included in the expenses.
+ * Also excludes "Cash" and "Card" related categories as requested.
  */
-export function estimateMonthlyExpenses(cashFlow, monthlyInvestment = 0) {
+export function estimateMonthlyExpenses(cashFlow) {
   const months = getUniqueMonths(cashFlow);
   const monthCount = Math.max(months.length, 1);
 
@@ -43,6 +43,11 @@ export function estimateMonthlyExpenses(cashFlow, monthlyInvestment = 0) {
       return;
     }
 
+    // Exclude Cash/Card categories as requested
+    if (category.startsWith("現金") || category.startsWith("カード")) {
+      return;
+    }
+
     totalNormalExpense += absAmount;
     const largeCat = category.split("/")[0];
     breakdownMap[largeCat] = (breakdownMap[largeCat] || 0) + absAmount;
@@ -56,7 +61,7 @@ export function estimateMonthlyExpenses(cashFlow, monthlyInvestment = 0) {
     .sort((a, b) => b.amount - a.amount);
 
   const averageNormal = Math.round(totalNormalExpense / monthCount);
-  const finalTotal = Math.max(0, averageNormal - monthlyInvestment);
+  const finalTotal = averageNormal;
 
   return {
     total: finalTotal,
@@ -224,19 +229,33 @@ export function generateGrowthTable(params) {
       fireReachedMonth = m;
     }
 
+    const isFire = fireReachedMonth !== -1 && m >= fireReachedMonth;
+
     table.push({
       month: m,
       assets,
       requiredAssets,
-      isFire: fireReachedMonth !== -1 && m >= fireReachedMonth,
+      isFire,
     });
 
     if (m === maxMonths) break;
 
     const riskPart = assets * riskAssetRatio;
     const safePart = assets - riskPart;
-    assets = riskPart * (1 + monthlyReturnMean) + safePart + monthlyInvestment;
-    assets -= monthlyExpense * Math.pow(1 + monthlyInflationRate, m);
+
+    let currentInvestment = monthlyInvestment;
+    let currentWithdrawal;
+
+    if (isFire) {
+      // Once FIRE is reached, stop investment and apply 4% withdrawal rule
+      currentInvestment = 0;
+      currentWithdrawal = (assets * 0.04) / 12;
+    } else {
+      currentWithdrawal = monthlyExpense * Math.pow(1 + monthlyInflationRate, m);
+    }
+
+    assets = riskPart * (1 + monthlyReturnMean) + safePart + currentInvestment;
+    assets -= currentWithdrawal;
 
     if (assets < 0) {
       // Just keep it 0 if it goes below

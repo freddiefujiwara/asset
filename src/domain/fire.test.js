@@ -44,22 +44,6 @@ describe("fire domain", () => {
       expect(result.breakdown).toContainEqual({ name: "Housing", amount: 300 });
     });
 
-    it("subtracts monthly investment from expenses", () => {
-      const cashFlow = [
-        { date: "2026-02-01", amount: -1000, isTransfer: false, category: "Misc" },
-      ];
-      const result = estimateMonthlyExpenses(cashFlow, 400);
-      expect(result.total).toBe(600);
-    });
-
-    it("ensures estimated expenses are not negative", () => {
-      const cashFlow = [
-        { date: "2026-02-01", amount: -100, isTransfer: false, category: "Misc" },
-      ];
-      const result = estimateMonthlyExpenses(cashFlow, 400);
-      expect(result.total).toBe(0);
-    });
-
     it("excludes special expenses and returns them separately", () => {
       const cashFlow = [
         { date: "2026-02-01", amount: -1000, isTransfer: false, category: "特別な支出/旅行" },
@@ -79,6 +63,18 @@ describe("fire domain", () => {
       const result = estimateMonthlyExpenses(cashFlow);
       expect(result.total).toBe(200);
       expect(result.breakdown).toContainEqual({ name: "未分類", amount: 200 });
+    });
+
+    it("excludes Cash and Card categories", () => {
+      const cashFlow = [
+        { date: "2026-02-01", amount: -1000, isTransfer: false, category: "Food" },
+        { date: "2026-02-01", amount: -500, isTransfer: false, category: "現金・カード/現金引き出し" },
+        { date: "2026-02-01", amount: -300, isTransfer: false, category: "カード/支払い" },
+      ];
+      const result = estimateMonthlyExpenses(cashFlow);
+      expect(result.total).toBe(1000);
+      expect(result.breakdown).toHaveLength(1);
+      expect(result.breakdown[0].name).toBe("Food");
     });
 
     it("returns zeros for empty cash flow", () => {
@@ -178,14 +174,20 @@ describe("fire domain", () => {
       expect(result.table[1].assets).toBeGreaterThan(0);
     });
 
-    it("detects FIRE reached month", () => {
+    it("detects FIRE reached month and stops investment / applies 4% rule", () => {
       const result = generateGrowthTable({
         ...params,
-        initialAssets: 50000000,
+        initialAssets: 100000000, // already reached FIRE
         monthlyExpense: 100000,
+        annualReturnRate: 0, // easier to check withdrawal
       });
       expect(result.fireReachedMonth).toBe(0);
       expect(result.table[0].isFire).toBe(true);
+      // month 0 assets: 100,000,000
+      // month 1 assets: 100,000,000 + 0 (investment) - (100,000,000 * 0.04 / 12)
+      // 100,000,000 * 0.04 = 4,000,000
+      // 4,000,000 / 12 = 333,333.33...
+      expect(result.table[1].assets).toBeCloseTo(100000000 - 333333.33);
     });
 
     it("handles tax and inflation", () => {

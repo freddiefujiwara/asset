@@ -14,10 +14,21 @@ import HistogramChart from "@/components/HistogramChart.vue";
 const { data, loading, error } = usePortfolioData();
 
 // Input parameters
-const monthlyInvestment = ref(400000);
+const calculateInitialAge = () => {
+  const birthDate = new Date("1979-09-02");
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age;
+};
+
+const monthlyInvestment = ref(423000);
 const annualReturnRate = ref(5);
 const annualStandardDeviation = ref(15);
-const currentAge = ref(30);
+const currentAge = ref(calculateInitialAge());
 const includeInflation = ref(false);
 const inflationRate = ref(2);
 const includeTax = ref(false);
@@ -29,7 +40,7 @@ const initialAssets = computed(() => data.value?.totals?.netWorthYen ?? 0);
 const riskAssets = computed(() => (data.value ? calculateRiskAssets(data.value) : 0));
 const expenseResult = computed(() =>
   data.value?.cashFlow
-    ? estimateMonthlyExpenses(data.value.cashFlow, monthlyInvestment.value)
+    ? estimateMonthlyExpenses(data.value.cashFlow)
     : { total: 0, breakdown: [], averageSpecial: 0, monthCount: 0 },
 );
 const autoMonthlyExpense = computed(() => expenseResult.value.total);
@@ -138,10 +149,6 @@ const achievementProbability = computed(() => {
                 <div v-for="item in expenseResult.breakdown" :key="item.name" class="breakdown-row">
                   <span class="cat-name">{{ item.name }}</span>
                   <span class="cat-amount">{{ formatYen(item.amount) }}</span>
-                </div>
-                <div v-if="monthlyInvestment > 0" class="breakdown-row investment-deduction">
-                  <span class="cat-name">投資分差引</span>
-                  <span class="cat-amount">-{{ formatYen(monthlyInvestment) }}</span>
                 </div>
                 <div v-if="expenseResult.averageSpecial > 0" class="special-info">
                   <span class="meta">※ 特別な支出 (平均 {{ formatYen(expenseResult.averageSpecial) }}) は除外済み</span>
