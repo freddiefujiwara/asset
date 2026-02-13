@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   calculateRiskAssets,
   estimateMonthlyExpenses,
@@ -32,6 +32,14 @@ describe("fire domain", () => {
   });
 
   describe("estimateMonthlyExpenses", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-03-15T09:00:00+09:00"));
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
     it("calculates average monthly expenses and breakdown", () => {
       const cashFlow = [
         { date: "2026-02-01", amount: -100, isTransfer: false, category: "Food" },
@@ -76,6 +84,25 @@ describe("fire domain", () => {
       expect(result.total).toBe(1000);
       expect(result.breakdown).toHaveLength(1);
       expect(result.breakdown[0].name).toBe("Food");
+    });
+
+
+    it("uses previous 5 months and excludes current month", () => {
+      vi.setSystemTime(new Date("2026-06-15T09:00:00+09:00"));
+
+      const cashFlow = [
+        { date: "2026-06-01", amount: -10000, isTransfer: false, category: "Food" },
+        { date: "2026-05-01", amount: -500, isTransfer: false, category: "Food" },
+        { date: "2026-04-01", amount: -400, isTransfer: false, category: "Food" },
+        { date: "2026-03-01", amount: -300, isTransfer: false, category: "Food" },
+        { date: "2026-02-01", amount: -200, isTransfer: false, category: "Food" },
+        { date: "2026-01-01", amount: -100, isTransfer: false, category: "Food" },
+      ];
+
+      const result = estimateMonthlyExpenses(cashFlow);
+      expect(result.total).toBe(300);
+      expect(result.monthCount).toBe(5);
+      expect(result.breakdown).toContainEqual({ name: "Food", amount: 300 });
     });
 
     it("returns zeros for empty cash flow", () => {

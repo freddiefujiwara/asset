@@ -4,6 +4,7 @@ import { computed } from "vue";
 const props = defineProps({
   title: { type: String, required: true },
   data: { type: Array, default: () => [] },
+  valueFormatter: { type: Function, default: null },
 });
 
 const radius = 72;
@@ -46,6 +47,13 @@ const slices = computed(() => {
       return result;
     });
 });
+
+const formatValue = (value) => {
+  if (props.valueFormatter) {
+    return props.valueFormatter(value);
+  }
+  return `${Math.round(value).toLocaleString("ja-JP")}`;
+};
 </script>
 
 <template>
@@ -59,10 +67,48 @@ const slices = computed(() => {
       <ul class="legend">
         <li v-for="slice in slices" :key="`legend-${slice.label}`">
           <span class="swatch" :style="{ backgroundColor: slice.color }" />
-          <span>{{ slice.label }}</span>
-          <strong>{{ ((slice.value / total) * 100).toFixed(1) }}%</strong>
+          <span class="legend-label">{{ slice.label }}</span>
+          <strong class="legend-values">
+            <span>{{ ((slice.value / total) * 100).toFixed(1) }}%</span>
+            <span class="amount-value">({{ formatValue(slice.value) }})</span>
+          </strong>
         </li>
       </ul>
     </div>
   </section>
 </template>
+
+<style scoped>
+.legend-label {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.legend-values {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 4px;
+  flex-wrap: wrap;
+  text-align: right;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 700px) {
+  .legend {
+    width: 100%;
+  }
+
+  .legend li {
+    grid-template-columns: 10px minmax(0, 1fr);
+    row-gap: 2px;
+  }
+
+  .legend-values {
+    grid-column: 2;
+    justify-content: flex-start;
+    font-size: 0.78rem;
+  }
+}
+</style>

@@ -153,9 +153,31 @@ export function getSixMonthAverages(monthlyData, months = 6) {
   };
 }
 
-export function aggregateByCategory(cashFlow) {
+export function aggregateByCategory(cashFlow, { averageMonths = 0, excludeCurrentMonth = false } = {}) {
+  const targetCashFlow = (() => {
+    if (averageMonths <= 0) {
+      return cashFlow;
+    }
+
+    const expenseRows = cashFlow.filter((item) => !item.isTransfer && item.amount < 0);
+    const now = new Date();
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+    const recentMonths = Array.from(new Set(expenseRows.map((item) => getMonthKey(item)).filter(Boolean)))
+      .filter((month) => !(excludeCurrentMonth && month === currentMonthKey))
+      .sort((a, b) => a.localeCompare(b))
+      .slice(-averageMonths);
+
+    if (!recentMonths.length) {
+      return [];
+    }
+
+    const monthSet = new Set(recentMonths);
+    return expenseRows.filter((item) => monthSet.has(getMonthKey(item)));
+  })();
+
   const categories = {};
-  cashFlow.forEach((item) => {
+  targetCashFlow.forEach((item) => {
     if (item.isTransfer || item.amount >= 0) {
       return;
     }
@@ -165,7 +187,17 @@ export function aggregateByCategory(cashFlow) {
     }
     categories[categoryLabel].value += Math.abs(item.amount);
   });
-  return Object.values(categories).sort((a, b) => b.value - a.value);
+  const items = Object.values(categories);
+  if (averageMonths > 0) {
+    const availableMonths = new Set(targetCashFlow.map((item) => getMonthKey(item)).filter(Boolean)).size;
+    if (availableMonths > 0) {
+      items.forEach((item) => {
+        item.value /= availableMonths;
+      });
+    }
+  }
+
+  return items.sort((a, b) => b.value - a.value);
 }
 
 export function getUniqueMonths(cashFlow) {

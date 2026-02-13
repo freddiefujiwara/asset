@@ -25,8 +25,13 @@ export function calculateRiskAssets(portfolio) {
  * Also excludes "Cash" and "Card" related categories as requested.
  */
 export function estimateMonthlyExpenses(cashFlow) {
-  const months = getUniqueMonths(cashFlow);
-  const monthCount = Math.max(months.length, 1);
+  const now = new Date();
+  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const targetMonths = getUniqueMonths(cashFlow)
+    .filter((month) => month !== currentMonthKey)
+    .slice(0, 5);
+  const monthSet = new Set(targetMonths);
+  const monthCount = targetMonths.length;
 
   const breakdownMap = {};
   let totalNormalExpense = 0;
@@ -34,6 +39,11 @@ export function estimateMonthlyExpenses(cashFlow) {
 
   cashFlow.forEach((item) => {
     if (item.isTransfer || item.amount >= 0) return;
+
+    const month = item.date?.substring(0, 7) || "";
+    if (!monthSet.has(month)) {
+      return;
+    }
 
     const absAmount = Math.abs(item.amount);
     const category = item.category || "未分類";
@@ -53,20 +63,22 @@ export function estimateMonthlyExpenses(cashFlow) {
     breakdownMap[largeCat] = (breakdownMap[largeCat] || 0) + absAmount;
   });
 
+  const divisor = Math.max(monthCount, 1);
+
   const breakdown = Object.entries(breakdownMap)
     .map(([name, total]) => ({
       name,
-      amount: Math.round(total / monthCount),
+      amount: Math.round(total / divisor),
     }))
     .sort((a, b) => b.amount - a.amount);
 
-  const averageNormal = Math.round(totalNormalExpense / monthCount);
+  const averageNormal = Math.round(totalNormalExpense / divisor);
   const finalTotal = averageNormal;
 
   return {
     total: finalTotal,
     breakdown,
-    averageSpecial: Math.round(totalSpecialExpense / monthCount),
+    averageSpecial: Math.round(totalSpecialExpense / divisor),
     monthCount,
   };
 }
