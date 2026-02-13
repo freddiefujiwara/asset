@@ -50,6 +50,11 @@ describe("cashFlow domain", () => {
     it("filters by search", () => {
       expect(filterCashFlow(mockCashFlow, { search: "Food" })).toHaveLength(2);
       expect(filterCashFlow(mockCashFlow, { search: "Grocery" })).toHaveLength(1);
+      expect(filterCashFlow(mockCashFlow, { search: "restaurant" })).toHaveLength(1);
+    });
+
+    it("can exclude transfer rows", () => {
+      expect(filterCashFlow(mockCashFlow, { includeTransfers: false })).toHaveLength(4);
     });
   });
 
@@ -64,6 +69,11 @@ describe("cashFlow domain", () => {
       expect(getUniqueSmallCategories(mockCashFlow, "Food")).toEqual(["Dining", "Grocery"]);
       expect(getUniqueSmallCategories(mockCashFlow, "Salary")).toEqual([]);
       expect(getUniqueSmallCategories(mockCashFlow, "未分類")).toEqual([]);
+    });
+
+    it("returns empty when largeCategory is not provided", () => {
+      expect(getUniqueSmallCategories(mockCashFlow, "")).toEqual([]);
+      expect(getUniqueSmallCategories(mockCashFlow)).toEqual([]);
     });
   });
 
@@ -87,13 +97,42 @@ describe("cashFlow domain", () => {
     });
 
     it("sorts by category asc handling 未分類", () => {
-        const sorted = sortCashFlow(mockCashFlow, "category", "asc");
-        // ["Food/Dining", "Food/Grocery", "Rent", "Salary", "未分類"] (sorted alphabetically)
-        expect(sorted[0].category).toBe("Food/Dining");
-        expect(sorted[4].category).toBe("");
+      const sorted = sortCashFlow(mockCashFlow, "category", "asc");
+      expect(sorted[0].category).toBe("Food/Dining");
+      expect(sorted[4].category).toBe("");
+    });
+
+    it("returns original reference when sortKey is missing", () => {
+      expect(sortCashFlow(mockCashFlow)).toBe(mockCashFlow);
+    });
+
+    it("keeps equal values when comparator returns 0", () => {
+      const sameAmount = [
+        { date: "2026-02-01", amount: 1, category: "A", isTransfer: false, name: "a" },
+        { date: "2026-02-02", amount: 1, category: "B", isTransfer: false, name: "b" },
+      ];
+      const sorted = sortCashFlow(sameAmount, "amount", "asc");
+      expect(sorted).toEqual(sameAmount);
+    });
+
+    it("handles greater-than branch in descending order", () => {
+      const values = [
+        { date: "2026-02-01", amount: 2, category: "A", isTransfer: false, name: "a" },
+        { date: "2026-02-02", amount: 1, category: "B", isTransfer: false, name: "b" },
+      ];
+      const sorted = sortCashFlow(values, "amount", "desc");
+      expect(sorted[0].amount).toBe(2);
+    });
+
+    it("handles greater-than branch in ascending order", () => {
+      const values = [
+        { date: "2026-02-01", amount: 2, category: "A", isTransfer: false, name: "a" },
+        { date: "2026-02-02", amount: 1, category: "B", isTransfer: false, name: "b" },
+      ];
+      const sorted = sortCashFlow(values, "amount", "asc");
+      expect(sorted[0].amount).toBe(1);
     });
   });
-
 
   describe("aggregateByMonth", () => {
     it("aggregates filtered monthly values", () => {
@@ -109,6 +148,19 @@ describe("cashFlow domain", () => {
       expect(aggregateByMonth(filtered, { includeNet: false })).toEqual([
         { month: "2026-01", income: 0, expense: 1000, net: 0 },
         { month: "2026-02", income: 0, expense: 3000, net: 0 },
+      ]);
+    });
+
+    it("ignores transfers and invalid month formats", () => {
+      const mixed = [
+        ...mockCashFlow,
+        { date: "", amount: 10, category: "Misc", isTransfer: false, name: "InvalidDate" },
+      ];
+      const aggregated = aggregateByMonth(mixed);
+      expect(aggregated.find((row) => row.month === "")).toBeUndefined();
+      expect(aggregated).toEqual([
+        { month: "2026-01", income: 0, expense: 81000, net: -81000 },
+        { month: "2026-02", income: 300000, expense: 3000, net: 297000 },
       ]);
     });
   });
@@ -138,12 +190,46 @@ describe("cashFlow domain", () => {
     });
   });
 
-
   describe("getKPIs", () => {
     it("calculates correct KPIs", () => {
       const kpis = getKPIs(mockCashFlow);
-      expect(kpis.income).toBe(300000);
-      expect(kpis.expense).toBe(-84000); // -3000 + -80000 + -1000
+      expect(kpis).toEqual({
+        income: 300000,
+        expense: -84000,
+        net: 216000,
+        transfers: 5000,
+      });
+    });
+  });
+
+  describe("aggregateByCategory", () => {
+    it("aggregates expense-only categories sorted desc", () => {
+      const withUncategorizedExpense = [
+        ...mockCashFlow,
+        { date: "2026-02-20", amount: -500, category: "", isTransfer: false, name: "Unknown" },
+      ];
+      expect(aggregateByCategory(withUncategorizedExpense)).toEqual([
+        { label: "Rent", value: 80000 },
+        { label: "Food/Grocery", value: 3000 },
+        { label: "Food/Dining", value: 1000 },
+        { label: "未分類", value: 500 },
+      ]);
+    });
+  });
+
+  describe("getUniqueMonths", () => {
+    it("returns months in descending order", () => {
+      const withInvalid = [
+        ...mockCashFlow,
+        { date: "2026", amount: 1, category: "Misc", isTransfer: false, name: "Bad" },
+      ];
+      expect(getUniqueMonths(withInvalid)).toEqual(["2026-02", "2026-01"]);
+    });
+  });
+
+  describe("getUniqueCategories", () => {
+    it("returns sorted categories with fallback", () => {
+      expect(getUniqueCategories(mockCashFlow)).toEqual(["Food/Dining", "Food/Grocery", "Rent", "Salary", "未分類"]);
     });
   });
 });
