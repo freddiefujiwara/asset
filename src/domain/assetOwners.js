@@ -8,6 +8,20 @@ export const OWNER_FILTERS = [
   { id: "daughter", label: "娘" },
 ];
 
+const CATEGORY_SUMMARY_DEFS = [
+  { key: "cashLike", title: "現金・預金" },
+  { key: "stocks", title: "株式" },
+  { key: "funds", title: "投資信託" },
+  { key: "pensions", title: "年金" },
+  { key: "points", title: "ポイント" },
+  { key: "liabilitiesDetail", title: "負債" },
+];
+
+function categoryRows(holdings, key) {
+  const rows = holdings?.[key];
+  return Array.isArray(rows) ? rows : [];
+}
+
 function rowOwnerId(row) {
   const explicitOwner = row?.Owner ?? row?.owner;
   if (explicitOwner) {
@@ -24,23 +38,25 @@ export function filterHoldingsByOwner(holdings, ownerId = "all") {
     return safe;
   }
 
-  const filtered = {};
-  for (const [key, rows] of Object.entries(safe)) {
-    filtered[key] = Array.isArray(rows) ? rows.filter((row) => rowOwnerId(row) === ownerId) : [];
-  }
-
-  return filtered;
+  return Object.fromEntries(
+    Object.keys(EMPTY_HOLDINGS).map((key) => [
+      key,
+      categoryRows(safe, key).filter((row) => rowOwnerId(row) === ownerId),
+    ]),
+  );
 }
 
 export function summarizeByCategory(holdings) {
   const safe = holdings ?? EMPTY_HOLDINGS;
 
-  return [
-    { key: "cashLike", title: "現金・預金", amountYen: safe.cashLike.reduce((sum, row) => sum + assetAmountYen(row), 0), count: safe.cashLike.length },
-    { key: "stocks", title: "株式", amountYen: safe.stocks.reduce((sum, row) => sum + assetAmountYen(row), 0), count: safe.stocks.length },
-    { key: "funds", title: "投資信託", amountYen: safe.funds.reduce((sum, row) => sum + assetAmountYen(row), 0), count: safe.funds.length },
-    { key: "pensions", title: "年金", amountYen: safe.pensions.reduce((sum, row) => sum + assetAmountYen(row), 0), count: safe.pensions.length },
-    { key: "points", title: "ポイント", amountYen: safe.points.reduce((sum, row) => sum + assetAmountYen(row), 0), count: safe.points.length },
-    { key: "liabilitiesDetail", title: "負債", amountYen: safe.liabilitiesDetail.reduce((sum, row) => sum + assetAmountYen(row), 0), count: safe.liabilitiesDetail.length },
-  ];
+  return CATEGORY_SUMMARY_DEFS.map(({ key, title }) => {
+    const rows = categoryRows(safe, key);
+
+    return {
+      key,
+      title,
+      amountYen: rows.reduce((sum, row) => sum + assetAmountYen(row), 0),
+      count: rows.length,
+    };
+  });
 }
