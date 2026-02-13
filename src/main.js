@@ -5,6 +5,7 @@ import App from "./App.vue";
 import Dashboard from "./views/Dashboard.vue";
 import Holdings from "./views/Holdings.vue";
 import CashFlow from "./views/CashFlow.vue";
+import FireSimulator from "./views/FireSimulator.vue";
 import "./style.css";
 
 const router = createRouter({
@@ -16,6 +17,7 @@ const router = createRouter({
     { path: "/holdings", component: Holdings },
     { path: "/family-assets", redirect: "/holdings?owner=all" },
     { path: "/cash-flow", component: CashFlow },
+    { path: "/fire", component: FireSimulator },
   ],
 });
 
