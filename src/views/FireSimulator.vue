@@ -33,6 +33,7 @@ const includeInflation = ref(false);
 const inflationRate = ref(2);
 const includeTax = ref(false);
 const taxRate = ref(20.315);
+const withdrawalRate = ref(4);
 const iterations = ref(1000);
 
 // Data-derived parameters
@@ -70,6 +71,7 @@ const simResult = computed(() => {
     currentAge: currentAge.value,
     includeTax: includeTax.value,
     taxRate: taxRate.value / 100,
+    withdrawalRate: withdrawalRate.value / 100,
     iterations: iterations.value,
   });
 });
@@ -86,6 +88,7 @@ const growthData = computed(() => {
     inflationRate: inflationRate.value / 100,
     includeTax: includeTax.value,
     taxRate: taxRate.value / 100,
+    withdrawalRate: withdrawalRate.value / 100,
   });
 });
 
@@ -126,15 +129,15 @@ const achievementProbability = computed(() => {
         </div>
         <div class="filter-item">
           <label>期待リターン (年率 %)</label>
-          <input v-model.number="annualReturnRate" type="number" step="0.1" />
+          <input v-model.number="annualReturnRate" type="number" step="0.1" class="is-public" />
         </div>
         <div class="filter-item">
           <label>リスク/標準偏差 (%)</label>
-          <input v-model.number="annualStandardDeviation" type="number" step="0.5" />
+          <input v-model.number="annualStandardDeviation" type="number" step="0.5" class="is-public" />
         </div>
         <div class="filter-item">
           <label>現在の年齢</label>
-          <input v-model.number="currentAge" type="number" />
+          <input v-model.number="currentAge" type="number" class="is-public" />
         </div>
         <div class="filter-item expense-item">
           <div class="label-row">
@@ -174,6 +177,10 @@ const achievementProbability = computed(() => {
             <input v-if="includeTax" v-model.number="taxRate" type="number" step="0.1" style="width: 80px;" />
             <span v-if="includeTax">%</span>
           </div>
+        </div>
+        <div class="filter-item">
+          <label>取り崩し率 (%)</label>
+          <input v-model.number="withdrawalRate" type="number" step="0.1" />
         </div>
       </div>
     </div>

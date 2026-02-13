@@ -13,7 +13,7 @@ describe("fire domain", () => {
       expect(calculateRiskAssets({})).toBe(0);
     });
 
-    it("sums only risk assets (Stocks and Funds)", () => {
+    it("sums only risk assets (Stocks, Funds, Pension, etc.)", () => {
       const portfolio = {
         summary: {
           assetsByClass: [
@@ -22,11 +22,12 @@ describe("fire domain", () => {
             { name: "投資信託", amountYen: 3000 },
             { name: "ポイント・マイル", amountYen: 400 },
             { name: "年金", amountYen: 5000 },
+            { name: "債券", amountYen: 6000 },
           ],
         },
       };
-      // Risk: 2000 + 3000 = 5000
-      expect(calculateRiskAssets(portfolio)).toBe(5000);
+      // Risk: 2000 + 3000 + 5000 + 6000 = 16000
+      expect(calculateRiskAssets(portfolio)).toBe(16000);
     });
   });
 
@@ -144,13 +145,14 @@ describe("fire domain", () => {
       const result = simulateFire({
         ...params,
         initialAssets: 1000,
-        monthlyInvestment: 0, // No growth
-        monthlyExpense: 1000,
+        monthlyInvestment: 0,
+        monthlyExpense: 10, // Small expense so assets stay positive but below required
         annualReturnRate: 0,
         annualStandardDeviation: 0,
         maxMonths: 5,
         iterations: 1
       });
+      // Required assets for 100-40=60 years will be much more than 1000
       expect(result.stats.median).toBe(5);
     });
   });
@@ -172,22 +174,23 @@ describe("fire domain", () => {
       expect(result.table[1].assets).toBeGreaterThan(0);
     });
 
-    it("detects FIRE reached month and stops investment / performs 4% withdrawal", () => {
+    it("detects FIRE reached month and stops investment / performs withdrawal based on withdrawalRate", () => {
       const result = generateGrowthTable({
         ...params,
         initialAssets: 100000000, // already reached FIRE
         monthlyExpense: 100000,
         annualReturnRate: 0,
         currentAge: 40,
+        withdrawalRate: 0.03, // Custom rate
       });
       expect(result.fireReachedMonth).toBe(0);
       expect(result.table[0].isFire).toBe(true);
       // month 0 assets: 100,000,000
-      // 4% withdrawal: 100,000,000 * 0.04 / 12 = 333,333.33
+      // 3% withdrawal: 100,000,000 * 0.03 / 12 = 250,000
       // monthlyExpense: 100,000
-      // withdrawal = max(100k, 333.3k) = 333,333.33
-      // month 1 assets: 100,000,000 - 333,333.33 = 99,666,666.67
-      expect(result.table[1].assets).toBeCloseTo(99666666.67, 0);
+      // withdrawal = max(100k, 250k) = 250,000
+      // month 1 assets: 100,000,000 - 250,000 = 99,750,000
+      expect(result.table[1].assets).toBeCloseTo(99750000, 0);
     });
 
     it("depletes exactly at age 100 in deterministic table if returns=0", () => {

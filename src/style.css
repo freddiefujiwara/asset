@@ -466,7 +466,7 @@ td {
   opacity: 0;
 }
 
-:root[data-private="on"] .fire-form-grid input {
+:root[data-private="on"] .fire-form-grid input:not(.is-public) {
   background-color: #000 !important;
   color: #000 !important;
   border-color: #333 !important;
