@@ -52,7 +52,7 @@ const formatValue = (value) => {
   if (props.valueFormatter) {
     return props.valueFormatter(value);
   }
-  return `${value.toFixed(1)}`;
+  return `${Math.round(value).toLocaleString("ja-JP")}`;
 };
 </script>
 

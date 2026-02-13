@@ -153,14 +153,18 @@ export function getSixMonthAverages(monthlyData, months = 6) {
   };
 }
 
-export function aggregateByCategory(cashFlow, { averageMonths = 0 } = {}) {
+export function aggregateByCategory(cashFlow, { averageMonths = 0, excludeCurrentMonth = false } = {}) {
   const targetCashFlow = (() => {
     if (averageMonths <= 0) {
       return cashFlow;
     }
 
     const expenseRows = cashFlow.filter((item) => !item.isTransfer && item.amount < 0);
+    const now = new Date();
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
     const recentMonths = Array.from(new Set(expenseRows.map((item) => getMonthKey(item)).filter(Boolean)))
+      .filter((month) => !(excludeCurrentMonth && month === currentMonthKey))
       .sort((a, b) => a.localeCompare(b))
       .slice(-averageMonths);
 

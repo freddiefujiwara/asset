@@ -57,7 +57,7 @@ const monthlyData = computed(() =>
     { includeNet: !hasActiveFilters.value },
   ),
 );
-const categoryPieData = computed(() => aggregateByCategory(filteredCashFlow.value, { averageMonths: 6 }));
+const categoryPieData = computed(() => aggregateByCategory(filteredCashFlow.value, { averageMonths: 5, excludeCurrentMonth: true }));
 
 const showSixMonthAverage = computed(() => !monthFilter.value);
 const sixMonthAverages = computed(() =>

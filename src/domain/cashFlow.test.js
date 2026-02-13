@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import {
   filterCashFlow,
   getKPIs,
@@ -11,6 +11,11 @@ import {
   getUniqueSmallCategories,
   sortCashFlow,
 } from "./cashFlow";
+
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 const mockCashFlow = [
   { date: "2026-02-12", amount: -3000, category: "Food/Grocery", isTransfer: false, name: "Super" },
@@ -213,6 +218,24 @@ describe("cashFlow domain", () => {
         { label: "Food/Grocery", value: 3000 },
         { label: "Food/Dining", value: 1000 },
         { label: "未分類", value: 500 },
+      ]);
+    });
+
+    it("can average past 5 months excluding current month", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-06-15T09:00:00+09:00"));
+
+      const rows = [
+        { date: "2026-06-05", amount: -99999, category: "Food", isTransfer: false, name: "current" },
+        { date: "2026-05-05", amount: -500, category: "Food", isTransfer: false, name: "m5" },
+        { date: "2026-04-05", amount: -400, category: "Food", isTransfer: false, name: "m4" },
+        { date: "2026-03-05", amount: -300, category: "Food", isTransfer: false, name: "m3" },
+        { date: "2026-02-05", amount: -200, category: "Food", isTransfer: false, name: "m2" },
+        { date: "2026-01-05", amount: -100, category: "Food", isTransfer: false, name: "m1" },
+      ];
+
+      expect(aggregateByCategory(rows, { averageMonths: 5, excludeCurrentMonth: true })).toEqual([
+        { label: "Food", value: 300 },
       ]);
     });
   });
