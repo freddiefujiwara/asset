@@ -1,44 +1,61 @@
+const UNCATEGORIZED = "未分類";
+const CATEGORY_DELIMITER = "/";
+
+function getCategoryLabel(item) {
+  return item.category || UNCATEGORIZED;
+}
+
+function getCategoryParts(item) {
+  const [large = UNCATEGORIZED, small = ""] = getCategoryLabel(item).split(CATEGORY_DELIMITER);
+  return { large, small };
+}
+
+function getMonthKey(item) {
+  const month = item.date?.substring(0, 7) || "";
+  return month.length === 7 ? month : "";
+}
+
 export function filterCashFlow(
   cashFlow,
   { month, category, largeCategory, smallCategory, includeTransfers, search } = {},
 ) {
+  const normalizedSearch = search?.toLowerCase();
+
   return cashFlow.filter((item) => {
-    if (month && !item.date.startsWith(month)) {
+    const categoryLabel = getCategoryLabel(item);
+
+    if (month && !item.date?.startsWith(month)) {
       return false;
     }
+
     // Backward compatibility or exact match
-    if (category) {
-      const itemCat = item.category || "未分類";
-      if (itemCat !== category) {
-        return false;
-      }
+    if (category && categoryLabel !== category) {
+      return false;
     }
+
     // New large/small category filter
     if (largeCategory) {
-      const itemCat = item.category || "未分類";
-      const parts = itemCat.split("/");
-      const large = parts[0];
+      const { large, small } = getCategoryParts(item);
       if (large !== largeCategory) {
         return false;
       }
-      if (smallCategory) {
-        const small = parts.length > 1 ? parts[1] : "";
-        if (small !== smallCategory) {
-          return false;
-        }
-      }
-    }
-    if (includeTransfers === false && item.isTransfer) {
-      return false;
-    }
-    if (search) {
-      const s = search.toLowerCase();
-      const name = item.name.toLowerCase();
-      const cat = (item.category || "未分類").toLowerCase();
-      if (!name.includes(s) && !cat.includes(s)) {
+      if (smallCategory && small !== smallCategory) {
         return false;
       }
     }
+
+    if (includeTransfers === false && item.isTransfer) {
+      return false;
+    }
+
+    if (normalizedSearch) {
+      const name = item.name.toLowerCase();
+      const searchableCategory = categoryLabel.toLowerCase();
+      if (!name.includes(normalizedSearch) && !searchableCategory.includes(normalizedSearch)) {
+        return false;
+      }
+    }
+
     return true;
   });
 }
@@ -51,8 +68,8 @@ export function sortCashFlow(cashFlow, sortKey, sortOrder = "asc") {
     let valB = b[sortKey];
 
     if (sortKey === "category") {
-      valA = valA || "未分類";
-      valB = valB || "未分類";
+      valA = valA || UNCATEGORIZED;
+      valB = valB || UNCATEGORIZED;
     }
 
     const comparison = Number(valA > valB) - Number(valA < valB);
@@ -91,20 +108,20 @@ export function aggregateByMonth(cashFlow, { includeNet = true } = {}) {
     if (item.isTransfer) {
       return;
     }
-    const m = item.date.substring(0, 7);
-    if (!m || m.length < 7) {
+    const month = getMonthKey(item);
+    if (!month) {
       return;
     }
-    if (!months[m]) {
-      months[m] = { month: m, income: 0, expense: 0, net: 0 };
+    if (!months[month]) {
+      months[month] = { month, income: 0, expense: 0, net: 0 };
     }
     if (item.amount > 0) {
-      months[m].income += item.amount;
+      months[month].income += item.amount;
     } else {
-      months[m].expense += Math.abs(item.amount);
+      months[month].expense += Math.abs(item.amount);
     }
     if (includeNet) {
-      months[m].net += item.amount;
+      months[month].net += item.amount;
     }
   });
 
@@ -142,11 +159,11 @@ export function aggregateByCategory(cashFlow) {
     if (item.isTransfer || item.amount >= 0) {
       return;
     }
-    const cat = item.category || "未分類";
-    if (!categories[cat]) {
-      categories[cat] = { label: cat, value: 0 };
+    const categoryLabel = getCategoryLabel(item);
+    if (!categories[categoryLabel]) {
+      categories[categoryLabel] = { label: categoryLabel, value: 0 };
     }
-    categories[cat].value += Math.abs(item.amount);
+    categories[categoryLabel].value += Math.abs(item.amount);
   });
   return Object.values(categories).sort((a, b) => b.value - a.value);
 }
@@ -154,9 +171,9 @@ export function aggregateByCategory(cashFlow) {
 export function getUniqueMonths(cashFlow) {
   const months = new Set();
   cashFlow.forEach((item) => {
-    const m = item.date.substring(0, 7);
-    if (m && m.length === 7) {
-      months.add(m);
+    const month = getMonthKey(item);
+    if (month) {
+      months.add(month);
     }
   });
   return Array.from(months).sort((a, b) => b.localeCompare(a));
@@ -165,7 +182,7 @@ export function getUniqueMonths(cashFlow) {
 export function getUniqueCategories(cashFlow) {
   const categories = new Set();
   cashFlow.forEach((item) => {
-    categories.add(item.category || "未分類");
+    categories.add(getCategoryLabel(item));
   });
   return Array.from(categories).sort();
 }
@@ -173,9 +190,8 @@ export function getUniqueCategories(cashFlow) {
 export function getUniqueLargeCategories(cashFlow) {
   const categories = new Set();
   cashFlow.forEach((item) => {
-    const cat = item.category || "未分類";
-    const parts = cat.split("/");
-    categories.add(parts[0]);
+    const { large } = getCategoryParts(item);
+    categories.add(large);
   });
   return Array.from(categories).sort();
 }
@@ -186,10 +202,9 @@ export function getUniqueSmallCategories(cashFlow, largeCategory) {
   }
   const categories = new Set();
   cashFlow.forEach((item) => {
-    const cat = item.category || "未分類";
-    const parts = cat.split("/");
-    if (parts[0] === largeCategory && parts.length > 1) {
-      categories.add(parts[1]);
+    const { large, small } = getCategoryParts(item);
+    if (large === largeCategory && small) {
+      categories.add(small);
     }
   });
   return Array.from(categories).sort();
