@@ -17,7 +17,7 @@ import CashFlowBarChart from "@/components/CashFlowBarChart.vue";
 import CashFlowTable from "@/components/CashFlowTable.vue";
 import PieChart from "@/components/PieChart.vue";
 
-const { data, loading, error, source, rawResponse } = usePortfolioData();
+const { data, loading, error, rawResponse } = usePortfolioData();
 
 const monthFilter = ref("");
 const largeCategoryFilter = ref("");
@@ -155,7 +155,6 @@ const resetFilters = () => {
 
 <template>
   <section>
-    <p class="meta">データソース: {{ source || "-" }}</p>
     <p v-if="loading">読み込み中...</p>
     <p v-if="error" class="error">{{ error }}</p>
 
