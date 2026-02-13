@@ -170,6 +170,7 @@ watch(
           <RouterLink to="/balance-sheet">バランスシート</RouterLink>
           <RouterLink to="/holdings">資産管理</RouterLink>
           <RouterLink to="/cash-flow">キャッシュフロー</RouterLink>
+          <RouterLink to="/fire">FIRE</RouterLink>
         </nav>
         <div class="header-buttons">
           <button class="theme-toggle" type="button" @click="togglePrivacy">
