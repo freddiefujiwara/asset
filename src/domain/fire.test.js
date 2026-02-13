@@ -31,35 +31,60 @@ describe("fire domain", () => {
   });
 
   describe("estimateMonthlyExpenses", () => {
-    it("calculates average monthly expenses", () => {
+    it("calculates average monthly expenses and breakdown", () => {
       const cashFlow = [
-        { date: "2026-02-01", amount: -100, isTransfer: false },
-        { date: "2026-02-02", amount: -200, isTransfer: false },
-        { date: "2026-01-01", amount: -300, isTransfer: false },
-        { date: "2026-01-02", amount: -400, isTransfer: false },
+        { date: "2026-02-01", amount: -100, isTransfer: false, category: "Food" },
+        { date: "2026-02-02", amount: -200, isTransfer: false, category: "Housing" },
+        { date: "2026-01-01", amount: -300, isTransfer: false, category: "Food" },
+        { date: "2026-01-02", amount: -400, isTransfer: false, category: "Housing" },
       ];
-      // Feb: 300, Jan: 700. Average: 500
-      expect(estimateMonthlyExpenses(cashFlow)).toBe(500);
+      const result = estimateMonthlyExpenses(cashFlow);
+      expect(result.total).toBe(500);
+      expect(result.breakdown).toContainEqual({ name: "Food", amount: 200 });
+      expect(result.breakdown).toContainEqual({ name: "Housing", amount: 300 });
     });
 
     it("subtracts monthly investment from expenses", () => {
       const cashFlow = [
-        { date: "2026-02-01", amount: -1000, isTransfer: false },
+        { date: "2026-02-01", amount: -1000, isTransfer: false, category: "Misc" },
       ];
-      // Average expense: 1000. Investment: 400. Result: 600
-      expect(estimateMonthlyExpenses(cashFlow, 400)).toBe(600);
+      const result = estimateMonthlyExpenses(cashFlow, 400);
+      expect(result.total).toBe(600);
     });
 
     it("ensures estimated expenses are not negative", () => {
       const cashFlow = [
-        { date: "2026-02-01", amount: -100, isTransfer: false },
+        { date: "2026-02-01", amount: -100, isTransfer: false, category: "Misc" },
       ];
-      // Average expense: 100. Investment: 400. Result: 0
-      expect(estimateMonthlyExpenses(cashFlow, 400)).toBe(0);
+      const result = estimateMonthlyExpenses(cashFlow, 400);
+      expect(result.total).toBe(0);
     });
 
-    it("returns 0 for empty cash flow", () => {
-      expect(estimateMonthlyExpenses([])).toBe(0);
+    it("excludes special expenses and returns them separately", () => {
+      const cashFlow = [
+        { date: "2026-02-01", amount: -1000, isTransfer: false, category: "特別な支出/旅行" },
+        { date: "2026-02-01", amount: -500, isTransfer: false, category: "Food" },
+      ];
+      const result = estimateMonthlyExpenses(cashFlow);
+      expect(result.total).toBe(500);
+      expect(result.averageSpecial).toBe(1000);
+    });
+
+    it("handles transfers, income, and missing categories", () => {
+      const cashFlow = [
+        { date: "2026-02-01", amount: 1000, isTransfer: false, category: "Income" },
+        { date: "2026-02-01", amount: -100, isTransfer: true, category: "Transfer" },
+        { date: "2026-02-01", amount: -200, isTransfer: false, category: "" }, // should be 未分類
+      ];
+      const result = estimateMonthlyExpenses(cashFlow);
+      expect(result.total).toBe(200);
+      expect(result.breakdown).toContainEqual({ name: "未分類", amount: 200 });
+    });
+
+    it("returns zeros for empty cash flow", () => {
+      const result = estimateMonthlyExpenses([]);
+      expect(result.total).toBe(0);
+      expect(result.breakdown).toEqual([]);
     });
   });
 

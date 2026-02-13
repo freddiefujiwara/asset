@@ -27,7 +27,12 @@ const iterations = ref(1000);
 // Data-derived parameters
 const initialAssets = computed(() => data.value?.totals?.netWorthYen ?? 0);
 const riskAssets = computed(() => (data.value ? calculateRiskAssets(data.value) : 0));
-const autoMonthlyExpense = computed(() => (data.value?.cashFlow ? estimateMonthlyExpenses(data.value.cashFlow, monthlyInvestment.value) : 0));
+const expenseResult = computed(() =>
+  data.value?.cashFlow
+    ? estimateMonthlyExpenses(data.value.cashFlow, monthlyInvestment.value)
+    : { total: 0, breakdown: [], averageSpecial: 0, monthCount: 0 },
+);
+const autoMonthlyExpense = computed(() => expenseResult.value.total);
 
 const manualMonthlyExpense = ref(0);
 const useAutoExpense = ref(true);
@@ -126,6 +131,24 @@ const achievementProbability = computed(() => {
             </label>
           </div>
           <input v-model.number="manualMonthlyExpense" type="number" step="10000" :disabled="useAutoExpense" />
+          <div v-if="useAutoExpense && expenseResult.monthCount > 0" class="expense-breakdown">
+            <details>
+              <summary>算出内訳 ({{ expenseResult.monthCount }}ヶ月平均)</summary>
+              <div class="breakdown-content">
+                <div v-for="item in expenseResult.breakdown" :key="item.name" class="breakdown-row">
+                  <span class="cat-name">{{ item.name }}</span>
+                  <span class="cat-amount">{{ formatYen(item.amount) }}</span>
+                </div>
+                <div v-if="monthlyInvestment > 0" class="breakdown-row investment-deduction">
+                  <span class="cat-name">投資分差引</span>
+                  <span class="cat-amount">-{{ formatYen(monthlyInvestment) }}</span>
+                </div>
+                <div v-if="expenseResult.averageSpecial > 0" class="special-info">
+                  <span class="meta">※ 特別な支出 (平均 {{ formatYen(expenseResult.averageSpecial) }}) は除外済み</span>
+                </div>
+              </div>
+            </details>
+          </div>
         </div>
         <div class="filter-item">
           <label>インフレ考慮</label>
@@ -242,6 +265,41 @@ const achievementProbability = computed(() => {
 }
 .auto-toggle input {
   cursor: pointer;
+}
+.expense-breakdown {
+  margin-top: 8px;
+  background: var(--surface);
+  border-radius: 4px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+}
+.expense-breakdown summary {
+  font-size: 0.75rem;
+  cursor: pointer;
+  color: var(--muted);
+  user-select: none;
+}
+.breakdown-content {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.75rem;
+}
+.breakdown-row {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px dashed var(--border);
+  padding-bottom: 2px;
+}
+.investment-deduction {
+  color: var(--negative);
+  font-weight: bold;
+}
+.special-info {
+  margin-top: 4px;
+  font-size: 0.7rem;
+  color: var(--muted);
 }
 .card h2 {
     font-size: 0.9rem;

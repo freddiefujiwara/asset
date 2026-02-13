@@ -1,4 +1,4 @@
-import { aggregateByMonth, getSixMonthAverages } from "./cashFlow";
+import { getUniqueMonths } from "./cashFlow";
 
 /**
  * Identify risk assets and sum their values.
@@ -21,12 +21,49 @@ export function calculateRiskAssets(portfolio) {
 
 /**
  * Estimate monthly basic expenses from cash flow.
+ * Returns a breakdown by category and excludes special expenses.
  * Subtracts the monthly investment amount if it's included in the expenses.
  */
 export function estimateMonthlyExpenses(cashFlow, monthlyInvestment = 0) {
-  const monthlyData = aggregateByMonth(cashFlow);
-  const averages = getSixMonthAverages(monthlyData);
-  return Math.max(0, Math.round(averages.expense - monthlyInvestment));
+  const months = getUniqueMonths(cashFlow);
+  const monthCount = Math.max(months.length, 1);
+
+  const breakdownMap = {};
+  let totalNormalExpense = 0;
+  let totalSpecialExpense = 0;
+
+  cashFlow.forEach((item) => {
+    if (item.isTransfer || item.amount >= 0) return;
+
+    const absAmount = Math.abs(item.amount);
+    const category = item.category || "未分類";
+
+    if (category.startsWith("特別な支出")) {
+      totalSpecialExpense += absAmount;
+      return;
+    }
+
+    totalNormalExpense += absAmount;
+    const largeCat = category.split("/")[0];
+    breakdownMap[largeCat] = (breakdownMap[largeCat] || 0) + absAmount;
+  });
+
+  const breakdown = Object.entries(breakdownMap)
+    .map(([name, total]) => ({
+      name,
+      amount: Math.round(total / monthCount),
+    }))
+    .sort((a, b) => b.amount - a.amount);
+
+  const averageNormal = Math.round(totalNormalExpense / monthCount);
+  const finalTotal = Math.max(0, averageNormal - monthlyInvestment);
+
+  return {
+    total: finalTotal,
+    breakdown,
+    averageSpecial: Math.round(totalSpecialExpense / monthCount),
+    monthCount,
+  };
 }
 
 /**
