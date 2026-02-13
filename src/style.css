@@ -11,6 +11,7 @@
   --link: #93c5fd;
   --link-active: #ffffff;
   --error: #fca5a5;
+  --amount-mask-filter: none;
 }
 
 :root[data-theme="light"] {
@@ -431,6 +432,10 @@ td {
 :root[data-private="on"] .amount-value {
   filter: blur(0.34rem);
   user-select: none;
+}
+
+:root[data-private="on"] {
+  --amount-mask-filter: blur(0.34rem);
 }
 
 
