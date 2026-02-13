@@ -40,8 +40,22 @@ const filteredCashFlow = computed(() => {
   return sortCashFlow(filtered, sortKey.value, sortOrder.value);
 });
 
+const hasActiveFilters = computed(() =>
+  Boolean(
+    monthFilter.value
+    || largeCategoryFilter.value
+    || smallCategoryFilter.value
+    || searchFilter.value,
+  ),
+);
+
 const kpis = computed(() => getKPIs(filteredCashFlow.value));
-const monthlyData = computed(() => aggregateByMonth(cashFlowRaw.value));
+const monthlyData = computed(() =>
+  aggregateByMonth(
+    hasActiveFilters.value ? filteredCashFlow.value : cashFlowRaw.value,
+    { includeNet: !hasActiveFilters.value },
+  ),
+);
 const categoryPieData = computed(() => aggregateByCategory(filteredCashFlow.value));
 
 const uniqueMonths = computed(() => getUniqueMonths(cashFlowRaw.value));
@@ -131,7 +145,7 @@ const resetFilters = () => {
       </article>
     </div>
 
-    <CashFlowBarChart :data="monthlyData" />
+    <CashFlowBarChart :data="monthlyData" :show-net="!hasActiveFilters" />
 
     <div class="chart-grid">
       <PieChart title="カテゴリ別支出内訳" :data="categoryPieData" />

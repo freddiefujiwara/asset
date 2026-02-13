@@ -93,6 +93,25 @@ describe("cashFlow domain", () => {
     });
   });
 
+
+  describe("aggregateByMonth", () => {
+    it("aggregates filtered monthly values", () => {
+      const filtered = filterCashFlow(mockCashFlow, { largeCategory: "Food" });
+      expect(aggregateByMonth(filtered)).toEqual([
+        { month: "2026-01", income: 0, expense: 1000, net: -1000 },
+        { month: "2026-02", income: 0, expense: 3000, net: -3000 },
+      ]);
+    });
+
+    it("skips net calculations when includeNet is false", () => {
+      const filtered = filterCashFlow(mockCashFlow, { largeCategory: "Food" });
+      expect(aggregateByMonth(filtered, { includeNet: false })).toEqual([
+        { month: "2026-01", income: 0, expense: 1000, net: 0 },
+        { month: "2026-02", income: 0, expense: 3000, net: 0 },
+      ]);
+    });
+  });
+
   describe("getKPIs", () => {
     it("calculates correct KPIs", () => {
       const kpis = getKPIs(mockCashFlow);

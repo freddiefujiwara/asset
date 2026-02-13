@@ -3,6 +3,7 @@ import { computed } from "vue";
 
 const props = defineProps({
   data: { type: Array, default: () => [] }, // Array of { month, income, expense, net }
+  showNet: { type: Boolean, default: true },
 });
 
 const width = 800;
@@ -12,7 +13,9 @@ const innerWidth = width - margin.left - margin.right;
 const innerHeight = height - margin.top - margin.bottom;
 
 const range = computed(() => {
-  const values = props.data.flatMap((d) => [d.income, d.expense, d.net]);
+  const values = props.data.flatMap((d) =>
+    props.showNet ? [d.income, d.expense, d.net] : [d.income, d.expense],
+  );
   const min = Math.min(...values, 0);
   const max = Math.max(...values, 100000);
 
@@ -149,10 +152,12 @@ const gridLines = computed(() => {
           </g>
 
           <!-- Net Line -->
-          <path :d="netLinePath" fill="none" stroke="#3b82f6" stroke-width="2" />
-          <circle v-for="b in bars" :key="'net-'+b.month" :cx="b.income.x + b.income.w" :cy="b.net.y" r="4" fill="#3b82f6">
-             <title>{{ b.month }} 純収支: {{ b.net.val.toLocaleString() }}</title>
-          </circle>
+          <template v-if="showNet">
+            <path :d="netLinePath" fill="none" stroke="#3b82f6" stroke-width="2" />
+            <circle v-for="b in bars" :key="'net-'+b.month" :cx="b.income.x + b.income.w" :cy="b.net.y" r="4" fill="#3b82f6">
+               <title>{{ b.month }} 純収支: {{ b.net.val.toLocaleString() }}</title>
+            </circle>
+          </template>
 
           <!-- Zero line -->
           <line x1="0" :y1="yScale(0)" :x2="innerWidth" :y2="yScale(0)" stroke="var(--text)" stroke-width="1" />
@@ -168,7 +173,7 @@ const gridLines = computed(() => {
         <span style="width: 12px; height: 12px; background: #ef4444; border-radius: 2px;"></span>
         <span style="font-size: 12px;">支出</span>
       </div>
-      <div style="display: flex; align-items: center; gap: 4px;">
+      <div v-if="showNet" style="display: flex; align-items: center; gap: 4px;">
         <span style="width: 12px; height: 2px; background: #3b82f6;"></span>
         <span style="font-size: 12px;">純収支</span>
       </div>

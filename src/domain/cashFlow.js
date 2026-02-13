@@ -86,7 +86,7 @@ export function getKPIs(cashFlow) {
   };
 }
 
-export function aggregateByMonth(cashFlow) {
+export function aggregateByMonth(cashFlow, { includeNet = true } = {}) {
   const months = {};
   cashFlow.forEach((item) => {
     if (item.isTransfer) {
@@ -104,7 +104,9 @@ export function aggregateByMonth(cashFlow) {
     } else {
       months[m].expense += Math.abs(item.amount);
     }
-    months[m].net += item.amount;
+    if (includeNet) {
+      months[m].net += item.amount;
+    }
   });
 
   return Object.values(months).sort((a, b) => a.month.localeCompare(b.month));
