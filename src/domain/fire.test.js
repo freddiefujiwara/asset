@@ -114,7 +114,6 @@ describe("fire domain", () => {
         ...params,
         initialAssets: 100000000, // 100M yen
         monthlyExpense: 100000, // 1.2M/year
-        targetMultiplier: 25, // 30M required
       });
       expect(result.stats.median).toBe(0);
     });
@@ -145,11 +144,10 @@ describe("fire domain", () => {
       const result = simulateFire({
         ...params,
         initialAssets: 1000,
-        monthlyInvestment: 1000,
+        monthlyInvestment: 0, // No growth
         monthlyExpense: 1000,
         annualReturnRate: 0,
         annualStandardDeviation: 0,
-        targetMultiplier: 1000, // required = 1000 * 12 * 1000 = 12,000,000
         maxMonths: 5,
         iterations: 1
       });

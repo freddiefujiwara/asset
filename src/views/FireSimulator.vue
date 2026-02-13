@@ -150,7 +150,7 @@ const achievementProbability = computed(() => {
               <div class="breakdown-content">
                 <div v-for="item in expenseResult.breakdown" :key="item.name" class="breakdown-row">
                   <span class="cat-name">{{ item.name }}</span>
-                  <span class="cat-amount">{{ formatYen(item.amount) }}</span>
+                  <span class="cat-amount amount-value">{{ formatYen(item.amount) }}</span>
                 </div>
                 <div v-if="expenseResult.averageSpecial > 0" class="special-info">
                   <span class="meta">※ 特別な支出 (平均 {{ formatYen(expenseResult.averageSpecial) }}) は除外済み</span>

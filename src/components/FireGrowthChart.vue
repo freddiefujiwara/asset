@@ -84,7 +84,7 @@ const yLabels = computed(() => {
           <!-- Grid lines -->
           <g v-for="label in yLabels" :key="label.text" class="grid-line">
             <line x1="0" :y1="label.y" :x2="innerWidth" :y2="label.y" stroke="var(--border)" stroke-dasharray="4" />
-            <text x="-10" :y="label.y" text-anchor="end" alignment-baseline="middle" font-size="10" fill="var(--muted)">
+            <text x="-10" :y="label.y" class="fire-y-axis-label" text-anchor="end" alignment-baseline="middle" font-size="10" fill="var(--muted)">
               {{ label.text }}
             </text>
           </g>

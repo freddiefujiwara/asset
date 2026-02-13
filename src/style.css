@@ -461,8 +461,15 @@ td {
   -webkit-filter: blur(0.34rem);
 }
 
-:root[data-private="on"] .cash-flow-y-axis-label {
+:root[data-private="on"] .cash-flow-y-axis-label,
+:root[data-private="on"] .fire-y-axis-label {
   opacity: 0;
+}
+
+:root[data-private="on"] .fire-form-grid input {
+  background-color: #000 !important;
+  color: #000 !important;
+  border-color: #333 !important;
 }
 
 
