@@ -11,6 +11,7 @@ import {
   getUniqueLargeCategories,
   getUniqueSmallCategories,
   sortCashFlow,
+  getSixMonthAverages,
 } from "@/domain/cashFlow";
 import CashFlowBarChart from "@/components/CashFlowBarChart.vue";
 import CashFlowTable from "@/components/CashFlowTable.vue";
@@ -57,6 +58,11 @@ const monthlyData = computed(() =>
   ),
 );
 const categoryPieData = computed(() => aggregateByCategory(filteredCashFlow.value));
+
+const showSixMonthAverage = computed(() => !monthFilter.value);
+const sixMonthAverages = computed(() =>
+  showSixMonthAverage.value ? getSixMonthAverages(monthlyData.value) : null,
+);
 
 const uniqueMonths = computed(() => getUniqueMonths(cashFlowRaw.value));
 const uniqueLargeCategories = computed(() => getUniqueLargeCategories(cashFlowRaw.value));
@@ -145,7 +151,7 @@ const resetFilters = () => {
       </article>
     </div>
 
-    <CashFlowBarChart :data="monthlyData" :show-net="!hasActiveFilters" />
+    <CashFlowBarChart :data="monthlyData" :show-net="!hasActiveFilters" :averages="sixMonthAverages" />
 
     <div class="chart-grid">
       <PieChart title="カテゴリ別支出内訳" :data="categoryPieData" />

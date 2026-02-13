@@ -4,6 +4,7 @@ import { computed } from "vue";
 const props = defineProps({
   data: { type: Array, default: () => [] }, // Array of { month, income, expense, net }
   showNet: { type: Boolean, default: true },
+  averages: { type: Object, default: null },
 });
 
 const width = 800;
@@ -178,6 +179,18 @@ const gridLines = computed(() => {
         <span style="font-size: 12px;">純収支</span>
       </div>
     </div>
+    <p
+      v-if="averages && averages.count > 0"
+      class="meta"
+      style="margin-top: 8px; text-align: center;"
+    >
+      直近{{ averages.count }}か月平均：
+      収入 {{ Math.round(averages.income).toLocaleString() }} /
+      支出 {{ Math.round(averages.expense).toLocaleString() }}
+      <template v-if="showNet">
+        / 純収支 {{ Math.round(averages.net).toLocaleString() }}
+      </template>
+    </p>
   </div>
 </template>
 

@@ -4,6 +4,7 @@ import {
   getKPIs,
   aggregateByMonth,
   aggregateByCategory,
+  getSixMonthAverages,
   getUniqueMonths,
   getUniqueCategories,
   getUniqueLargeCategories,
@@ -111,6 +112,32 @@ describe("cashFlow domain", () => {
       ]);
     });
   });
+
+  describe("getSixMonthAverages", () => {
+    it("returns averages for up to latest 6 months", () => {
+      const monthly = [
+        { month: "2025-09", income: 100, expense: 10, net: 90 },
+        { month: "2025-10", income: 200, expense: 20, net: 180 },
+        { month: "2025-11", income: 300, expense: 30, net: 270 },
+        { month: "2025-12", income: 400, expense: 40, net: 360 },
+        { month: "2026-01", income: 500, expense: 50, net: 450 },
+        { month: "2026-02", income: 600, expense: 60, net: 540 },
+        { month: "2026-03", income: 700, expense: 70, net: 630 },
+      ];
+
+      expect(getSixMonthAverages(monthly)).toEqual({
+        income: 450,
+        expense: 45,
+        net: 405,
+        count: 6,
+      });
+    });
+
+    it("returns zeros for empty input", () => {
+      expect(getSixMonthAverages([])).toEqual({ income: 0, expense: 0, net: 0, count: 0 });
+    });
+  });
+
 
   describe("getKPIs", () => {
     it("calculates correct KPIs", () => {
