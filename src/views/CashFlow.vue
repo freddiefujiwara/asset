@@ -8,7 +8,9 @@ import {
   aggregateByMonth,
   aggregateByCategory,
   getUniqueMonths,
-  getUniqueCategories,
+  getUniqueLargeCategories,
+  getUniqueSmallCategories,
+  sortCashFlow,
 } from "@/domain/cashFlow";
 import CashFlowBarChart from "@/components/CashFlowBarChart.vue";
 import CashFlowTable from "@/components/CashFlowTable.vue";
@@ -17,19 +19,25 @@ import PieChart from "@/components/PieChart.vue";
 const { data, loading, error, source } = usePortfolioData();
 
 const monthFilter = ref("");
-const categoryFilter = ref("");
+const largeCategoryFilter = ref("");
+const smallCategoryFilter = ref("");
 const searchFilter = ref("");
 const includeTransfers = ref(true);
+
+const sortKey = ref("date");
+const sortOrder = ref("desc");
 
 const cashFlowRaw = computed(() => data.value?.cashFlow ?? []);
 
 const filteredCashFlow = computed(() => {
-  return filterCashFlow(cashFlowRaw.value, {
+  const filtered = filterCashFlow(cashFlowRaw.value, {
     month: monthFilter.value,
-    category: categoryFilter.value,
+    largeCategory: largeCategoryFilter.value,
+    smallCategory: smallCategoryFilter.value,
     search: searchFilter.value,
     includeTransfers: includeTransfers.value,
   });
+  return sortCashFlow(filtered, sortKey.value, sortOrder.value);
 });
 
 const kpis = computed(() => getKPIs(filteredCashFlow.value));
@@ -37,11 +45,20 @@ const monthlyData = computed(() => aggregateByMonth(cashFlowRaw.value));
 const categoryPieData = computed(() => aggregateByCategory(filteredCashFlow.value));
 
 const uniqueMonths = computed(() => getUniqueMonths(cashFlowRaw.value));
-const uniqueCategories = computed(() => getUniqueCategories(cashFlowRaw.value));
+const uniqueLargeCategories = computed(() => getUniqueLargeCategories(cashFlowRaw.value));
+const uniqueSmallCategories = computed(() =>
+  getUniqueSmallCategories(cashFlowRaw.value, largeCategoryFilter.value),
+);
+
+const handleSort = ({ key, order }) => {
+  sortKey.value = key;
+  sortOrder.value = order;
+};
 
 const resetFilters = () => {
   monthFilter.value = "";
-  categoryFilter.value = "";
+  largeCategoryFilter.value = "";
+  smallCategoryFilter.value = "";
   searchFilter.value = "";
   includeTransfers.value = true;
 };
@@ -64,10 +81,17 @@ const resetFilters = () => {
           </select>
         </div>
         <div class="filter-item">
-          <label>カテゴリ</label>
-          <select v-model="categoryFilter">
+          <label>大カテゴリ</label>
+          <select v-model="largeCategoryFilter" @change="smallCategoryFilter = ''">
             <option value="">すべて</option>
-            <option v-for="c in uniqueCategories" :key="c" :value="c">{{ c }}</option>
+            <option v-for="c in uniqueLargeCategories" :key="c" :value="c">{{ c }}</option>
+          </select>
+        </div>
+        <div class="filter-item">
+          <label>小カテゴリ</label>
+          <select v-model="smallCategoryFilter" :disabled="!largeCategoryFilter">
+            <option value="">すべて</option>
+            <option v-for="c in uniqueSmallCategories" :key="c" :value="c">{{ c }}</option>
           </select>
         </div>
         <div class="filter-item search-item">
@@ -113,7 +137,12 @@ const resetFilters = () => {
       <PieChart title="カテゴリ別支出内訳" :data="categoryPieData" />
     </div>
 
-    <CashFlowTable :items="filteredCashFlow" />
+    <CashFlowTable
+      :items="filteredCashFlow"
+      :sort-key="sortKey"
+      :sort-order="sortOrder"
+      @sort="handleSort"
+    />
   </section>
 </template>
 
