@@ -57,7 +57,7 @@ const monthlyData = computed(() =>
     { includeNet: !hasActiveFilters.value },
   ),
 );
-const categoryPieData = computed(() => aggregateByCategory(filteredCashFlow.value));
+const categoryPieData = computed(() => aggregateByCategory(filteredCashFlow.value, { averageMonths: 6 }));
 
 const showSixMonthAverage = computed(() => !monthFilter.value);
 const sixMonthAverages = computed(() =>
@@ -222,7 +222,7 @@ const resetFilters = () => {
     <CashFlowBarChart :data="monthlyData" :show-net="!hasActiveFilters" :averages="sixMonthAverages" />
 
     <div class="chart-grid">
-      <PieChart title="カテゴリ別支出内訳" :data="categoryPieData" />
+      <PieChart title="カテゴリ別支出内訳" :data="categoryPieData" :value-formatter="formatYen" />
     </div>
 
     <div class="table-wrap api-actions">

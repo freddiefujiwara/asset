@@ -139,6 +139,10 @@ const achievementProbability = computed(() => {
           <label>現在の年齢</label>
           <input v-model.number="currentAge" type="number" class="is-public" />
         </div>
+        <div class="filter-item">
+          <label>取り崩し率 (%)</label>
+          <input v-model.number="withdrawalRate" type="number" step="0.1" class="is-public" />
+        </div>
         <div class="filter-item expense-item">
           <div class="label-row">
             <label>生活費 (月額)</label>
@@ -178,10 +182,32 @@ const achievementProbability = computed(() => {
             <span v-if="includeTax">%</span>
           </div>
         </div>
-        <div class="filter-item">
-          <label>取り崩し率 (%)</label>
-          <input v-model.number="withdrawalRate" type="number" step="0.1" />
-        </div>
+      </div>
+
+      <div class="initial-summary">
+        <details>
+          <summary>初期条件の確認</summary>
+          <div class="initial-summary-grid">
+            <div>
+              <span class="meta">現在の純資産:</span>
+              <span class="amount-value" style="margin-left: 8px;">{{ formatYen(initialAssets) }}</span>
+            </div>
+            <div>
+              <span class="meta">うちリスク資産:</span>
+              <span class="amount-value" style="margin-left: 8px;">{{ formatYen(riskAssets) }}</span>
+              <span class="meta"> ({{ (data?.totals?.assetsYen > 0) ? ((riskAssets / data.totals.assetsYen) * 100).toFixed(1) : 0 }}% / 総資産比)</span>
+            </div>
+            <div>
+              <span class="meta">推定年間支出:</span>
+              <span class="amount-value" style="margin-left: 8px;">{{ formatYen(monthlyExpense * 12) }}</span>
+            </div>
+            <div>
+              <span class="meta">必要資産目安:</span>
+              <span class="amount-value" style="margin-left: 8px;">{{ formatYen(Math.round(growthData.table[0]?.requiredAssets ?? 0)) }}</span>
+              <span class="meta"> (100歳寿命)</span>
+            </div>
+          </div>
+        </details>
       </div>
     </div>
 
@@ -208,30 +234,6 @@ const achievementProbability = computed(() => {
         </p>
         <p class="meta">{{ iterations }}回の試行結果</p>
       </article>
-    </div>
-
-    <div class="fire-summary table-wrap" style="margin-bottom: 24px;">
-      <h3 class="section-title">初期条件の確認</h3>
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
-        <div>
-          <span class="meta">現在の純資産:</span>
-          <span class="amount-value" style="margin-left: 8px;">{{ formatYen(initialAssets) }}</span>
-        </div>
-        <div>
-          <span class="meta">うちリスク資産:</span>
-          <span class="amount-value" style="margin-left: 8px;">{{ formatYen(riskAssets) }}</span>
-          <span class="meta"> ({{ (data?.totals?.assetsYen > 0) ? ((riskAssets / data.totals.assetsYen) * 100).toFixed(1) : 0 }}% / 総資産比)</span>
-        </div>
-        <div>
-          <span class="meta">推定年間支出:</span>
-          <span class="amount-value" style="margin-left: 8px;">{{ formatYen(monthlyExpense * 12) }}</span>
-        </div>
-        <div>
-          <span class="meta">必要資産目安:</span>
-          <span class="amount-value" style="margin-left: 8px;">{{ formatYen(Math.round(growthData.table[0]?.requiredAssets ?? 0)) }}</span>
-          <span class="meta"> (100歳寿命)</span>
-        </div>
-      </div>
     </div>
 
     <FireGrowthChart :data="growthData.table" :base-age="currentAge" />
@@ -295,6 +297,22 @@ const achievementProbability = computed(() => {
   cursor: pointer;
   color: var(--muted);
   user-select: none;
+}
+.initial-summary {
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+.initial-summary summary {
+  font-size: 0.8rem;
+  color: var(--muted);
+  cursor: pointer;
+}
+.initial-summary-grid {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
 }
 .breakdown-content {
   margin-top: 8px;
