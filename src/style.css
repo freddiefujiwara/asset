@@ -120,6 +120,23 @@ body {
   padding: 12px;
 }
 
+
+.card-link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 120ms ease, transform 120ms ease;
+}
+
+.card-link:hover {
+  border-color: var(--link);
+}
+
+.card-link:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: 2px;
+}
+
 .card h2,
 .card p {
   margin: 0;
@@ -411,6 +428,29 @@ td {
   }
 }
 
+
+
+.owner-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.owner-tab {
+  border: 1px solid var(--border);
+  background: var(--surface-elevated);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.owner-tab.is-active {
+  border-color: var(--link);
+  color: var(--link-active);
+}
 
 .summary-row {
   display: flex;

@@ -4,7 +4,6 @@ import { createRouter, createWebHistory } from "vue-router";
 import App from "./App.vue";
 import Dashboard from "./views/Dashboard.vue";
 import Holdings from "./views/Holdings.vue";
-import FamilyAssets from "./views/FamilyAssets.vue";
 import CashFlow from "./views/CashFlow.vue";
 import "./style.css";
 
@@ -15,7 +14,7 @@ const router = createRouter({
     { path: "/balance-sheet", component: Dashboard },
     { path: "/dashboard", redirect: "/balance-sheet" },
     { path: "/holdings", component: Holdings },
-    { path: "/family-assets", component: FamilyAssets },
+    { path: "/family-assets", redirect: "/holdings?owner=all" },
     { path: "/cash-flow", component: CashFlow },
   ],
 });

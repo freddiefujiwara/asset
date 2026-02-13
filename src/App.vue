@@ -168,8 +168,7 @@ watch(
       <div class="header-actions">
         <nav class="nav" aria-label="Primary">
           <RouterLink to="/balance-sheet">バランスシート</RouterLink>
-          <RouterLink to="/holdings">保有資産</RouterLink>
-          <RouterLink to="/family-assets">家族別</RouterLink>
+          <RouterLink to="/holdings">資産管理</RouterLink>
           <RouterLink to="/cash-flow">キャッシュフロー</RouterLink>
         </nav>
         <div class="header-buttons">

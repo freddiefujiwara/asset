@@ -1,5 +1,6 @@
 import { dailyChangeYen } from "./format";
 import { toNumber } from "./parse";
+import { totalProfitRate } from "./signed";
 
 export const EMPTY_HOLDINGS = {
   cashLike: [],
@@ -86,12 +87,21 @@ export function stockFundSummary(holdings) {
   const totalYen = rows.reduce((sum, row) => sum + toNumber(row?.["評価額"]), 0);
   const dailyMoves = rows.map((row) => dailyChangeYen(row)).filter((value) => value != null);
   const dailyMoveTotal = dailyMoves.reduce((sum, value) => sum + value, 0);
+  const totalProfitYen = rows.reduce((sum, row) => {
+    if (!("評価損益" in (row ?? {}))) {
+      return sum;
+    }
+    return sum + toNumber(row?.["評価損益"]);
+  }, 0);
+  const totalProfitRatePct = totalProfitRate(totalYen, totalProfitYen);
 
   return {
     rows,
     totalYen,
     dailyMoves,
     dailyMoveTotal,
+    totalProfitYen,
+    totalProfitRatePct,
   };
 }
 
