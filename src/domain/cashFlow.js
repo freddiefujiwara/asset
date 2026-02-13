@@ -1,12 +1,31 @@
-export function filterCashFlow(cashFlow, { month, category, includeTransfers, search } = {}) {
+export function filterCashFlow(
+  cashFlow,
+  { month, category, largeCategory, smallCategory, includeTransfers, search } = {},
+) {
   return cashFlow.filter((item) => {
     if (month && !item.date.startsWith(month)) {
       return false;
     }
+    // Backward compatibility or exact match
     if (category) {
       const itemCat = item.category || "未分類";
       if (itemCat !== category) {
         return false;
+      }
+    }
+    // New large/small category filter
+    if (largeCategory) {
+      const itemCat = item.category || "未分類";
+      const parts = itemCat.split("/");
+      const large = parts[0];
+      if (large !== largeCategory) {
+        return false;
+      }
+      if (smallCategory) {
+        const small = parts.length > 1 ? parts[1] : "";
+        if (small !== smallCategory) {
+          return false;
+        }
       }
     }
     if (includeTransfers === false && item.isTransfer) {
@@ -21,6 +40,24 @@ export function filterCashFlow(cashFlow, { month, category, includeTransfers, se
       }
     }
     return true;
+  });
+}
+
+export function sortCashFlow(cashFlow, sortKey, sortOrder = "asc") {
+  if (!sortKey) return cashFlow;
+
+  return [...cashFlow].sort((a, b) => {
+    let valA = a[sortKey];
+    let valB = b[sortKey];
+
+    if (sortKey === "category") {
+      valA = valA || "未分類";
+      valB = valB || "未分類";
+    }
+
+    if (valA < valB) return sortOrder === "asc" ? -1 : 1;
+    if (valA > valB) return sortOrder === "asc" ? 1 : -1;
+    return 0;
   });
 }
 
@@ -103,6 +140,31 @@ export function getUniqueCategories(cashFlow) {
   const categories = new Set();
   cashFlow.forEach((item) => {
     categories.add(item.category || "未分類");
+  });
+  return Array.from(categories).sort();
+}
+
+export function getUniqueLargeCategories(cashFlow) {
+  const categories = new Set();
+  cashFlow.forEach((item) => {
+    const cat = item.category || "未分類";
+    const parts = cat.split("/");
+    categories.add(parts[0]);
+  });
+  return Array.from(categories).sort();
+}
+
+export function getUniqueSmallCategories(cashFlow, largeCategory) {
+  if (!largeCategory) {
+    return [];
+  }
+  const categories = new Set();
+  cashFlow.forEach((item) => {
+    const cat = item.category || "未分類";
+    const parts = cat.split("/");
+    if (parts[0] === largeCategory && parts.length > 1) {
+      categories.add(parts[1]);
+    }
   });
   return Array.from(categories).sort();
 }
