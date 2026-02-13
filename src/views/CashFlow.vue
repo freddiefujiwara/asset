@@ -75,34 +75,66 @@ const handleSort = ({ key, order }) => {
   sortOrder.value = order;
 };
 
-
-
 const copyStatus = ref("");
 
-const copyRawResponse = async () => {
-  if (!rawResponse.value) {
+const getSplitResponse = () => {
+  if (!rawResponse.value || typeof rawResponse.value !== "object") {
+    return null;
+  }
+
+  const root = rawResponse.value;
+  const target = root?.data && typeof root.data === "object" ? root.data : root;
+
+  if (!target || typeof target !== "object") {
+    return null;
+  }
+
+  const { mfcf, ...others } = target;
+  return { mfcf, others };
+};
+
+const copyText = async (text) => {
+  if (navigator?.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textArea = document.createElement("textarea");
+  textArea.value = text;
+  textArea.setAttribute("readonly", "");
+  textArea.style.position = "absolute";
+  textArea.style.left = "-9999px";
+  document.body.appendChild(textArea);
+  textArea.select();
+  document.execCommand("copy");
+  document.body.removeChild(textArea);
+};
+
+const copyMfcfResponse = async () => {
+  const split = getSplitResponse();
+  if (!split) {
     copyStatus.value = "コピー対象のレスポンスがありません";
     return;
   }
 
-  const prettyJson = JSON.stringify(rawResponse.value, null, 2);
+  try {
+    await copyText(JSON.stringify(split.mfcf ?? [], null, 2));
+    copyStatus.value = "mfcf をコピーしました";
+  } catch {
+    copyStatus.value = "コピーに失敗しました";
+  }
+};
+
+const copyNonMfcfResponse = async () => {
+  const split = getSplitResponse();
+  if (!split) {
+    copyStatus.value = "コピー対象のレスポンスがありません";
+    return;
+  }
 
   try {
-    if (navigator?.clipboard?.writeText) {
-      await navigator.clipboard.writeText(prettyJson);
-    } else {
-      const textArea = document.createElement("textarea");
-      textArea.value = prettyJson;
-      textArea.setAttribute("readonly", "");
-      textArea.style.position = "absolute";
-      textArea.style.left = "-9999px";
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand("copy");
-      document.body.removeChild(textArea);
-    }
-
-    copyStatus.value = "APIレスポンスJSONをコピーしました";
+    await copyText(JSON.stringify(split.others, null, 2));
+    copyStatus.value = "mfcf以外 をコピーしました";
   } catch {
     copyStatus.value = "コピーに失敗しました";
   }
@@ -124,8 +156,11 @@ const resetFilters = () => {
     <p v-if="error" class="error">{{ error }}</p>
 
     <div class="table-wrap api-actions">
-      <button class="theme-toggle" type="button" @click="copyRawResponse">
-        APIレスポンスJSONをコピー
+      <button class="theme-toggle" type="button" @click="copyMfcfResponse">
+        mfcfをコピー
+      </button>
+      <button class="theme-toggle" type="button" @click="copyNonMfcfResponse">
+        mfcf以外をコピー
       </button>
       <p v-if="copyStatus" class="meta">{{ copyStatus }}</p>
     </div>
@@ -251,6 +286,7 @@ const resetFilters = () => {
 .api-actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
