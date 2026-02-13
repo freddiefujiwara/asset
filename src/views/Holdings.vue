@@ -2,9 +2,11 @@
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import HoldingTable from "@/components/HoldingTable.vue";
+import AssetCategoryCard from "@/components/AssetCategoryCard.vue";
 import { formatSignedYen, formatYen } from "@/domain/format";
 import { signedClass } from "@/domain/signed";
 import { EMPTY_HOLDINGS, HOLDING_TABLE_CONFIGS, stockFundSummary, stockTiles as buildStockTiles } from "@/domain/holdings";
+import { filterHoldingsByOwner, OWNER_FILTERS, summarizeByCategory } from "@/domain/assetOwners";
 import { usePortfolioData } from "@/composables/usePortfolioData";
 import { useInitialHashRestore } from "@/composables/useInitialHashRestore";
 
@@ -19,18 +21,32 @@ useInitialHashRestore({
   isReady: computed(() => Boolean(data.value)),
 });
 
-const holdings = computed(() => data.value?.holdings ?? EMPTY_HOLDINGS);
+const selectedOwner = computed(() => {
+  const ownerFromQuery = String(route.query.owner ?? "all").toLowerCase();
+  return OWNER_FILTERS.some((owner) => owner.id === ownerFromQuery) ? ownerFromQuery : "all";
+});
 
-const summary = computed(() => stockFundSummary(holdings.value));
+const holdings = computed(() => data.value?.holdings ?? EMPTY_HOLDINGS);
+const filteredHoldings = computed(() => filterHoldingsByOwner(holdings.value, selectedOwner.value));
+
+const summary = computed(() => stockFundSummary(filteredHoldings.value));
 const stocksAndFundsTotal = computed(() => summary.value.totalYen);
 const dailyMoves = computed(() => summary.value.dailyMoves);
 const dailyMoveTotal = computed(() => summary.value.dailyMoveTotal);
 const dailyMoveClass = computed(() => signedClass(dailyMoveTotal.value));
-const stockTiles = computed(() => buildStockTiles(holdings.value.stocks));
+const stockTiles = computed(() => buildStockTiles(filteredHoldings.value.stocks));
+const categoryCards = computed(() => summarizeByCategory(filteredHoldings.value));
 
 const configs = HOLDING_TABLE_CONFIGS;
 
-
+function selectOwner(ownerId) {
+  router.replace({
+    query: {
+      ...route.query,
+      owner: ownerId,
+    },
+  });
+}
 </script>
 
 <template>
@@ -39,7 +55,20 @@ const configs = HOLDING_TABLE_CONFIGS;
     <p v-if="error" class="error">{{ error }}</p>
 
     <section class="table-wrap">
-      <h3 class="section-title">株式・投信サマリー</h3>
+      <h2 class="section-title">資産管理（保有資産・家族別統合）</h2>
+      <div class="owner-tabs" role="tablist" aria-label="表示対象の切り替え">
+        <button
+          v-for="owner in OWNER_FILTERS"
+          :key="owner.id"
+          type="button"
+          class="owner-tab"
+          :class="selectedOwner === owner.id ? 'is-active' : ''"
+          :aria-selected="selectedOwner === owner.id"
+          @click="selectOwner(owner.id)"
+        >
+          {{ owner.label }}
+        </button>
+      </div>
       <div class="summary-row">
         <span>評価額合計: <strong class="amount-value">{{ formatYen(stocksAndFundsTotal) }}</strong></span>
         <span>
@@ -49,6 +78,16 @@ const configs = HOLDING_TABLE_CONFIGS;
           </strong>
         </span>
       </div>
+    </section>
+
+    <section class="card-grid">
+      <AssetCategoryCard
+        v-for="card in categoryCards"
+        :key="card.key"
+        :title="card.title"
+        :amount-yen="card.amountYen"
+        :count="card.count"
+      />
     </section>
 
     <nav class="section-jump" aria-label="保有資産の小カテゴリ">
@@ -85,7 +124,7 @@ const configs = HOLDING_TABLE_CONFIGS;
           </article>
         </div>
       </section>
-      <HoldingTable :title="config.title" :rows="holdings[config.key]" :columns="config.columns" />
+      <HoldingTable :title="config.title" :rows="filteredHoldings[config.key]" :columns="config.columns" />
       <p class="back-top-wrap"><a href="#holdings-top">↑ トップへ戻る</a></p>
     </section>
   </section>
