@@ -159,22 +159,6 @@ const resetFilters = () => {
     <p v-if="loading">読み込み中...</p>
     <p v-if="error" class="error">{{ error }}</p>
 
-    <div class="table-wrap api-actions">
-      <button
-        v-for="month in copyTargetMonths"
-        :key="month"
-        class="theme-toggle"
-        type="button"
-        @click="copyMonthlyMfcfResponse(month)"
-      >
-        {{ month.replace('-', '') }}分をコピー
-      </button>
-      <button class="theme-toggle" type="button" @click="copyNonMfcfResponse">
-        資産状況をコピー
-      </button>
-      <p v-if="copyStatus" class="meta">{{ copyStatus }}</p>
-    </div>
-
     <div class="filter-section table-wrap">
       <h3 class="section-title">フィルター</h3>
       <div class="filter-grid">
@@ -240,6 +224,22 @@ const resetFilters = () => {
 
     <div class="chart-grid">
       <PieChart title="カテゴリ別支出内訳" :data="categoryPieData" />
+    </div>
+
+    <div class="table-wrap api-actions">
+      <button
+        v-for="month in copyTargetMonths"
+        :key="month"
+        class="theme-toggle"
+        type="button"
+        @click="copyMonthlyMfcfResponse(month)"
+      >
+        {{ month.replace('-', '') }}分をコピー
+      </button>
+      <button class="theme-toggle" type="button" @click="copyNonMfcfResponse">
+        資産状況をコピー
+      </button>
+      <p v-if="copyStatus" class="meta">{{ copyStatus }}</p>
     </div>
 
     <CashFlowTable
