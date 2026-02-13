@@ -86,7 +86,7 @@ export function getKPIs(cashFlow) {
   };
 }
 
-export function aggregateByMonth(cashFlow) {
+export function aggregateByMonth(cashFlow, { includeNet = true } = {}) {
   const months = {};
   cashFlow.forEach((item) => {
     if (item.isTransfer) {
@@ -104,10 +104,37 @@ export function aggregateByMonth(cashFlow) {
     } else {
       months[m].expense += Math.abs(item.amount);
     }
-    months[m].net += item.amount;
+    if (includeNet) {
+      months[m].net += item.amount;
+    }
   });
 
   return Object.values(months).sort((a, b) => a.month.localeCompare(b.month));
+}
+
+
+export function getSixMonthAverages(monthlyData, months = 6) {
+  if (!monthlyData.length) {
+    return { income: 0, expense: 0, net: 0, count: 0 };
+  }
+
+  const recent = monthlyData.slice(-months);
+  const totals = recent.reduce(
+    (acc, item) => ({
+      income: acc.income + item.income,
+      expense: acc.expense + item.expense,
+      net: acc.net + item.net,
+    }),
+    { income: 0, expense: 0, net: 0 },
+  );
+
+  const count = recent.length;
+  return {
+    income: totals.income / count,
+    expense: totals.expense / count,
+    net: totals.net / count,
+    count,
+  };
 }
 
 export function aggregateByCategory(cashFlow) {
