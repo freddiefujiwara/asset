@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dailyChangeYen, formatSignedYen, formatYen, holdingRowKey } from "./format";
+import { dailyChangeYen, formatSignedYen, formatYen, holdingRowKey, truncate } from "./format";
 
 describe("format helpers", () => {
   it("formats yen values", () => {
@@ -34,5 +34,14 @@ describe("format helpers", () => {
     expect(holdingRowKey({ 保有金融機関: "Bank", 銘柄名: "ETF" })).toBe("Bank__ETF");
     expect(holdingRowKey({ 保有金融機関: "Bank", 名称: "Point" })).toBe("Bank__Point");
     expect(holdingRowKey({})).toBe("__");
+  });
+
+  it("truncates long strings", () => {
+    expect(truncate("12345678901", 10)).toBe("1234567890...");
+    expect(truncate("1234567890", 10)).toBe("1234567890");
+    expect(truncate("short", 10)).toBe("short");
+    expect(truncate(null, 10)).toBe(null);
+    const longString = "a".repeat(26);
+    expect(truncate(longString)).toBe("a".repeat(25) + "..."); // default length 25
   });
 });
