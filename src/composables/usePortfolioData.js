@@ -4,7 +4,7 @@ import { usePortfolioStore } from "@/stores/portfolio";
 
 export function usePortfolioData() {
   const store = usePortfolioStore();
-  const { data, loading, error, source } = storeToRefs(store);
+  const { data, loading, error, source, rawResponse } = storeToRefs(store);
 
   onMounted(() => {
     if (!data.value && !loading.value && !error.value) {
@@ -18,5 +18,6 @@ export function usePortfolioData() {
     loading,
     error,
     source,
+    rawResponse,
   };
 }

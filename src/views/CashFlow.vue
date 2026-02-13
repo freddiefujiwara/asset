@@ -17,7 +17,7 @@ import CashFlowBarChart from "@/components/CashFlowBarChart.vue";
 import CashFlowTable from "@/components/CashFlowTable.vue";
 import PieChart from "@/components/PieChart.vue";
 
-const { data, loading, error, source } = usePortfolioData();
+const { data, loading, error, source, rawResponse } = usePortfolioData();
 
 const monthFilter = ref("");
 const largeCategoryFilter = ref("");
@@ -75,6 +75,39 @@ const handleSort = ({ key, order }) => {
   sortOrder.value = order;
 };
 
+
+
+const copyStatus = ref("");
+
+const copyRawResponse = async () => {
+  if (!rawResponse.value) {
+    copyStatus.value = "コピー対象のレスポンスがありません";
+    return;
+  }
+
+  const prettyJson = JSON.stringify(rawResponse.value, null, 2);
+
+  try {
+    if (navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(prettyJson);
+    } else {
+      const textArea = document.createElement("textarea");
+      textArea.value = prettyJson;
+      textArea.setAttribute("readonly", "");
+      textArea.style.position = "absolute";
+      textArea.style.left = "-9999px";
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textArea);
+    }
+
+    copyStatus.value = "APIレスポンスJSONをコピーしました";
+  } catch {
+    copyStatus.value = "コピーに失敗しました";
+  }
+};
+
 const resetFilters = () => {
   monthFilter.value = "";
   largeCategoryFilter.value = "";
@@ -89,6 +122,13 @@ const resetFilters = () => {
     <p class="meta">データソース: {{ source || "-" }}</p>
     <p v-if="loading">読み込み中...</p>
     <p v-if="error" class="error">{{ error }}</p>
+
+    <div class="table-wrap api-actions">
+      <button class="theme-toggle" type="button" @click="copyRawResponse">
+        APIレスポンスJSONをコピー
+      </button>
+      <p v-if="copyStatus" class="meta">{{ copyStatus }}</p>
+    </div>
 
     <div class="filter-section table-wrap">
       <h3 class="section-title">フィルター</h3>
@@ -207,6 +247,13 @@ const resetFilters = () => {
   color: var(--text);
   font-size: 0.9rem;
 }
+
+.api-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 @media (max-width: 700px) {
   .filter-grid {
     gap: 12px;
