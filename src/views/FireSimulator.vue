@@ -5,6 +5,7 @@ import { formatYen } from "@/domain/format";
 import {
   calculateRiskAssets,
   estimateMonthlyExpenses,
+  estimateMonthlyIncome,
   simulateFire,
   generateGrowthTable,
 } from "@/domain/fire";
@@ -45,15 +46,26 @@ const expenseResult = computed(() =>
     : { total: 0, breakdown: [], averageSpecial: 0, monthCount: 0 },
 );
 const autoMonthlyExpense = computed(() => expenseResult.value.total);
+const autoMonthlyIncome = computed(() =>
+  data.value?.cashFlow ? estimateMonthlyIncome(data.value.cashFlow) : 0,
+);
 
 const manualMonthlyExpense = ref(0);
 const useAutoExpense = ref(true);
+const manualMonthlyIncome = ref(0);
+const useAutoIncome = ref(true);
+const mortgageMonthlyPayment = ref(0);
+const mortgagePayoffDate = ref("2042-07");
 
 const monthlyExpense = computed(() => (useAutoExpense.value ? autoMonthlyExpense.value : manualMonthlyExpense.value));
+const monthlyIncome = computed(() => (useAutoIncome.value ? autoMonthlyIncome.value : manualMonthlyIncome.value));
 
 watchEffect(() => {
   if (autoMonthlyExpense.value && useAutoExpense.value) {
     manualMonthlyExpense.value = autoMonthlyExpense.value;
+  }
+  if (autoMonthlyIncome.value && useAutoIncome.value) {
+    manualMonthlyIncome.value = autoMonthlyIncome.value;
   }
 });
 
@@ -66,12 +78,15 @@ const simResult = computed(() => {
     annualReturnRate: annualReturnRate.value / 100,
     annualStandardDeviation: annualStandardDeviation.value / 100,
     monthlyExpense: monthlyExpense.value,
+    monthlyIncome: monthlyIncome.value,
     includeInflation: includeInflation.value,
     inflationRate: inflationRate.value / 100,
     currentAge: currentAge.value,
     includeTax: includeTax.value,
     taxRate: taxRate.value / 100,
     withdrawalRate: withdrawalRate.value / 100,
+    mortgageMonthlyPayment: mortgageMonthlyPayment.value,
+    mortgagePayoffDate: mortgagePayoffDate.value || null,
     iterations: iterations.value,
   });
 });
@@ -83,12 +98,15 @@ const growthData = computed(() => {
     monthlyInvestment: monthlyInvestment.value,
     annualReturnRate: annualReturnRate.value / 100,
     monthlyExpense: monthlyExpense.value,
+    monthlyIncome: monthlyIncome.value,
     currentAge: currentAge.value,
     includeInflation: includeInflation.value,
     inflationRate: inflationRate.value / 100,
     includeTax: includeTax.value,
     taxRate: taxRate.value / 100,
     withdrawalRate: withdrawalRate.value / 100,
+    mortgageMonthlyPayment: mortgageMonthlyPayment.value,
+    mortgagePayoffDate: mortgagePayoffDate.value || null,
   });
 });
 
@@ -166,6 +184,23 @@ const achievementProbability = computed(() => {
             </details>
           </div>
         </div>
+        <div class="filter-item expense-item">
+          <div class="label-row">
+            <label>月収 (月額)</label>
+            <label class="auto-toggle">
+              <input type="checkbox" v-model="useAutoIncome" /> 自動算出
+            </label>
+          </div>
+          <input v-model.number="manualMonthlyIncome" type="number" step="10000" :disabled="useAutoIncome" />
+        </div>
+        <div class="filter-item">
+          <label>住宅ローン月額 (円)</label>
+          <input v-model.number="mortgageMonthlyPayment" type="number" step="10000" />
+        </div>
+        <div class="filter-item">
+          <label>ローン完済年月</label>
+          <input v-model="mortgagePayoffDate" type="month" class="is-public" />
+        </div>
         <div class="filter-item">
           <label>インフレ考慮</label>
           <div style="display: flex; gap: 8px; align-items: center;">
@@ -200,6 +235,10 @@ const achievementProbability = computed(() => {
             <div>
               <span class="meta">推定年間支出:</span>
               <span class="amount-value" style="margin-left: 8px;">{{ formatYen(monthlyExpense * 12) }}</span>
+            </div>
+            <div>
+              <span class="meta">推定年間収入:</span>
+              <span class="amount-value" style="margin-left: 8px;">{{ formatYen(monthlyIncome * 12) }}</span>
             </div>
             <div>
               <span class="meta">必要資産目安:</span>

@@ -84,6 +84,32 @@ export function estimateMonthlyExpenses(cashFlow) {
 }
 
 /**
+ * Estimate monthly average income from cash flow (previous 5 months, excluding current month).
+ */
+export function estimateMonthlyIncome(cashFlow) {
+  const now = new Date();
+  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const targetMonths = getUniqueMonths(cashFlow)
+    .filter((month) => month !== currentMonthKey)
+    .slice(0, 5);
+  const monthSet = new Set(targetMonths);
+  const divisor = Math.max(targetMonths.length, 1);
+
+  let totalIncome = 0;
+
+  cashFlow.forEach((item) => {
+    if (item.isTransfer || item.amount <= 0) return;
+
+    const month = item.date?.substring(0, 7) || "";
+    if (!monthSet.has(month)) return;
+
+    totalIncome += item.amount;
+  });
+
+  return Math.round(totalIncome / divisor);
+}
+
+/**
  * Box-Muller transform for normal distribution random numbers.
  */
 function boxMuller() {
@@ -128,6 +154,35 @@ function calculateRequiredAssets({
   return Math.max(0, pv);
 }
 
+function toMonthKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function calculateCurrentMonthlyExpense({
+  baseMonthlyExpense,
+  monthlyInflationRate,
+  monthIndex,
+  simulationStartDate,
+  mortgageMonthlyPayment,
+  mortgagePayoffDate,
+}) {
+  const expenseWithInflation = baseMonthlyExpense * Math.pow(1 + monthlyInflationRate, monthIndex);
+
+  if (!mortgageMonthlyPayment || !mortgagePayoffDate) {
+    return expenseWithInflation;
+  }
+
+  const currentDate = new Date(simulationStartDate);
+  currentDate.setMonth(currentDate.getMonth() + monthIndex);
+  const currentMonthKey = toMonthKey(currentDate);
+
+  if (currentMonthKey >= mortgagePayoffDate) {
+    return Math.max(0, expenseWithInflation - mortgageMonthlyPayment);
+  }
+
+  return expenseWithInflation;
+}
+
 /**
  * Simulate one trial of asset growth until FIRE or max time.
  */
@@ -138,6 +193,7 @@ function simulateTrial({
   annualReturnRate,
   annualStandardDeviation,
   monthlyExpense,
+  monthlyIncome,
   currentAge,
   maxMonths,
   includeInflation,
@@ -145,6 +201,8 @@ function simulateTrial({
   includeTax,
   taxRate,
   withdrawalRate,
+  mortgageMonthlyPayment,
+  mortgagePayoffDate,
 }) {
   let assets = initialAssets;
   const monthlyReturnMean = Math.pow(1 + annualReturnRate, 1 / 12) - 1;
@@ -153,9 +211,18 @@ function simulateTrial({
 
   const totalMonthsUntil100 = (100 - currentAge) * 12;
 
+  const simulationStartDate = new Date();
+
   for (let m = 0; m <= maxMonths; m++) {
     const remainingMonths = totalMonthsUntil100 - m;
-    const currentMonthlyExpense = monthlyExpense * Math.pow(1 + monthlyInflationRate, m);
+    const currentMonthlyExpense = calculateCurrentMonthlyExpense({
+      baseMonthlyExpense: monthlyExpense,
+      monthlyInflationRate,
+      monthIndex: m,
+      simulationStartDate,
+      mortgageMonthlyPayment,
+      mortgagePayoffDate,
+    });
 
     const requiredAssets = calculateRequiredAssets({
       monthlyExpense: currentMonthlyExpense,
@@ -177,8 +244,8 @@ function simulateTrial({
     const grownRiskAssets = riskAssets * (1 + returnRate);
     const grownSafeAssets = safeAssets; // Assume safe assets (cash) have 0% return for simplicity
 
-    assets = grownRiskAssets + grownSafeAssets + monthlyInvestment;
-    assets -= monthlyExpense * Math.pow(1 + monthlyInflationRate, m);
+    assets = grownRiskAssets + grownSafeAssets + monthlyIncome + monthlyInvestment;
+    assets -= currentMonthlyExpense;
 
     if (assets < 0) return maxMonths;
   }
@@ -196,6 +263,7 @@ export function simulateFire(params) {
     annualReturnRate,
     annualStandardDeviation,
     monthlyExpense,
+    monthlyIncome = 0,
     currentAge = 40,
     iterations = 1000,
     maxMonths = 1200,
@@ -204,6 +272,8 @@ export function simulateFire(params) {
     includeTax = false,
     taxRate = 0.20315,
     withdrawalRate = 0.04,
+    mortgageMonthlyPayment = 0,
+    mortgagePayoffDate = null,
   } = params;
 
   const riskAssetRatio = initialAssets > 0 ? riskAssets / initialAssets : 0;
@@ -218,6 +288,7 @@ export function simulateFire(params) {
         annualReturnRate,
         annualStandardDeviation,
         monthlyExpense,
+        monthlyIncome,
         currentAge,
         maxMonths,
         includeInflation,
@@ -225,6 +296,8 @@ export function simulateFire(params) {
         includeTax,
         taxRate,
         withdrawalRate,
+        mortgageMonthlyPayment,
+        mortgagePayoffDate,
       }),
     );
   }
@@ -256,6 +329,7 @@ export function generateGrowthTable(params) {
     monthlyInvestment,
     annualReturnRate,
     monthlyExpense,
+    monthlyIncome = 0,
     currentAge = 40,
     maxMonths = 1200, // Extend to 100 years potentially
     includeInflation = false,
@@ -263,6 +337,8 @@ export function generateGrowthTable(params) {
     includeTax = false,
     taxRate = 0.20315,
     withdrawalRate = 0.04,
+    mortgageMonthlyPayment = 0,
+    mortgagePayoffDate = null,
   } = params;
 
   const riskAssetRatio = initialAssets > 0 ? riskAssets / initialAssets : 0;
@@ -275,10 +351,18 @@ export function generateGrowthTable(params) {
   const table = [];
   let assets = initialAssets;
   let fireReachedMonth = -1;
+  const simulationStartDate = new Date();
 
   for (let m = 0; m <= actualMaxMonths; m++) {
     const remainingMonths = totalMonthsUntil100 - m;
-    const currentMonthlyExpense = monthlyExpense * Math.pow(1 + monthlyInflationRate, m);
+    const currentMonthlyExpense = calculateCurrentMonthlyExpense({
+      baseMonthlyExpense: monthlyExpense,
+      monthlyInflationRate,
+      monthIndex: m,
+      simulationStartDate,
+      mortgageMonthlyPayment,
+      mortgagePayoffDate,
+    });
 
     const requiredAssets = calculateRequiredAssets({
       monthlyExpense: currentMonthlyExpense,
@@ -308,19 +392,21 @@ export function generateGrowthTable(params) {
     const safePart = assets - riskPart;
 
     let currentInvestment = monthlyInvestment;
+    let currentIncome = monthlyIncome;
     let currentWithdrawal;
 
     if (isFire) {
       // Once FIRE is reached, stop investment and perform withdrawal (annually / 12)
       // or withdraw monthly expense, whichever is higher to ensure living.
       currentInvestment = 0;
+      currentIncome = 0;
       const amountFromWithdrawalRate = assets * withdrawalRate / 12;
       currentWithdrawal = Math.max(currentMonthlyExpense, amountFromWithdrawalRate);
     } else {
       currentWithdrawal = currentMonthlyExpense;
     }
 
-    assets = riskPart * (1 + monthlyReturnMean) + safePart + currentInvestment;
+    assets = riskPart * (1 + monthlyReturnMean) + safePart + currentIncome + currentInvestment;
     assets -= currentWithdrawal;
 
     if (assets < 0) {
