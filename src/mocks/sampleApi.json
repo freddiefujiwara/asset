@@ -32,5 +32,27 @@
   "details__liability_det__t0-liability": [
     { "category": "負債詳細", "種類": "クレジットカード", "名称・説明": "ショッピング利用", "残高": "120,000", "保有金融機関": "サンプルカード" },
     { "category": "負債詳細", "種類": "住宅ローン", "名称・説明": "住宅ローン残高", "残高": "380,000", "保有金融機関": "サンプル銀行B" }
+  ],
+  "mfcf": [
+    {"date":"2026-02-12","amount":-3000,"currency":"JPY","name":"DF.トウキユウカ-ド","category":"現金・カード/カード引き落とし","is_transfer":false},
+    {"date":"2026-02-11","amount":-6395,"currency":"JPY","name":"羽田空港ターミナルビル","category":"食費/その他食費","is_transfer":false},
+    {"date":"2026-02-11","amount":-2200,"currency":"JPY","name":"物販","category":"交通費/その他交通費","is_transfer":false},
+    {"date":"2026-02-11","amount":-3916,"currency":"JPY","name":"日本空港ビル店舗","category":"食費/外食","is_transfer":false},
+    {"date":"2026-02-11","amount":5000,"currency":"JPY","name":"チャージ(入金)","category":"","is_transfer":true},
+    {"date":"2026-02-11","amount":-5000,"currency":"JPY","name":"メルペイ","category":"","is_transfer":true},
+    {"date":"2026-02-25","amount":300000,"currency":"JPY","name":"給与","category":"収入/給与","is_transfer":false},
+    {"date":"2026-02-05","amount":-80000,"currency":"JPY","name":"マンション賃料","category":"住居費/家賃","is_transfer":false},
+    {"date":"2026-01-25","amount":300000,"currency":"JPY","name":"給与","category":"収入/給与","is_transfer":false},
+    {"date":"2026-01-15","amount":-15000,"currency":"JPY","name":"東京電力","category":"水道・光熱/電気代","is_transfer":false},
+    {"date":"2026-01-10","amount":-10000,"currency":"JPY","name":"スーパーマーケット","category":"食費/食料品","is_transfer":false},
+    {"date":"2025-12-25","amount":300000,"currency":"JPY","name":"給与","category":"収入/給与","is_transfer":false},
+    {"date":"2025-12-20","amount":50000,"currency":"JPY","name":"冬のボーナス","category":"収入/賞与","is_transfer":false},
+    {"date":"2025-12-10","amount":-50000,"category":"特別な支出","name":"旅行","is_transfer":false},
+    {"date":"2025-11-25","amount":300000,"currency":"JPY","name":"給与","category":"収入/給与","is_transfer":false},
+    {"date":"2025-11-05","amount":-80000,"currency":"JPY","name":"マンション賃料","category":"住居費/家賃","is_transfer":false},
+    {"date":"2025-10-25","amount":300000,"currency":"JPY","name":"給与","category":"収入/給与","is_transfer":false},
+    {"date":"2025-10-15","amount":-12000,"currency":"JPY","name":"東京電力","category":"水道・光熱/電気代","is_transfer":false},
+    {"date":"2025-09-25","amount":300000,"currency":"JPY","name":"給与","category":"収入/給与","is_transfer":false},
+    {"date":"2025-09-05","amount":-80000,"currency":"JPY","name":"マンション賃料","category":"住居費/家賃","is_transfer":false}
   ]
 }

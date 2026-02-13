@@ -40,6 +40,23 @@ describe("portfolio store", () => {
     expect(store.data.totals.liabilitiesYen).toBe(200);
   });
 
+  it("loads cashFlow data when present in api response", async () => {
+    const payload = {
+      breakdown: [],
+      mfcf: [
+        { date: "2026-02-12", amount: -3000, currency: "JPY", name: "Shop", category: "Food", is_transfer: false }
+      ]
+    };
+
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(successResponse(payload)));
+
+    const store = usePortfolioStore();
+    await store.fetchPortfolio();
+
+    expect(store.data.cashFlow).toHaveLength(1);
+    expect(store.data.cashFlow[0].name).toBe("Shop");
+  });
+
   it("sends token as query param when localStorage has google id token", async () => {
     globalThis.localStorage.getItem.mockReturnValue("token-123");
     const fetchMock = vi.fn().mockResolvedValue(successResponse({ breakdown: [] }));

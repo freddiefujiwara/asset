@@ -170,6 +170,7 @@ watch(
           <RouterLink to="/dashboard">ダッシュボード</RouterLink>
           <RouterLink to="/holdings">保有資産</RouterLink>
           <RouterLink to="/family-assets">家族別</RouterLink>
+          <RouterLink to="/cash-flow">キャッシュフロー</RouterLink>
         </nav>
         <div class="header-buttons">
           <button class="theme-toggle" type="button" @click="togglePrivacy">
