@@ -1,11 +1,14 @@
 <script setup>
-import { computed } from "vue";
+import { computed, ref } from "vue";
 
 const props = defineProps({
   data: { type: Array, default: () => [] }, // Array of { month, income, expense, net }
   showNet: { type: Boolean, default: true },
   averages: { type: Object, default: null },
 });
+
+const chartContainerRef = ref(null);
+const activeTooltip = ref(null);
 
 const width = 800;
 const height = 300;
@@ -101,12 +104,41 @@ const gridLines = computed(() => {
   }
   return lines;
 });
+
+const formatYen = (value) => `¥${Math.round(value).toLocaleString()}`;
+
+const showTooltip = (event, item) => {
+  const container = chartContainerRef.value;
+  if (!container) return;
+  const rect = container.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+  activeTooltip.value = {
+    ...item,
+    x: Math.min(Math.max(x + 14, 8), rect.width - 8),
+    y: Math.min(Math.max(y - 10, 8), rect.height - 8),
+  };
+};
+
+const hideTooltip = (event) => {
+  if (event?.pointerType && event.pointerType !== "mouse") return;
+  activeTooltip.value = null;
+};
+
+const clearTooltip = () => {
+  activeTooltip.value = null;
+};
 </script>
 
 <template>
   <div class="chart-card">
     <h3 class="section-title">月次収支推移</h3>
-    <div class="chart-container" style="overflow-x: auto;">
+    <div
+      ref="chartContainerRef"
+      class="chart-container cash-flow-chart-container"
+      style="overflow-x: auto;"
+      @click="clearTooltip"
+    >
       <svg :viewBox="`0 0 ${width} ${height}`" class="bar-chart-svg" style="min-width: 600px; width: 100%; height: auto;">
         <g :transform="`translate(${margin.left}, ${margin.top})`">
           <!-- Grid lines -->
@@ -127,6 +159,10 @@ const gridLines = computed(() => {
               fill="#22c55e"
               rx="2"
               opacity="0.8"
+              @pointerenter="showTooltip($event, { month: b.month, label: '収入', value: b.income.val })"
+              @pointermove="showTooltip($event, { month: b.month, label: '収入', value: b.income.val })"
+              @pointerleave="hideTooltip($event)"
+              @click.stop="showTooltip($event, { month: b.month, label: '収入', value: b.income.val })"
             >
               <title>{{ b.month }} 収入: {{ b.income.val.toLocaleString() }}</title>
             </rect>
@@ -138,6 +174,10 @@ const gridLines = computed(() => {
               fill="#ef4444"
               rx="2"
               opacity="0.8"
+              @pointerenter="showTooltip($event, { month: b.month, label: '支出', value: b.expense.val })"
+              @pointermove="showTooltip($event, { month: b.month, label: '支出', value: b.expense.val })"
+              @pointerleave="hideTooltip($event)"
+              @click.stop="showTooltip($event, { month: b.month, label: '支出', value: b.expense.val })"
             >
               <title>{{ b.month }} 支出: {{ b.expense.val.toLocaleString() }}</title>
             </rect>
@@ -155,7 +195,18 @@ const gridLines = computed(() => {
           <!-- Net Line -->
           <template v-if="showNet">
             <path :d="netLinePath" fill="none" stroke="#3b82f6" stroke-width="2" />
-            <circle v-for="b in bars" :key="'net-'+b.month" :cx="b.income.x + b.income.w" :cy="b.net.y" r="4" fill="#3b82f6">
+            <circle
+              v-for="b in bars"
+              :key="'net-'+b.month"
+              :cx="b.income.x + b.income.w"
+              :cy="b.net.y"
+              r="4"
+              fill="#3b82f6"
+              @pointerenter="showTooltip($event, { month: b.month, label: '純収支', value: b.net.val })"
+              @pointermove="showTooltip($event, { month: b.month, label: '純収支', value: b.net.val })"
+              @pointerleave="hideTooltip($event)"
+              @click.stop="showTooltip($event, { month: b.month, label: '純収支', value: b.net.val })"
+            >
                <title>{{ b.month }} 純収支: {{ b.net.val.toLocaleString() }}</title>
             </circle>
           </template>
@@ -164,6 +215,15 @@ const gridLines = computed(() => {
           <line x1="0" :y1="yScale(0)" :x2="innerWidth" :y2="yScale(0)" stroke="var(--text)" stroke-width="1" />
         </g>
       </svg>
+      <div
+        v-if="activeTooltip"
+        class="cash-flow-tooltip"
+        :style="{ left: `${activeTooltip.x}px`, top: `${activeTooltip.y}px` }"
+        role="tooltip"
+      >
+        <div>{{ activeTooltip.month }} {{ activeTooltip.label }}</div>
+        <div><span class="amount-value">{{ formatYen(activeTooltip.value) }}</span></div>
+      </div>
     </div>
     <div class="legend" style="display: flex; flex-direction: row; justify-content: center; gap: 20px; margin-top: 10px;">
       <div style="display: flex; align-items: center; gap: 4px;">
@@ -197,5 +257,22 @@ const gridLines = computed(() => {
 <style scoped>
 .bar-chart-svg {
   font-family: inherit;
+}
+
+.cash-flow-chart-container {
+  position: relative;
+}
+
+.cash-flow-tooltip {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  pointer-events: none;
+  background: color-mix(in srgb, var(--surface-elevated) 90%, black 10%);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 12px;
+  z-index: 2;
+  white-space: nowrap;
 }
 </style>
