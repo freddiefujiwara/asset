@@ -55,9 +55,8 @@ export function sortCashFlow(cashFlow, sortKey, sortOrder = "asc") {
       valB = valB || "未分類";
     }
 
-    if (valA < valB) return sortOrder === "asc" ? -1 : 1;
-    if (valA > valB) return sortOrder === "asc" ? 1 : -1;
-    return 0;
+    const comparison = Number(valA > valB) - Number(valA < valB);
+    return sortOrder === "asc" ? comparison : -comparison;
   });
 }
 
