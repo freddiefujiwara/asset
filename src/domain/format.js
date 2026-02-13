@@ -10,7 +10,7 @@ const DAILY_CHANGE_KEYS = [
 ];
 
 export function formatYen(value) {
-  return `¥${toNumber(value).toLocaleString("ja-JP")}`;
+  return `¥${Math.round(toNumber(value)).toLocaleString("ja-JP")}`;
 }
 
 export function formatSignedYen(value) {

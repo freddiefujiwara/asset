@@ -8,10 +8,6 @@ export function calculateRiskAssets(portfolio) {
     "株式（現物）",
     "株式（信用）",
     "投資信託",
-    "年金",
-    "先物・オプション",
-    "外貨預金",
-    "債券",
   ];
   if (!portfolio?.summary?.assetsByClass) return 0;
   return portfolio.summary.assetsByClass
@@ -83,6 +79,40 @@ function boxMuller() {
 }
 
 /**
+ * Calculate required assets to last until age 100.
+ * Using PV of a growing annuity formula.
+ */
+function calculateRequiredAssets({
+  monthlyExpense,
+  monthlyReturn,
+  monthlyInflation,
+  remainingMonths,
+  taxRate,
+  includeTax,
+}) {
+  if (remainingMonths <= 0) return 0;
+
+  let pv;
+  const g = monthlyInflation;
+  const r = monthlyReturn;
+  const n = remainingMonths;
+
+  if (Math.abs(r - g) < 1e-10) {
+    pv = monthlyExpense * n;
+  } else {
+    const x = (1 + g) / (1 + r);
+    pv = monthlyExpense * (1 - Math.pow(x, n)) / (r - g);
+  }
+
+  if (includeTax) {
+    // Roughly estimate tax on withdrawals
+    pv /= (1 - taxRate);
+  }
+
+  return Math.max(0, pv);
+}
+
+/**
  * Simulate one trial of asset growth until FIRE or max time.
  */
 function simulateTrial({
@@ -92,7 +122,7 @@ function simulateTrial({
   annualReturnRate,
   annualStandardDeviation,
   monthlyExpense,
-  targetMultiplier,
+  currentAge,
   maxMonths,
   includeInflation,
   inflationRate,
@@ -104,15 +134,20 @@ function simulateTrial({
   const monthlySD = annualStandardDeviation / Math.sqrt(12);
   const monthlyInflationRate = Math.pow(1 + (includeInflation ? inflationRate : 0), 1 / 12) - 1;
 
-  for (let m = 0; m <= maxMonths; m++) {
-    const currentAnnualExpense = monthlyExpense * 12 * Math.pow(1 + monthlyInflationRate, m);
-    let requiredAssets = currentAnnualExpense * targetMultiplier;
+  const totalMonthsUntil100 = (100 - currentAge) * 12;
 
-    if (includeTax) {
-      // Simple tax consideration: increase required assets to cover tax on 4% withdrawal
-      // withdrawal * (1 - taxRate) = expense => withdrawal = expense / (1 - taxRate)
-      requiredAssets /= (1 - taxRate);
-    }
+  for (let m = 0; m <= maxMonths; m++) {
+    const remainingMonths = totalMonthsUntil100 - m;
+    const currentMonthlyExpense = monthlyExpense * Math.pow(1 + monthlyInflationRate, m);
+
+    const requiredAssets = calculateRequiredAssets({
+      monthlyExpense: currentMonthlyExpense,
+      monthlyReturn: monthlyReturnMean,
+      monthlyInflation: monthlyInflationRate,
+      remainingMonths,
+      taxRate,
+      includeTax,
+    });
 
     if (assets >= requiredAssets) {
       return m;
@@ -144,7 +179,7 @@ export function simulateFire(params) {
     annualReturnRate,
     annualStandardDeviation,
     monthlyExpense,
-    targetMultiplier = 25,
+    currentAge = 40,
     iterations = 1000,
     maxMonths = 1200,
     includeInflation = false,
@@ -165,7 +200,7 @@ export function simulateFire(params) {
         annualReturnRate,
         annualStandardDeviation,
         monthlyExpense,
-        targetMultiplier,
+        currentAge,
         maxMonths,
         includeInflation,
         inflationRate,
@@ -202,8 +237,8 @@ export function generateGrowthTable(params) {
     monthlyInvestment,
     annualReturnRate,
     monthlyExpense,
-    targetMultiplier = 25,
-    maxMonths = 600, // 50 years for chart
+    currentAge = 40,
+    maxMonths = 1200, // Extend to 100 years potentially
     includeInflation = false,
     inflationRate = 0.02,
     includeTax = false,
@@ -214,16 +249,25 @@ export function generateGrowthTable(params) {
   const monthlyReturnMean = Math.pow(1 + annualReturnRate, 1 / 12) - 1;
   const monthlyInflationRate = Math.pow(1 + (includeInflation ? inflationRate : 0), 1 / 12) - 1;
 
+  const totalMonthsUntil100 = (100 - currentAge) * 12;
+  const actualMaxMonths = Math.min(maxMonths, totalMonthsUntil100);
+
   const table = [];
   let assets = initialAssets;
   let fireReachedMonth = -1;
 
-  for (let m = 0; m <= maxMonths; m++) {
-    const currentAnnualExpense = monthlyExpense * 12 * Math.pow(1 + monthlyInflationRate, m);
-    let requiredAssets = currentAnnualExpense * targetMultiplier;
-    if (includeTax) {
-      requiredAssets /= (1 - taxRate);
-    }
+  for (let m = 0; m <= actualMaxMonths; m++) {
+    const remainingMonths = totalMonthsUntil100 - m;
+    const currentMonthlyExpense = monthlyExpense * Math.pow(1 + monthlyInflationRate, m);
+
+    const requiredAssets = calculateRequiredAssets({
+      monthlyExpense: currentMonthlyExpense,
+      monthlyReturn: monthlyReturnMean,
+      monthlyInflation: monthlyInflationRate,
+      remainingMonths,
+      taxRate,
+      includeTax,
+    });
 
     if (fireReachedMonth === -1 && assets >= requiredAssets) {
       fireReachedMonth = m;
@@ -238,7 +282,7 @@ export function generateGrowthTable(params) {
       isFire,
     });
 
-    if (m === maxMonths) break;
+    if (m === actualMaxMonths) break;
 
     const riskPart = assets * riskAssetRatio;
     const safePart = assets - riskPart;
@@ -247,18 +291,19 @@ export function generateGrowthTable(params) {
     let currentWithdrawal;
 
     if (isFire) {
-      // Once FIRE is reached, stop investment and apply 4% withdrawal rule
+      // Once FIRE is reached, stop investment and perform 4% withdrawal (annually / 12)
+      // or withdraw monthly expense, whichever is higher to ensure living.
       currentInvestment = 0;
-      currentWithdrawal = (assets * 0.04) / 12;
+      const fourPercentWithdrawal = assets * 0.04 / 12;
+      currentWithdrawal = Math.max(currentMonthlyExpense, fourPercentWithdrawal);
     } else {
-      currentWithdrawal = monthlyExpense * Math.pow(1 + monthlyInflationRate, m);
+      currentWithdrawal = currentMonthlyExpense;
     }
 
     assets = riskPart * (1 + monthlyReturnMean) + safePart + currentInvestment;
     assets -= currentWithdrawal;
 
     if (assets < 0) {
-      // Just keep it 0 if it goes below
       assets = 0;
     }
   }

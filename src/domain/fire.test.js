@@ -13,7 +13,7 @@ describe("fire domain", () => {
       expect(calculateRiskAssets({})).toBe(0);
     });
 
-    it("sums only risk assets", () => {
+    it("sums only risk assets (Stocks and Funds)", () => {
       const portfolio = {
         summary: {
           assetsByClass: [
@@ -25,8 +25,8 @@ describe("fire domain", () => {
           ],
         },
       };
-      // Risk: 2000 + 3000 + 5000 = 10000
-      expect(calculateRiskAssets(portfolio)).toBe(10000);
+      // Risk: 2000 + 3000 = 5000
+      expect(calculateRiskAssets(portfolio)).toBe(5000);
     });
   });
 
@@ -174,20 +174,43 @@ describe("fire domain", () => {
       expect(result.table[1].assets).toBeGreaterThan(0);
     });
 
-    it("detects FIRE reached month and stops investment / applies 4% rule", () => {
+    it("detects FIRE reached month and stops investment / performs 4% withdrawal", () => {
       const result = generateGrowthTable({
         ...params,
         initialAssets: 100000000, // already reached FIRE
         monthlyExpense: 100000,
-        annualReturnRate: 0, // easier to check withdrawal
+        annualReturnRate: 0,
+        currentAge: 40,
       });
       expect(result.fireReachedMonth).toBe(0);
       expect(result.table[0].isFire).toBe(true);
       // month 0 assets: 100,000,000
-      // month 1 assets: 100,000,000 + 0 (investment) - (100,000,000 * 0.04 / 12)
-      // 100,000,000 * 0.04 = 4,000,000
-      // 4,000,000 / 12 = 333,333.33...
-      expect(result.table[1].assets).toBeCloseTo(100000000 - 333333.33);
+      // 4% withdrawal: 100,000,000 * 0.04 / 12 = 333,333.33
+      // monthlyExpense: 100,000
+      // withdrawal = max(100k, 333.3k) = 333,333.33
+      // month 1 assets: 100,000,000 - 333,333.33 = 99,666,666.67
+      expect(result.table[1].assets).toBeCloseTo(99666666.67, 0);
+    });
+
+    it("depletes exactly at age 100 in deterministic table if returns=0", () => {
+      // If returns=0 and inflation=0, requiredAssets = expense * remainingMonths
+      const currentAge = 90;
+      const remainingMonths = (100 - 90) * 12; // 120 months
+      const monthlyExpense = 100000;
+      const required = monthlyExpense * remainingMonths; // 12,000,000
+
+      const result = generateGrowthTable({
+        initialAssets: required,
+        riskAssets: 0,
+        monthlyInvestment: 0,
+        annualReturnRate: 0,
+        monthlyExpense,
+        currentAge,
+        includeInflation: false,
+      });
+
+      expect(result.fireReachedMonth).toBe(0);
+      expect(result.table[remainingMonths].assets).toBeCloseTo(0);
     });
 
     it("handles tax and inflation", () => {

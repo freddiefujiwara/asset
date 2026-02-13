@@ -67,6 +67,7 @@ const simResult = computed(() => {
     monthlyExpense: monthlyExpense.value,
     includeInflation: includeInflation.value,
     inflationRate: inflationRate.value / 100,
+    currentAge: currentAge.value,
     includeTax: includeTax.value,
     taxRate: taxRate.value / 100,
     iterations: iterations.value,
@@ -80,6 +81,7 @@ const growthData = computed(() => {
     monthlyInvestment: monthlyInvestment.value,
     annualReturnRate: annualReturnRate.value / 100,
     monthlyExpense: monthlyExpense.value,
+    currentAge: currentAge.value,
     includeInflation: includeInflation.value,
     inflationRate: inflationRate.value / 100,
     includeTax: includeTax.value,
@@ -211,7 +213,7 @@ const achievementProbability = computed(() => {
         <div>
           <span class="meta">うちリスク資産:</span>
           <span class="amount-value" style="margin-left: 8px;">{{ formatYen(riskAssets) }}</span>
-          <span class="meta"> ({{ initialAssets > 0 ? ((riskAssets/initialAssets)*100).toFixed(1) : 0 }}%)</span>
+          <span class="meta"> ({{ (data?.totals?.assetsYen > 0) ? ((riskAssets / data.totals.assetsYen) * 100).toFixed(1) : 0 }}% / 総資産比)</span>
         </div>
         <div>
           <span class="meta">推定年間支出:</span>
@@ -219,12 +221,13 @@ const achievementProbability = computed(() => {
         </div>
         <div>
           <span class="meta">必要資産目安:</span>
-          <span class="amount-value" style="margin-left: 8px;">{{ formatYen(monthlyExpense * 12 * 25) }}</span>
+          <span class="amount-value" style="margin-left: 8px;">{{ formatYen(Math.round(growthData.table[0]?.requiredAssets ?? 0)) }}</span>
+          <span class="meta"> (100歳寿命)</span>
         </div>
       </div>
     </div>
 
-    <FireGrowthChart :data="growthData.table" />
+    <FireGrowthChart :data="growthData.table" :base-age="currentAge" />
 
     <div class="chart-grid">
       <HistogramChart :data="simResult.trials" :max-months="1200" />
