@@ -144,8 +144,16 @@ const clearTooltip = () => {
           <!-- Grid lines -->
           <g v-for="line in gridLines" :key="line.label" class="grid-line">
             <line x1="0" :y1="line.y" :x2="innerWidth" :y2="line.y" stroke="var(--border)" :stroke-dasharray="line.label === '0' ? '0' : '4'" />
-            <text x="-10" :y="line.y" text-anchor="end" alignment-baseline="middle" font-size="10" fill="var(--muted)">
-              <tspan class="amount-value">{{ line.label }}</tspan>
+            <text
+              x="-10"
+              :y="line.y"
+              text-anchor="end"
+              alignment-baseline="middle"
+              font-size="10"
+              fill="var(--muted)"
+              class="amount-value"
+            >
+              {{ line.label }}
             </text>
           </g>
 
