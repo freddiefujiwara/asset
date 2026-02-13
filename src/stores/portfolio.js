@@ -81,9 +81,9 @@ export const usePortfolioStore = defineStore("portfolio", {
         }
 
         if (getGoogleIdToken() && message.toLowerCase().includes("failed to fetch")) {
-          this.error = "CORS blocked API request. Ensure GAS doGet returns Access-Control-Allow-Origin.";
-          this.data = null;
-          this.source = "";
+          this.error = "CORS blocked API request. Ensure GAS doGet returns Access-Control-Allow-Origin. (fallback to mock)";
+          this.data = normalizePortfolio(sampleApi);
+          this.source = "mock";
           return;
         }
 

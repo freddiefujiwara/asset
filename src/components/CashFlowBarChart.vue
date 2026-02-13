@@ -11,13 +11,30 @@ const margin = { top: 30, right: 30, bottom: 50, left: 80 };
 const innerWidth = width - margin.left - margin.right;
 const innerHeight = height - margin.top - margin.bottom;
 
-const maxValue = computed(() => {
-  const values = props.data.flatMap((d) => [d.income, d.expense, Math.abs(d.net)]);
+const range = computed(() => {
+  const values = props.data.flatMap((d) => [d.income, d.expense, d.net]);
+  const min = Math.min(...values, 0);
   const max = Math.max(...values, 100000);
-  return Math.ceil(max / 10000) * 10000;
+
+  // Padding
+  const diff = max - min;
+  const paddedMin = min - diff * 0.1;
+  const paddedMax = max + diff * 0.1;
+
+  // Round to nice numbers
+  const step = Math.pow(10, Math.floor(Math.log10(diff || 1)) - 1) * 5 || 10000;
+  return {
+    min: Math.floor(paddedMin / step) * step,
+    max: Math.ceil(paddedMax / step) * step
+  };
 });
 
-const yScale = (val) => innerHeight - (val / maxValue.value) * innerHeight;
+const yScale = (val) => {
+  const { min, max } = range.value;
+  const total = max - min || 1;
+  return innerHeight - ((val - min) / total) * innerHeight;
+};
+
 const xScale = (i) => (i * innerWidth) / Math.max(props.data.length, 1);
 
 const bars = computed(() => {
@@ -25,24 +42,29 @@ const bars = computed(() => {
   const barWidth = step * 0.35;
   return props.data.map((d, i) => {
     const x = xScale(i) + step * 0.15;
+    const y0 = yScale(0);
+
+    const yIncome = yScale(d.income);
+    const yExpense = yScale(d.expense);
+
     return {
       month: d.month,
       income: {
         x,
-        y: yScale(d.income),
-        h: innerHeight - yScale(d.income),
+        y: Math.min(yIncome, y0),
+        h: Math.abs(yIncome - y0),
         w: barWidth,
         val: d.income,
       },
       expense: {
         x: x + barWidth,
-        y: yScale(d.expense),
-        h: innerHeight - yScale(d.expense),
+        y: Math.min(yExpense, y0),
+        h: Math.abs(yExpense - y0),
         w: barWidth,
         val: d.expense,
       },
       net: {
-        x: x + barWidth,
+        x: x + barWidth, // This is the center point (x + 0.35*step = xScale + 0.5*step)
         y: yScale(d.net),
         val: d.net,
       },
@@ -63,13 +85,14 @@ const netLinePath = computed(() => {
 
 const gridLines = computed(() => {
   const lines = [];
-  const count = 5;
-  for (let i = -count; i <= count; i++) {
-    const val = (maxValue.value / count) * i;
-    if (Math.abs(val) > maxValue.value) continue;
+  const { min, max } = range.value;
+  const count = 6;
+  const step = (max - min) / count;
+  for (let i = 0; i <= count; i++) {
+    const val = min + step * i;
     lines.push({
       y: yScale(val),
-      label: val.toLocaleString(),
+      label: Math.round(val).toLocaleString(),
     });
   }
   return lines;
@@ -127,7 +150,7 @@ const gridLines = computed(() => {
 
           <!-- Net Line -->
           <path :d="netLinePath" fill="none" stroke="#3b82f6" stroke-width="2" />
-          <circle v-for="b in bars" :key="'net-'+b.month" :cx="b.net.x - (b.income.w * 0.5)" :cy="b.net.y" r="3" fill="#3b82f6">
+          <circle v-for="b in bars" :key="'net-'+b.month" :cx="b.income.x + b.income.w" :cy="b.net.y" r="4" fill="#3b82f6">
              <title>{{ b.month }} 純収支: {{ b.net.val.toLocaleString() }}</title>
           </circle>
 
