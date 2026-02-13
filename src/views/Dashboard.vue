@@ -5,7 +5,7 @@ import { balanceSheetLayout } from "@/domain/dashboard";
 import PieChart from "@/components/PieChart.vue";
 import { usePortfolioData } from "@/composables/usePortfolioData";
 
-const { data, loading, error, source } = usePortfolioData();
+const { data, loading, error } = usePortfolioData();
 
 const totals = computed(() =>
   data.value?.totals ?? { assetsYen: 0, liabilitiesYen: 0, netWorthYen: 0 },
@@ -31,7 +31,6 @@ const liabilityPie = computed(() =>
 
 <template>
   <section>
-    <p class="meta">データソース: {{ source || "-" }}</p>
     <p v-if="loading">読み込み中...</p>
     <p v-if="error" class="error">{{ error }}</p>
 

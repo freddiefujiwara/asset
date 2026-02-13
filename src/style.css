@@ -435,6 +435,11 @@ td {
 
 :root[data-private="on"] text.amount-value {
   filter: blur(0.34rem);
+  -webkit-filter: blur(0.34rem);
+}
+
+:root[data-private="on"] .cash-flow-y-axis-label {
+  opacity: 0;
 }
 
 

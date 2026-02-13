@@ -151,7 +151,7 @@ const clearTooltip = () => {
               alignment-baseline="middle"
               font-size="10"
               fill="var(--muted)"
-              class="amount-value"
+              class="amount-value cash-flow-y-axis-label"
             >
               {{ line.label }}
             </text>
