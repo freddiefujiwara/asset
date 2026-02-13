@@ -3,6 +3,8 @@ import {
   calculateRiskAssets,
   estimateMonthlyExpenses,
   estimateMonthlyIncome,
+  estimateIncomeSplit,
+  estimateMortgageMonthlyPayment,
   simulateFire,
   generateGrowthTable,
 } from "./fire";
@@ -132,6 +134,52 @@ describe("fire domain", () => {
         { date: "2026-02-20", amount: -5000, isTransfer: false, category: "返金" }, // excluded
       ];
       expect(estimateMonthlyIncome(cashFlow)).toBe(300000);
+    });
+  });
+
+  describe("estimateIncomeSplit", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-03-15T09:00:00+09:00"));
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("splits regular monthly income and bonus annualized amount", () => {
+      const cashFlow = [
+        { date: "2026-03-01", amount: 300000, isTransfer: false, category: "給与" }, // current month excluded
+        { date: "2026-02-01", amount: 300000, isTransfer: false, category: "給与" },
+        { date: "2026-01-01", amount: 300000, isTransfer: false, category: "給与" },
+        { date: "2026-02-15", amount: 600000, isTransfer: false, category: "賞与" },
+      ];
+
+      const result = estimateIncomeSplit(cashFlow);
+      expect(result.regularMonthly).toBe(300000);
+      expect(result.bonusAnnual).toBe(3600000); // 600,000 across 2 months window => annualized x6
+      expect(result.monthlyTotal).toBe(600000);
+    });
+  });
+
+  describe("estimateMortgageMonthlyPayment", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-03-15T09:00:00+09:00"));
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("estimates monthly mortgage payment from 住宅/ローン返済 category", () => {
+      const cashFlow = [
+        { date: "2026-02-01", amount: -120000, isTransfer: false, category: "住宅/ローン返済" },
+        { date: "2026-01-01", amount: -120000, isTransfer: false, category: "住宅/ローン返済" },
+        { date: "2026-02-01", amount: -10000, isTransfer: false, category: "住宅/管理費" },
+      ];
+
+      expect(estimateMortgageMonthlyPayment(cashFlow)).toBe(120000);
     });
   });
 

@@ -110,6 +110,77 @@ export function estimateMonthlyIncome(cashFlow) {
 }
 
 /**
+ * Estimate income split by regular (給与等) and bonus (賞与/ボーナス) from cash flow.
+ * - regularMonthly: average monthly regular income
+ * - bonusAnnual: total annualized bonus estimated from the target window
+ */
+export function estimateIncomeSplit(cashFlow) {
+  const now = new Date();
+  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const targetMonths = getUniqueMonths(cashFlow)
+    .filter((month) => month !== currentMonthKey)
+    .slice(0, 5);
+  const monthSet = new Set(targetMonths);
+  const divisor = Math.max(targetMonths.length, 1);
+
+  let totalRegularIncome = 0;
+  let totalBonusIncome = 0;
+
+  cashFlow.forEach((item) => {
+    if (item.isTransfer || item.amount <= 0) return;
+
+    const month = item.date?.substring(0, 7) || "";
+    if (!monthSet.has(month)) return;
+
+    const category = item.category || "";
+    const isBonus = category.includes("賞与") || category.includes("ボーナス");
+
+    if (isBonus) {
+      totalBonusIncome += item.amount;
+    } else {
+      totalRegularIncome += item.amount;
+    }
+  });
+
+  const regularMonthly = Math.round(totalRegularIncome / divisor);
+  const bonusAnnual = Math.round(totalBonusIncome * (12 / divisor));
+
+  return {
+    regularMonthly,
+    bonusAnnual,
+    monthlyTotal: regularMonthly + bonusAnnual / 12,
+  };
+}
+
+/**
+ * Estimate mortgage monthly payment from category "住宅/ローン返済".
+ */
+export function estimateMortgageMonthlyPayment(cashFlow) {
+  const now = new Date();
+  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const targetMonths = getUniqueMonths(cashFlow)
+    .filter((month) => month !== currentMonthKey)
+    .slice(0, 5);
+  const monthSet = new Set(targetMonths);
+  const divisor = Math.max(targetMonths.length, 1);
+
+  let totalMortgage = 0;
+
+  cashFlow.forEach((item) => {
+    if (item.isTransfer || item.amount >= 0) return;
+
+    const month = item.date?.substring(0, 7) || "";
+    if (!monthSet.has(month)) return;
+
+    if ((item.category || "").startsWith("住宅/ローン返済")) {
+      totalMortgage += Math.abs(item.amount);
+    }
+  });
+
+  return Math.round(totalMortgage / divisor);
+}
+
+/**
  * Box-Muller transform for normal distribution random numbers.
  */
 function boxMuller() {
