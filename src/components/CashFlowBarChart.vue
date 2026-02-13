@@ -152,7 +152,6 @@ const clearTooltip = () => {
               font-size="10"
               fill="var(--muted)"
               class="amount-value"
-              style="filter: var(--amount-mask-filter, none);"
             >
               {{ line.label }}
             </text>
