@@ -40,7 +40,7 @@ export function holdingRowKey(row) {
   return `${institution}__${name}`;
 }
 
-export function truncate(text, length = 10) {
+export function truncate(text, length = 25) {
   if (typeof text !== "string") return text;
   if (text.length <= length) return text;
   return text.substring(0, length) + "...";

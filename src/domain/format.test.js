@@ -41,6 +41,7 @@ describe("format helpers", () => {
     expect(truncate("1234567890", 10)).toBe("1234567890");
     expect(truncate("short", 10)).toBe("short");
     expect(truncate(null, 10)).toBe(null);
-    expect(truncate("abcdefghijk")).toBe("abcdefghij..."); // default length 10
+    const longString = "a".repeat(26);
+    expect(truncate(longString)).toBe("a".repeat(25) + "..."); // default length 25
   });
 });
