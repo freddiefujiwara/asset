@@ -112,4 +112,15 @@ describe("holdings domain", () => {
     expect(stockFundRows(null)).toEqual([]);
   });
 
+  it("ignores malformed rows when calculating stock/fund profit totals", () => {
+    const summary = stockFundSummary({
+      ...EMPTY_HOLDINGS,
+      stocks: [null, { 評価額: "100" }],
+      funds: [{ 評価額: "200", 評価損益: "20" }],
+    });
+
+    expect(summary.totalYen).toBe(300);
+    expect(summary.totalProfitYen).toBe(20);
+  });
+
 });

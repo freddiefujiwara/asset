@@ -35,4 +35,33 @@ describe("assetOwners domain", () => {
     expect(stock.amountYen).toBe(1500);
     expect(stock.count).toBe(2);
   });
+
+  it("returns original holdings for all filter and handles nullish input", () => {
+    expect(filterHoldingsByOwner(holdings, "all")).toBe(holdings);
+
+    const emptySummary = summarizeByCategory();
+    expect(emptySummary.every((entry) => entry.amountYen === 0 && entry.count === 0)).toBe(true);
+  });
+
+  it("converts non-array category values to empty arrays while filtering", () => {
+    const malformed = {
+      ...holdings,
+      stocks: null,
+    };
+
+    const daughter = filterHoldingsByOwner(malformed, "daughter");
+    expect(daughter.stocks).toEqual([]);
+  });
+
+  it("uses EMPTY_HOLDINGS when holdings is nullish", () => {
+    expect(filterHoldingsByOwner(undefined, "wife")).toEqual({
+      cashLike: [],
+      stocks: [],
+      funds: [],
+      pensions: [],
+      points: [],
+      liabilitiesDetail: [],
+    });
+  });
+
 });
