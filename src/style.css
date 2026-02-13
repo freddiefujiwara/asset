@@ -412,6 +412,29 @@ td {
 }
 
 
+
+.owner-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.owner-tab {
+  border: 1px solid var(--border);
+  background: var(--surface-elevated);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.owner-tab.is-active {
+  border-color: var(--link);
+  color: var(--link-active);
+}
+
 .summary-row {
   display: flex;
   justify-content: space-between;
