@@ -433,6 +433,10 @@ td {
   user-select: none;
 }
 
+:root[data-private="on"] text.amount-value {
+  filter: blur(0.34rem);
+}
+
 
 .section-jump {
   display: flex;
