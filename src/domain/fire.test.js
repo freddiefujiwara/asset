@@ -2,6 +2,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   calculateRiskAssets,
   estimateMonthlyExpenses,
+  estimateMonthlyIncome,
+  estimateIncomeSplit,
+  estimateMortgageMonthlyPayment,
   simulateFire,
   generateGrowthTable,
 } from "./fire";
@@ -112,6 +115,74 @@ describe("fire domain", () => {
     });
   });
 
+  describe("estimateMonthlyIncome", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-03-15T09:00:00+09:00"));
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("calculates average monthly income excluding current month and transfers", () => {
+      const cashFlow = [
+        { date: "2026-03-01", amount: 300000, isTransfer: false, category: "給与" }, // current month -> excluded
+        { date: "2026-02-01", amount: 300000, isTransfer: false, category: "給与" },
+        { date: "2026-01-01", amount: 300000, isTransfer: false, category: "給与" },
+        { date: "2026-02-10", amount: 10000, isTransfer: true, category: "振替" }, // excluded
+        { date: "2026-02-20", amount: -5000, isTransfer: false, category: "返金" }, // excluded
+      ];
+      expect(estimateMonthlyIncome(cashFlow)).toBe(300000);
+    });
+  });
+
+  describe("estimateIncomeSplit", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-03-15T09:00:00+09:00"));
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("splits regular monthly income and bonus annualized amount", () => {
+      const cashFlow = [
+        { date: "2026-03-01", amount: 300000, isTransfer: false, category: "給与" }, // current month excluded
+        { date: "2026-02-01", amount: 300000, isTransfer: false, category: "給与" },
+        { date: "2026-01-01", amount: 300000, isTransfer: false, category: "給与" },
+        { date: "2026-02-15", amount: 600000, isTransfer: false, category: "賞与" },
+      ];
+
+      const result = estimateIncomeSplit(cashFlow);
+      expect(result.regularMonthly).toBe(300000);
+      expect(result.bonusAnnual).toBe(3600000); // 600,000 across 2 months window => annualized x6
+      expect(result.monthlyTotal).toBe(600000);
+    });
+  });
+
+  describe("estimateMortgageMonthlyPayment", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-03-15T09:00:00+09:00"));
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("estimates monthly mortgage payment from 住宅/ローン返済 category", () => {
+      const cashFlow = [
+        { date: "2026-02-01", amount: -120000, isTransfer: false, category: "住宅/ローン返済" },
+        { date: "2026-01-01", amount: -120000, isTransfer: false, category: "住宅/ローン返済" },
+        { date: "2026-02-01", amount: -10000, isTransfer: false, category: "住宅/管理費" },
+      ];
+
+      expect(estimateMortgageMonthlyPayment(cashFlow)).toBe(120000);
+    });
+  });
+
   describe("simulateFire", () => {
     const params = {
       initialAssets: 10000000,
@@ -181,6 +252,36 @@ describe("fire domain", () => {
       });
       // Required assets for 100-40=60 years will be much more than 1000
       expect(result.stats.median).toBe(5);
+    });
+
+    it("supports monthly income before FIRE", () => {
+      const resultWithoutIncome = simulateFire({
+        ...params,
+        initialAssets: 0,
+        riskAssets: 0,
+        monthlyInvestment: 0,
+        monthlyIncome: 0,
+        monthlyExpense: 100000,
+        annualReturnRate: 0,
+        annualStandardDeviation: 0,
+        iterations: 1,
+        maxMonths: 12,
+      });
+
+      const resultWithIncome = simulateFire({
+        ...params,
+        initialAssets: 0,
+        riskAssets: 0,
+        monthlyInvestment: 0,
+        monthlyIncome: 500000,
+        monthlyExpense: 100000,
+        annualReturnRate: 0,
+        annualStandardDeviation: 0,
+        iterations: 1,
+        maxMonths: 12,
+      });
+
+      expect(resultWithIncome.stats.median).toBeLessThanOrEqual(resultWithoutIncome.stats.median);
     });
   });
 
@@ -267,6 +368,49 @@ describe("fire domain", () => {
             riskAssets: 0
         });
         expect(result.table[0].assets).toBe(0);
+    });
+
+    it("drops mortgage payment after payoff month", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-01-10T09:00:00+09:00"));
+
+      const result = generateGrowthTable({
+        initialAssets: 0,
+        riskAssets: 0,
+        monthlyInvestment: 0,
+        monthlyIncome: 100000,
+        annualReturnRate: 0,
+        monthlyExpense: 90000,
+        currentAge: 40,
+        maxMonths: 2,
+        mortgageMonthlyPayment: 50000,
+        mortgagePayoffDate: "2026-02",
+      });
+
+      // m0: before payoff -> expense 90,000, assets +10,000
+      expect(result.table[1].assets).toBe(10000);
+      // m1 update happens after payoff month start -> expense becomes 40,000, assets +60,000
+      expect(result.table[2].assets).toBe(70000);
+
+      vi.useRealTimers();
+    });
+
+    it("sets income to 0 after FIRE is reached", () => {
+      const result = generateGrowthTable({
+        initialAssets: 100000000,
+        riskAssets: 0,
+        monthlyInvestment: 0,
+        monthlyIncome: 500000,
+        annualReturnRate: 0,
+        monthlyExpense: 100000,
+        currentAge: 40,
+        maxMonths: 1,
+        withdrawalRate: 0,
+      });
+
+      // FIRE reached at month 0, so month 1 should subtract expense only (income is forced to 0)
+      expect(result.fireReachedMonth).toBe(0);
+      expect(result.table[1].assets).toBe(99900000);
     });
   });
 });

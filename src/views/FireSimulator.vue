@@ -5,8 +5,10 @@ import { formatYen } from "@/domain/format";
 import {
   calculateRiskAssets,
   estimateMonthlyExpenses,
+  estimateIncomeSplit,
   simulateFire,
   generateGrowthTable,
+  estimateMortgageMonthlyPayment,
 } from "@/domain/fire";
 import FireGrowthChart from "@/components/FireGrowthChart.vue";
 import HistogramChart from "@/components/HistogramChart.vue";
@@ -45,15 +47,42 @@ const expenseResult = computed(() =>
     : { total: 0, breakdown: [], averageSpecial: 0, monthCount: 0 },
 );
 const autoMonthlyExpense = computed(() => expenseResult.value.total);
+const autoIncomeSplit = computed(() =>
+  data.value?.cashFlow
+    ? estimateIncomeSplit(data.value.cashFlow)
+    : { regularMonthly: 0, bonusAnnual: 0, monthlyTotal: 0 },
+);
+const autoRegularMonthlyIncome = computed(() => autoIncomeSplit.value.regularMonthly);
+const autoAnnualBonus = computed(() => autoIncomeSplit.value.bonusAnnual);
+const autoMortgageMonthlyPayment = computed(() =>
+  data.value?.cashFlow ? estimateMortgageMonthlyPayment(data.value.cashFlow) : 0,
+);
 
 const manualMonthlyExpense = ref(0);
 const useAutoExpense = ref(true);
+const manualRegularMonthlyIncome = ref(0);
+const manualAnnualBonus = ref(0);
+const useAutoIncome = ref(true);
+const mortgageMonthlyPayment = ref(0);
+const mortgagePayoffDate = ref("2042-07");
 
 const monthlyExpense = computed(() => (useAutoExpense.value ? autoMonthlyExpense.value : manualMonthlyExpense.value));
+const regularMonthlyIncome = computed(() =>
+  useAutoIncome.value ? autoRegularMonthlyIncome.value : manualRegularMonthlyIncome.value,
+);
+const annualBonus = computed(() => (useAutoIncome.value ? autoAnnualBonus.value : manualAnnualBonus.value));
+const monthlyIncome = computed(() => regularMonthlyIncome.value + annualBonus.value / 12);
 
 watchEffect(() => {
   if (autoMonthlyExpense.value && useAutoExpense.value) {
     manualMonthlyExpense.value = autoMonthlyExpense.value;
+  }
+  if (useAutoIncome.value) {
+    manualRegularMonthlyIncome.value = autoRegularMonthlyIncome.value;
+    manualAnnualBonus.value = autoAnnualBonus.value;
+  }
+  if (autoMortgageMonthlyPayment.value > 0 && mortgageMonthlyPayment.value === 0) {
+    mortgageMonthlyPayment.value = autoMortgageMonthlyPayment.value;
   }
 });
 
@@ -66,12 +95,15 @@ const simResult = computed(() => {
     annualReturnRate: annualReturnRate.value / 100,
     annualStandardDeviation: annualStandardDeviation.value / 100,
     monthlyExpense: monthlyExpense.value,
+    monthlyIncome: monthlyIncome.value,
     includeInflation: includeInflation.value,
     inflationRate: inflationRate.value / 100,
     currentAge: currentAge.value,
     includeTax: includeTax.value,
     taxRate: taxRate.value / 100,
     withdrawalRate: withdrawalRate.value / 100,
+    mortgageMonthlyPayment: mortgageMonthlyPayment.value,
+    mortgagePayoffDate: mortgagePayoffDate.value || null,
     iterations: iterations.value,
   });
 });
@@ -83,12 +115,15 @@ const growthData = computed(() => {
     monthlyInvestment: monthlyInvestment.value,
     annualReturnRate: annualReturnRate.value / 100,
     monthlyExpense: monthlyExpense.value,
+    monthlyIncome: monthlyIncome.value,
     currentAge: currentAge.value,
     includeInflation: includeInflation.value,
     inflationRate: inflationRate.value / 100,
     includeTax: includeTax.value,
     taxRate: taxRate.value / 100,
     withdrawalRate: withdrawalRate.value / 100,
+    mortgageMonthlyPayment: mortgageMonthlyPayment.value,
+    mortgagePayoffDate: mortgagePayoffDate.value || null,
   });
 });
 
@@ -166,6 +201,28 @@ const achievementProbability = computed(() => {
             </details>
           </div>
         </div>
+        <div class="filter-item expense-item">
+          <div class="label-row">
+            <label>定期収入 (月額)</label>
+            <label class="auto-toggle">
+              <input type="checkbox" v-model="useAutoIncome" /> 自動算出
+            </label>
+          </div>
+          <input v-model.number="manualRegularMonthlyIncome" type="number" step="10000" :disabled="useAutoIncome" />
+        </div>
+        <div class="filter-item expense-item">
+          <label>ボーナス (年額)</label>
+          <input v-model.number="manualAnnualBonus" type="number" step="10000" :disabled="useAutoIncome" />
+          <span v-if="useAutoIncome" class="meta">自動算出: {{ formatYen(autoAnnualBonus) }}</span>
+        </div>
+        <div class="filter-item">
+          <label>住宅ローン月額 (円)</label>
+          <input v-model.number="mortgageMonthlyPayment" type="number" step="10000" />
+        </div>
+        <div class="filter-item">
+          <label>ローン完済年月</label>
+          <input v-model="mortgagePayoffDate" type="month" class="is-public" />
+        </div>
         <div class="filter-item">
           <label>インフレ考慮</label>
           <div style="display: flex; gap: 8px; align-items: center;">
@@ -200,6 +257,14 @@ const achievementProbability = computed(() => {
             <div>
               <span class="meta">推定年間支出:</span>
               <span class="amount-value" style="margin-left: 8px;">{{ formatYen(monthlyExpense * 12) }}</span>
+            </div>
+            <div>
+              <span class="meta">推定年間収入:</span>
+              <span class="amount-value" style="margin-left: 8px;">{{ formatYen(monthlyIncome * 12) }}</span>
+            </div>
+            <div>
+              <span class="meta">うちボーナス:</span>
+              <span class="amount-value" style="margin-left: 8px;">{{ formatYen(annualBonus) }}</span>
             </div>
             <div>
               <span class="meta">必要資産目安:</span>
