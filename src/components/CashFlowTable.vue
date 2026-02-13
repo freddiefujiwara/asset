@@ -1,5 +1,5 @@
 <script setup>
-import { formatYen } from "@/domain/format";
+import { formatYen, truncate } from "@/domain/format";
 
 const props = defineProps({
   items: { type: Array, required: true },
@@ -62,7 +62,7 @@ const getSortIcon = (key) => {
           <td data-label="金額" :class="item.isTransfer ? '' : (item.amount > 0 ? 'is-positive' : 'is-negative')">
             <span class="amount-value">{{ formatYen(item.amount) }}</span>
           </td>
-          <td data-label="内容">{{ item.name }}</td>
+          <td data-label="内容" :title="item.name">{{ truncate(item.name) }}</td>
           <td data-label="カテゴリ">{{ item.category || "未分類" }}</td>
           <td data-label="振替" style="text-align: center;">
             <span v-if="item.isTransfer" title="振替">✔</span>
