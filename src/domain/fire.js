@@ -21,11 +21,12 @@ export function calculateRiskAssets(portfolio) {
 
 /**
  * Estimate monthly basic expenses from cash flow.
+ * Subtracts the monthly investment amount if it's included in the expenses.
  */
-export function estimateMonthlyExpenses(cashFlow) {
+export function estimateMonthlyExpenses(cashFlow, monthlyInvestment = 0) {
   const monthlyData = aggregateByMonth(cashFlow);
   const averages = getSixMonthAverages(monthlyData);
-  return Math.round(averages.expense);
+  return Math.max(0, Math.round(averages.expense - monthlyInvestment));
 }
 
 /**

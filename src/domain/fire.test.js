@@ -42,6 +42,22 @@ describe("fire domain", () => {
       expect(estimateMonthlyExpenses(cashFlow)).toBe(500);
     });
 
+    it("subtracts monthly investment from expenses", () => {
+      const cashFlow = [
+        { date: "2026-02-01", amount: -1000, isTransfer: false },
+      ];
+      // Average expense: 1000. Investment: 400. Result: 600
+      expect(estimateMonthlyExpenses(cashFlow, 400)).toBe(600);
+    });
+
+    it("ensures estimated expenses are not negative", () => {
+      const cashFlow = [
+        { date: "2026-02-01", amount: -100, isTransfer: false },
+      ];
+      // Average expense: 100. Investment: 400. Result: 0
+      expect(estimateMonthlyExpenses(cashFlow, 400)).toBe(0);
+    });
+
     it("returns 0 for empty cash flow", () => {
       expect(estimateMonthlyExpenses([])).toBe(0);
     });

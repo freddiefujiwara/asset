@@ -27,7 +27,7 @@ const iterations = ref(1000);
 // Data-derived parameters
 const initialAssets = computed(() => data.value?.totals?.netWorthYen ?? 0);
 const riskAssets = computed(() => (data.value ? calculateRiskAssets(data.value) : 0));
-const autoMonthlyExpense = computed(() => (data.value?.cashFlow ? estimateMonthlyExpenses(data.value.cashFlow) : 0));
+const autoMonthlyExpense = computed(() => (data.value?.cashFlow ? estimateMonthlyExpenses(data.value.cashFlow, monthlyInvestment.value) : 0));
 
 const manualMonthlyExpense = ref(0);
 const useAutoExpense = ref(true);
@@ -118,14 +118,14 @@ const achievementProbability = computed(() => {
           <label>現在の年齢</label>
           <input v-model.number="currentAge" type="number" />
         </div>
-        <div class="filter-item">
-          <label>生活費 (月額)</label>
-          <div style="display: flex; gap: 8px; align-items: center;">
-            <input v-model.number="manualMonthlyExpense" type="number" step="10000" :disabled="useAutoExpense" />
-            <label style="flex-direction: row; font-size: 11px;">
+        <div class="filter-item expense-item">
+          <div class="label-row">
+            <label>生活費 (月額)</label>
+            <label class="auto-toggle">
               <input type="checkbox" v-model="useAutoExpense" /> 自動算出
             </label>
           </div>
+          <input v-model.number="manualMonthlyExpense" type="number" step="10000" :disabled="useAutoExpense" />
         </div>
         <div class="filter-item">
           <label>インフレ考慮</label>
@@ -226,6 +226,22 @@ const achievementProbability = computed(() => {
   background: var(--surface-elevated);
   color: var(--text);
   font: inherit;
+}
+.label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.auto-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  font-size: 0.75rem !important;
+  color: var(--primary) !important;
+}
+.auto-toggle input {
+  cursor: pointer;
 }
 .card h2 {
     font-size: 0.9rem;
