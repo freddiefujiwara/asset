@@ -8,6 +8,10 @@ export function calculateRiskAssets(portfolio) {
     "株式（現物）",
     "株式（信用）",
     "投資信託",
+    "年金",
+    "先物・オプション",
+    "外貨預金",
+    "債券",
   ];
   if (!portfolio?.summary?.assetsByClass) return 0;
   return portfolio.summary.assetsByClass
@@ -128,6 +132,7 @@ function simulateTrial({
   inflationRate,
   includeTax,
   taxRate,
+  withdrawalRate,
 }) {
   let assets = initialAssets;
   const monthlyReturnMean = Math.pow(1 + annualReturnRate, 1 / 12) - 1;
@@ -186,6 +191,7 @@ export function simulateFire(params) {
     inflationRate = 0.02,
     includeTax = false,
     taxRate = 0.20315,
+    withdrawalRate = 0.04,
   } = params;
 
   const riskAssetRatio = initialAssets > 0 ? riskAssets / initialAssets : 0;
@@ -206,6 +212,7 @@ export function simulateFire(params) {
         inflationRate,
         includeTax,
         taxRate,
+        withdrawalRate,
       }),
     );
   }
@@ -243,6 +250,7 @@ export function generateGrowthTable(params) {
     inflationRate = 0.02,
     includeTax = false,
     taxRate = 0.20315,
+    withdrawalRate = 0.04,
   } = params;
 
   const riskAssetRatio = initialAssets > 0 ? riskAssets / initialAssets : 0;
@@ -291,11 +299,11 @@ export function generateGrowthTable(params) {
     let currentWithdrawal;
 
     if (isFire) {
-      // Once FIRE is reached, stop investment and perform 4% withdrawal (annually / 12)
+      // Once FIRE is reached, stop investment and perform withdrawal (annually / 12)
       // or withdraw monthly expense, whichever is higher to ensure living.
       currentInvestment = 0;
-      const fourPercentWithdrawal = assets * 0.04 / 12;
-      currentWithdrawal = Math.max(currentMonthlyExpense, fourPercentWithdrawal);
+      const amountFromWithdrawalRate = assets * withdrawalRate / 12;
+      currentWithdrawal = Math.max(currentMonthlyExpense, amountFromWithdrawalRate);
     } else {
       currentWithdrawal = currentMonthlyExpense;
     }
