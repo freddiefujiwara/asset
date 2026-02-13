@@ -119,7 +119,7 @@ const copyMfcfResponse = async () => {
 
   try {
     await copyText(JSON.stringify(split.mfcf ?? [], null, 2));
-    copyStatus.value = "mfcf をコピーしました";
+    copyStatus.value = "キャッシュフローをコピーしました";
   } catch {
     copyStatus.value = "コピーに失敗しました";
   }
@@ -134,7 +134,7 @@ const copyNonMfcfResponse = async () => {
 
   try {
     await copyText(JSON.stringify(split.others, null, 2));
-    copyStatus.value = "mfcf以外 をコピーしました";
+    copyStatus.value = "資産状況をコピーしました";
   } catch {
     copyStatus.value = "コピーに失敗しました";
   }
@@ -157,10 +157,10 @@ const resetFilters = () => {
 
     <div class="table-wrap api-actions">
       <button class="theme-toggle" type="button" @click="copyMfcfResponse">
-        mfcfをコピー
+        キャッシュフローをコピー
       </button>
       <button class="theme-toggle" type="button" @click="copyNonMfcfResponse">
-        mfcf以外をコピー
+        資産状況をコピー
       </button>
       <p v-if="copyStatus" class="meta">{{ copyStatus }}</p>
     </div>
