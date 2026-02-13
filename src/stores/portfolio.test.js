@@ -36,6 +36,7 @@ describe("portfolio store", () => {
     expect(store.loading).toBe(false);
     expect(store.error).toBe("");
     expect(store.source).toBe("live");
+    expect(store.rawResponse).toEqual(payload);
     expect(store.data.totals.assetsYen).toBe(1000);
     expect(store.data.totals.liabilitiesYen).toBe(200);
   });
@@ -171,6 +172,7 @@ describe("portfolio store", () => {
     expect(store.source).toBe("mock");
     expect(store.error).toContain("network down");
     expect(store.error).toContain("fallback to mock");
+    expect(store.rawResponse).toBeTruthy();
     expect(store.data).toBeTruthy();
     expect(Array.isArray(store.data.holdings.cashLike)).toBe(true);
   });

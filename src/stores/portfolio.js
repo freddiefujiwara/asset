@@ -27,6 +27,7 @@ export const usePortfolioStore = defineStore("portfolio", {
     loading: false,
     error: "",
     source: "",
+    rawResponse: null,
   }),
   actions: {
     async fetchPortfolio() {
@@ -66,6 +67,7 @@ export const usePortfolioStore = defineStore("portfolio", {
             throw new Error(`AUTH ${json.status}: ${authMessage}`);
           }
 
+          this.rawResponse = json;
           const payload = json?.data ?? json;
           this.data = normalizePortfolio(payload);
           this.source = "live";
@@ -77,6 +79,7 @@ export const usePortfolioStore = defineStore("portfolio", {
           this.error = message;
           this.data = null;
           this.source = "";
+          this.rawResponse = null;
           return;
         }
 
@@ -85,10 +88,12 @@ export const usePortfolioStore = defineStore("portfolio", {
           this.error = "CORS blocked API request. Ensure GAS doGet returns Access-Control-Allow-Origin.";
           this.data = null;
           this.source = "";
+          this.rawResponse = null;
           return;
         }
 
         this.error = `${message} (fallback to mock)`;
+        this.rawResponse = sampleApi;
         this.data = normalizePortfolio(sampleApi);
         this.source = "mock";
       } finally {

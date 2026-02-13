@@ -17,7 +17,7 @@ import CashFlowBarChart from "@/components/CashFlowBarChart.vue";
 import CashFlowTable from "@/components/CashFlowTable.vue";
 import PieChart from "@/components/PieChart.vue";
 
-const { data, loading, error, source } = usePortfolioData();
+const { data, loading, error, source, rawResponse } = usePortfolioData();
 
 const monthFilter = ref("");
 const largeCategoryFilter = ref("");
@@ -65,6 +65,7 @@ const sixMonthAverages = computed(() =>
 );
 
 const uniqueMonths = computed(() => getUniqueMonths(cashFlowRaw.value));
+const copyTargetMonths = computed(() => uniqueMonths.value.slice(0, 6));
 const uniqueLargeCategories = computed(() => getUniqueLargeCategories(cashFlowRaw.value));
 const uniqueSmallCategories = computed(() =>
   getUniqueSmallCategories(cashFlowRaw.value, largeCategoryFilter.value),
@@ -73,6 +74,74 @@ const uniqueSmallCategories = computed(() =>
 const handleSort = ({ key, order }) => {
   sortKey.value = key;
   sortOrder.value = order;
+};
+
+const copyStatus = ref("");
+
+const getSplitResponse = () => {
+  if (!rawResponse.value || typeof rawResponse.value !== "object") {
+    return null;
+  }
+
+  const root = rawResponse.value;
+  const target = root?.data && typeof root.data === "object" ? root.data : root;
+
+  if (!target || typeof target !== "object") {
+    return null;
+  }
+
+  const { mfcf, ...others } = target;
+  return { mfcf, others };
+};
+
+const copyText = async (text) => {
+  if (navigator?.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textArea = document.createElement("textarea");
+  textArea.value = text;
+  textArea.setAttribute("readonly", "");
+  textArea.style.position = "absolute";
+  textArea.style.left = "-9999px";
+  document.body.appendChild(textArea);
+  textArea.select();
+  document.execCommand("copy");
+  document.body.removeChild(textArea);
+};
+
+const copyMonthlyMfcfResponse = async (month) => {
+  const split = getSplitResponse();
+  if (!split) {
+    copyStatus.value = "コピー対象のレスポンスがありません";
+    return;
+  }
+
+  const mfcfRows = Array.isArray(split.mfcf) ? split.mfcf : [];
+  const targetRows = mfcfRows.filter((item) => item?.date?.startsWith(month));
+
+  try {
+    await copyText(JSON.stringify(targetRows, null, 2));
+    copyStatus.value = `${month.replace("-", "")}分のキャッシュフローをコピーしました`;
+  } catch {
+    copyStatus.value = "コピーに失敗しました";
+  }
+};
+
+const copyNonMfcfResponse = async () => {
+  const split = getSplitResponse();
+  if (!split) {
+    copyStatus.value = "コピー対象のレスポンスがありません";
+    return;
+  }
+
+  try {
+    await copyText(JSON.stringify(split.others, null, 2));
+    copyStatus.value = "資産状況をコピーしました";
+  } catch {
+    copyStatus.value = "コピーに失敗しました";
+  }
 };
 
 const resetFilters = () => {
@@ -157,6 +226,22 @@ const resetFilters = () => {
       <PieChart title="カテゴリ別支出内訳" :data="categoryPieData" />
     </div>
 
+    <div class="table-wrap api-actions">
+      <button
+        v-for="month in copyTargetMonths"
+        :key="month"
+        class="theme-toggle"
+        type="button"
+        @click="copyMonthlyMfcfResponse(month)"
+      >
+        {{ month.replace('-', '') }}分をコピー
+      </button>
+      <button class="theme-toggle" type="button" @click="copyNonMfcfResponse">
+        資産状況をコピー
+      </button>
+      <p v-if="copyStatus" class="meta">{{ copyStatus }}</p>
+    </div>
+
     <CashFlowTable
       :items="filteredCashFlow"
       :sort-key="sortKey"
@@ -207,6 +292,14 @@ const resetFilters = () => {
   color: var(--text);
   font-size: 0.9rem;
 }
+
+.api-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 @media (max-width: 700px) {
   .filter-grid {
     gap: 12px;
