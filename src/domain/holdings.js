@@ -77,9 +77,14 @@ export const HOLDING_TABLE_CONFIGS = [
   },
 ];
 
+function holdingRows(holdings, key) {
+  const rows = holdings?.[key];
+  return Array.isArray(rows) ? rows : [];
+}
+
 export function stockFundRows(holdings) {
   const safe = holdings ?? EMPTY_HOLDINGS;
-  return [...safe.stocks, ...safe.funds];
+  return [...holdingRows(safe, "stocks"), ...holdingRows(safe, "funds")];
 }
 
 export function stockFundSummary(holdings) {
@@ -88,10 +93,10 @@ export function stockFundSummary(holdings) {
   const dailyMoves = rows.map((row) => dailyChangeYen(row)).filter((value) => value != null);
   const dailyMoveTotal = dailyMoves.reduce((sum, value) => sum + value, 0);
   const totalProfitYen = rows.reduce((sum, row) => {
-    if (!("評価損益" in (row ?? {}))) {
+    if (!row || !("評価損益" in row)) {
       return sum;
     }
-    return sum + toNumber(row?.["評価損益"]);
+    return sum + toNumber(row["評価損益"]);
   }, 0);
   const totalProfitRatePct = totalProfitRate(totalYen, totalProfitYen);
 

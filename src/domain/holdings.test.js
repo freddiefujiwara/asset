@@ -112,6 +112,16 @@ describe("holdings domain", () => {
     expect(stockFundRows(null)).toEqual([]);
   });
 
+  it("treats non-array stock/fund values as empty", () => {
+    expect(
+      stockFundRows({
+        ...EMPTY_HOLDINGS,
+        stocks: null,
+        funds: [{ 評価額: "100" }],
+      }),
+    ).toEqual([{ 評価額: "100" }]);
+  });
+
   it("ignores malformed rows when calculating stock/fund profit totals", () => {
     const summary = stockFundSummary({
       ...EMPTY_HOLDINGS,
