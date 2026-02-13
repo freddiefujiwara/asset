@@ -113,7 +113,7 @@ const gridLines = computed(() => {
           <g v-for="line in gridLines" :key="line.label" class="grid-line">
             <line x1="0" :y1="line.y" :x2="innerWidth" :y2="line.y" stroke="var(--border)" :stroke-dasharray="line.label === '0' ? '0' : '4'" />
             <text x="-10" :y="line.y" text-anchor="end" alignment-baseline="middle" font-size="10" fill="var(--muted)">
-              {{ line.label }}
+              <tspan class="amount-value">{{ line.label }}</tspan>
             </text>
           </g>
 
@@ -185,10 +185,10 @@ const gridLines = computed(() => {
       style="margin-top: 8px; text-align: center;"
     >
       直近{{ averages.count }}か月平均：
-      収入 {{ Math.round(averages.income).toLocaleString() }} /
-      支出 {{ Math.round(averages.expense).toLocaleString() }}
+      収入 <span class="amount-value">{{ Math.round(averages.income).toLocaleString() }}</span> /
+      支出 <span class="amount-value">{{ Math.round(averages.expense).toLocaleString() }}</span>
       <template v-if="showNet">
-        / 純収支 {{ Math.round(averages.net).toLocaleString() }}
+        / 純収支 <span class="amount-value">{{ Math.round(averages.net).toLocaleString() }}</span>
       </template>
     </p>
   </div>
