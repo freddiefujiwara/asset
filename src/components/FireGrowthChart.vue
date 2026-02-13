@@ -5,6 +5,7 @@ const props = defineProps({
   data: { type: Array, default: () => [] }, // Array of { month, assets, requiredAssets, isFire }
   width: { type: Number, default: 800 },
   height: { type: Number, default: 350 },
+  baseAge: { type: Number, default: 40 },
 });
 
 const margin = { top: 20, right: 30, bottom: 50, left: 80 };
@@ -54,7 +55,7 @@ const xLabels = computed(() => {
   for (let i = 0; i < totalMonths; i += step) {
     labels.push({
       x: xScale(i),
-      text: `${Math.floor(i / 12)}年`,
+      text: `${props.baseAge + Math.floor(i / 12)}歳`,
     });
   }
   return labels;
@@ -83,7 +84,7 @@ const yLabels = computed(() => {
           <!-- Grid lines -->
           <g v-for="label in yLabels" :key="label.text" class="grid-line">
             <line x1="0" :y1="label.y" :x2="innerWidth" :y2="label.y" stroke="var(--border)" stroke-dasharray="4" />
-            <text x="-10" :y="label.y" text-anchor="end" alignment-baseline="middle" font-size="10" fill="var(--muted)">
+            <text x="-10" :y="label.y" class="fire-y-axis-label" text-anchor="end" alignment-baseline="middle" font-size="10" fill="var(--muted)">
               {{ label.text }}
             </text>
           </g>
@@ -120,7 +121,7 @@ const yLabels = computed(() => {
       </div>
       <div style="display: flex; align-items: center; gap: 4px;">
         <span style="width: 20px; height: 2px; border-bottom: 2px dashed var(--muted);"></span>
-        <span>必要資産 (25倍)</span>
+        <span>必要資産 (100歳寿命)</span>
       </div>
     </div>
   </div>

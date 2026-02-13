@@ -14,10 +14,21 @@ import HistogramChart from "@/components/HistogramChart.vue";
 const { data, loading, error } = usePortfolioData();
 
 // Input parameters
-const monthlyInvestment = ref(400000);
+const calculateInitialAge = () => {
+  const birthDate = new Date("1979-09-02");
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age;
+};
+
+const monthlyInvestment = ref(423000);
 const annualReturnRate = ref(5);
 const annualStandardDeviation = ref(15);
-const currentAge = ref(30);
+const currentAge = ref(calculateInitialAge());
 const includeInflation = ref(false);
 const inflationRate = ref(2);
 const includeTax = ref(false);
@@ -29,7 +40,7 @@ const initialAssets = computed(() => data.value?.totals?.netWorthYen ?? 0);
 const riskAssets = computed(() => (data.value ? calculateRiskAssets(data.value) : 0));
 const expenseResult = computed(() =>
   data.value?.cashFlow
-    ? estimateMonthlyExpenses(data.value.cashFlow, monthlyInvestment.value)
+    ? estimateMonthlyExpenses(data.value.cashFlow)
     : { total: 0, breakdown: [], averageSpecial: 0, monthCount: 0 },
 );
 const autoMonthlyExpense = computed(() => expenseResult.value.total);
@@ -56,6 +67,7 @@ const simResult = computed(() => {
     monthlyExpense: monthlyExpense.value,
     includeInflation: includeInflation.value,
     inflationRate: inflationRate.value / 100,
+    currentAge: currentAge.value,
     includeTax: includeTax.value,
     taxRate: taxRate.value / 100,
     iterations: iterations.value,
@@ -69,6 +81,7 @@ const growthData = computed(() => {
     monthlyInvestment: monthlyInvestment.value,
     annualReturnRate: annualReturnRate.value / 100,
     monthlyExpense: monthlyExpense.value,
+    currentAge: currentAge.value,
     includeInflation: includeInflation.value,
     inflationRate: inflationRate.value / 100,
     includeTax: includeTax.value,
@@ -137,11 +150,7 @@ const achievementProbability = computed(() => {
               <div class="breakdown-content">
                 <div v-for="item in expenseResult.breakdown" :key="item.name" class="breakdown-row">
                   <span class="cat-name">{{ item.name }}</span>
-                  <span class="cat-amount">{{ formatYen(item.amount) }}</span>
-                </div>
-                <div v-if="monthlyInvestment > 0" class="breakdown-row investment-deduction">
-                  <span class="cat-name">投資分差引</span>
-                  <span class="cat-amount">-{{ formatYen(monthlyInvestment) }}</span>
+                  <span class="cat-amount amount-value">{{ formatYen(item.amount) }}</span>
                 </div>
                 <div v-if="expenseResult.averageSpecial > 0" class="special-info">
                   <span class="meta">※ 特別な支出 (平均 {{ formatYen(expenseResult.averageSpecial) }}) は除外済み</span>
@@ -204,7 +213,7 @@ const achievementProbability = computed(() => {
         <div>
           <span class="meta">うちリスク資産:</span>
           <span class="amount-value" style="margin-left: 8px;">{{ formatYen(riskAssets) }}</span>
-          <span class="meta"> ({{ initialAssets > 0 ? ((riskAssets/initialAssets)*100).toFixed(1) : 0 }}%)</span>
+          <span class="meta"> ({{ (data?.totals?.assetsYen > 0) ? ((riskAssets / data.totals.assetsYen) * 100).toFixed(1) : 0 }}% / 総資産比)</span>
         </div>
         <div>
           <span class="meta">推定年間支出:</span>
@@ -212,12 +221,13 @@ const achievementProbability = computed(() => {
         </div>
         <div>
           <span class="meta">必要資産目安:</span>
-          <span class="amount-value" style="margin-left: 8px;">{{ formatYen(monthlyExpense * 12 * 25) }}</span>
+          <span class="amount-value" style="margin-left: 8px;">{{ formatYen(Math.round(growthData.table[0]?.requiredAssets ?? 0)) }}</span>
+          <span class="meta"> (100歳寿命)</span>
         </div>
       </div>
     </div>
 
-    <FireGrowthChart :data="growthData.table" />
+    <FireGrowthChart :data="growthData.table" :base-age="currentAge" />
 
     <div class="chart-grid">
       <HistogramChart :data="simResult.trials" :max-months="1200" />
