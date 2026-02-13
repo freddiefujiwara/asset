@@ -17,13 +17,15 @@ describe("holdings domain", () => {
   it("computes stock/fund summary", () => {
     const summary = stockFundSummary({
       ...EMPTY_HOLDINGS,
-      stocks: [{ 評価額: "100", 前日比: "10" }],
-      funds: [{ 評価額: "300", 前日比: "-20" }, { 評価額: "not number" }],
+      stocks: [{ 評価額: "100", 前日比: "10", 評価損益: "20" }],
+      funds: [{ 評価額: "300", 前日比: "-20", 評価損益: "-30" }, { 評価額: "not number" }],
     });
 
     expect(summary.totalYen).toBe(400);
     expect(summary.dailyMoves).toEqual([10, -20]);
     expect(summary.dailyMoveTotal).toBe(-10);
+    expect(summary.totalProfitYen).toBe(-10);
+    expect(summary.totalProfitRatePct).toBeCloseTo(-2.44, 2);
   });
 
   it("builds stock tiles sorted by valuation with sign color flag", () => {

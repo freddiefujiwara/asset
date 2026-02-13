@@ -4,7 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 import HoldingTable from "@/components/HoldingTable.vue";
 import AssetCategoryCard from "@/components/AssetCategoryCard.vue";
 import { formatSignedYen, formatYen } from "@/domain/format";
-import { signedClass } from "@/domain/signed";
+import { formatSignedPercent, signedClass } from "@/domain/signed";
 import { EMPTY_HOLDINGS, HOLDING_TABLE_CONFIGS, stockFundSummary, stockTiles as buildStockTiles } from "@/domain/holdings";
 import { filterHoldingsByOwner, OWNER_FILTERS, summarizeByCategory } from "@/domain/assetOwners";
 import { usePortfolioData } from "@/composables/usePortfolioData";
@@ -34,6 +34,9 @@ const stocksAndFundsTotal = computed(() => summary.value.totalYen);
 const dailyMoves = computed(() => summary.value.dailyMoves);
 const dailyMoveTotal = computed(() => summary.value.dailyMoveTotal);
 const dailyMoveClass = computed(() => signedClass(dailyMoveTotal.value));
+const totalProfitYen = computed(() => summary.value.totalProfitYen);
+const totalProfitClass = computed(() => signedClass(totalProfitYen.value));
+const totalProfitRatePct = computed(() => summary.value.totalProfitRatePct);
 const stockTiles = computed(() => buildStockTiles(filteredHoldings.value.stocks));
 const categoryCards = computed(() => summarizeByCategory(filteredHoldings.value));
 
@@ -71,6 +74,14 @@ function selectOwner(ownerId) {
       </div>
       <div class="summary-row">
         <span>評価額合計: <strong class="amount-value">{{ formatYen(stocksAndFundsTotal) }}</strong></span>
+        <span>
+          評価損益合計:
+          <strong :class="['amount-value', totalProfitClass]">{{ formatSignedYen(totalProfitYen) }}</strong>
+        </span>
+        <span>
+          評価損益率:
+          <strong :class="signedClass(totalProfitRatePct)">{{ formatSignedPercent(totalProfitRatePct) }}</strong>
+        </span>
         <span>
           前日比合計:
           <strong :class="dailyMoveClass">
