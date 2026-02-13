@@ -80,4 +80,43 @@ describe("normalizePortfolio", () => {
     expect(normalized.summary.liabilitiesByCategory[0].category).toBe("");
   });
 
+  it("normalizes cashFlow data including edge cases for branches", () => {
+    const api = {
+      mfcf: [
+        { date: "2026-02-12", amount: -3000, currency: "JPY", name: "Shop", category: "Food", is_transfer: false },
+        { date: null, amount: 1000, currency: null, name: null, category: null, is_transfer: true },
+        {},
+      ],
+    };
+    const normalized = normalizePortfolio(api);
+    expect(normalized.cashFlow).toHaveLength(3);
+
+    expect(normalized.cashFlow[0]).toEqual({
+      date: "2026-02-12",
+      amount: -3000,
+      currency: "JPY",
+      name: "Shop",
+      category: "Food",
+      isTransfer: false,
+    });
+
+    expect(normalized.cashFlow[1]).toEqual({
+      date: "",
+      amount: 1000,
+      currency: "JPY",
+      name: "",
+      category: "",
+      isTransfer: true,
+    });
+
+    expect(normalized.cashFlow[2]).toEqual({
+      date: "",
+      amount: 0,
+      currency: "JPY",
+      name: "",
+      category: "",
+      isTransfer: false,
+    });
+  });
+
 });

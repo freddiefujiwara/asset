@@ -64,5 +64,13 @@ export function normalizePortfolio(api) {
       points: asArray(safeApi.details__portfolio_det_po__t0),
       liabilitiesDetail: asArray(safeApi["details__liability_det__t0-liability"]),
     },
+    cashFlow: asArray(safeApi.mfcf).map((item) => ({
+      date: String(item?.date ?? ""),
+      amount: toNumber(item?.amount),
+      currency: String(item?.currency ?? "JPY"),
+      name: String(item?.name ?? ""),
+      category: String(item?.category ?? ""),
+      isTransfer: Boolean(item?.is_transfer),
+    })),
   };
 }
