@@ -11,7 +11,8 @@ export default defineConfig({
     },
   },
   test: {
-    environment: "node",
+    globals: true,
+    environment: "jsdom",
     coverage: {
       provider: "v8",
       reportsDirectory: "./coverage",
@@ -19,6 +20,8 @@ export default defineConfig({
       include: [
         "src/domain/**/*.js",
         "src/stores/**/*.js",
+        "src/components/FireSimulationTable.vue",
+        "src/components/FireSimulationChart.vue",
       ],
       all: true,
       thresholds: {

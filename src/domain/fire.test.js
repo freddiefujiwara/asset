@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   calculateRiskAssets,
   calculateExcludedOwnerAssets,
+  calculateFirePortfolio,
   calculateCashAssets,
   estimateMonthlyExpenses,
   estimateMonthlyIncome,
@@ -9,6 +10,7 @@ import {
   estimateMortgageMonthlyPayment,
   simulateFire,
   generateGrowthTable,
+  generateAnnualSimulation,
   calculateMonthlyPension,
 } from "./fire";
 
@@ -89,6 +91,72 @@ describe("fire domain", () => {
       });
     });
   });
+
+  describe("calculateFirePortfolio", () => {
+    const portfolio = {
+      holdings: {
+        cashLike: [
+          { category: "預金・現金", "名称・説明": "銀行A", 残高: "1000000" }, // me
+          { category: "預金・現金", "名称・説明": "銀行B@chipop", 残高: "500000" }, // wife
+          { category: "預金・現金", "名称・説明": "銀行C@aojiru.pudding", 残高: "200000" }, // daughter
+        ],
+        stocks: [
+          { category: "株式（現物）", 銘柄名: "株A", 評価額: "2000000" }, // me
+          { category: "株式（現物）", 銘柄名: "株B@aojiru.pudding", 評価額: "300000" }, // daughter
+        ],
+        liabilitiesDetail: [
+          { 種類: "住宅ローン", 残高: "10000000" }, // me
+          { 種類: "カード借入@aojiru.pudding", 残高: "5000" }, // daughter
+        ],
+      },
+    };
+
+    it("returns zeros for empty portfolio", () => {
+      expect(calculateFirePortfolio(null)).toEqual({
+        totalAssetsYen: 0,
+        riskAssetsYen: 0,
+        cashAssetsYen: 0,
+        liabilitiesYen: 0,
+        netWorthYen: 0,
+      });
+    });
+
+    it("aggregates assets and liabilities strictly for me and wife", () => {
+      const result = calculateFirePortfolio(portfolio);
+      // Assets: me(1M cash, 2M stock) + wife(0.5M cash) = 3.5M
+      // Risk: me(2M stock) = 2.0M
+      // Cash: 3.5M - 2.0M = 1.5M
+      // Liabilities: me(10M loan) = 10M
+      // Net Worth: 3.5M - 10M = -6.5M
+      expect(result.totalAssetsYen).toBe(3500000);
+      expect(result.riskAssetsYen).toBe(2000000);
+      expect(result.cashAssetsYen).toBe(1500000);
+      expect(result.liabilitiesYen).toBe(10000000);
+      expect(result.netWorthYen).toBe(-6500000);
+    });
+
+    it("supports custom owner list", () => {
+      const result = calculateFirePortfolio(portfolio, ["me"]);
+      expect(result.totalAssetsYen).toBe(3000000);
+      expect(result.liabilitiesYen).toBe(10000000);
+    });
+
+    it("handles missing categories and missing liability section", () => {
+      const partialPortfolio = {
+        holdings: {
+          cashLike: [
+            { "名称・説明": "不明な資産", 残高: "50000" } // me, no category
+          ]
+          // stocks and liabilitiesDetail missing
+        }
+      };
+      const result = calculateFirePortfolio(partialPortfolio);
+      expect(result.totalAssetsYen).toBe(50000);
+      expect(result.riskAssetsYen).toBe(0);
+      expect(result.liabilitiesYen).toBe(0);
+    });
+  });
+
   describe("calculateCashAssets", () => {
     it("returns 0 for empty portfolio", () => {
       expect(calculateCashAssets(null)).toBe(0);
@@ -681,6 +749,147 @@ describe("fire domain", () => {
         includePension: true,
       });
       expect(result.stats.median).toBeDefined();
+    });
+  });
+
+  describe("generateAnnualSimulation", () => {
+    const params = {
+      initialAssets: 10000000,
+      riskAssets: 5000000,
+      annualReturnRate: 0.05,
+      monthlyExpense: 200000,
+      monthlyIncome: 300000,
+      currentAge: 40,
+    };
+
+    it("generates annual data until age 100", () => {
+      const result = generateAnnualSimulation(params);
+      // From age 40 to 100 (inclusive) -> 40, 41, ..., 100 is 61 points
+      expect(result.length).toBe(61);
+      expect(result[0].age).toBe(40);
+      expect(result[result.length - 1].age).toBe(100);
+    });
+
+    it("aggregates monthly income and expenses into annual values", () => {
+      const result = generateAnnualSimulation({
+        ...params,
+        annualReturnRate: 0,
+        includeInflation: false,
+      });
+      // 12 months * 300k = 3.6M
+      expect(result[0].income).toBe(3600000);
+      // 12 months * 200k = 2.4M
+      expect(result[0].expenses).toBe(2400000);
+    });
+
+    it("handles pension and transition to FIRE", () => {
+      const result = generateAnnualSimulation({
+        ...params,
+        initialAssets: 100000000, // already FIRE
+        includePension: true,
+        currentAge: 59,
+      });
+      // Age 59: FIRE'd, income 0, pension 0
+      expect(result[0].age).toBe(59);
+      expect(result[0].income).toBe(0);
+      expect(result[0].pension).toBe(0);
+
+      // Age 60: Pension starts (around 116k * 12 = 1.4M)
+      expect(result[1].age).toBe(60);
+      expect(result[1].pension).toBeGreaterThan(1000000);
+    });
+
+    it("calculates withdrawal amount when expenses > income", () => {
+      const result = generateAnnualSimulation({
+        ...params,
+        initialAssets: 0,
+        riskAssets: 0,
+        monthlyIncome: 100000,
+        monthlyExpense: 200000,
+        annualReturnRate: 0,
+      });
+      // Shortfall: 100k/month * 12 = 1.2M
+      expect(result[0].withdrawal).toBe(1200000);
+    });
+
+    it("maintains risk asset ratio", () => {
+      const result = generateAnnualSimulation({
+        ...params,
+        initialAssets: 10000000,
+        riskAssets: 8000000, // 80%
+      });
+      const year0 = result[0];
+      expect(year0.riskAssets / year0.assets).toBeCloseTo(0.8, 2);
+    });
+
+    it("handles mid-year mortgage payoff", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-01-10T09:00:00+09:00"));
+
+      const result = generateAnnualSimulation({
+        ...params,
+        currentAge: 40,
+        mortgageMonthlyPayment: 100000,
+        mortgagePayoffDate: "2026-07", // 6 months of mortgage in the first year
+        monthlyExpense: 200000, // base expense
+      });
+
+      // Total expenses for first year:
+      // Jan-Jun: 200k (incl mortgage if baseExpense includes it?)
+      // Wait, in our logic baseMonthlyExpense is the total expense,
+      // and mortgage is subtracted after payoff.
+      // So first 6 months: 200k
+      // Next 6 months: 200k - 100k = 100k
+      // Total: 6 * 200k + 6 * 100k = 1.2M + 0.6M = 1.8M
+      expect(result[0].expenses).toBe(1800000);
+
+      vi.useRealTimers();
+    });
+
+    it("handles tax on withdrawal", () => {
+      const result = generateAnnualSimulation({
+        ...params,
+        initialAssets: 0,
+        riskAssets: 0,
+        monthlyIncome: 0,
+        monthlyExpense: 100000,
+        includeTax: true,
+        taxRate: 0.2,
+      });
+      // Shortfall 100k -> Gross up 125k. Annual: 125k * 12 = 1.5M
+      expect(result[0].withdrawal).toBe(1500000);
+    });
+
+    it("handles tax on withdrawal when post-FIRE", () => {
+      const result = generateAnnualSimulation({
+        ...params,
+        initialAssets: 100000000,
+        monthlyExpense: 100000,
+        includeTax: true,
+        taxRate: 0.2,
+        withdrawalRate: 0,
+      });
+      // 100k / 0.8 = 125k. Annual: 1.5M
+      expect(result[0].withdrawal).toBe(1500000);
+    });
+
+    it("handles inflation", () => {
+      const result = generateAnnualSimulation({
+        ...params,
+        includeInflation: true,
+        inflationRate: 0.1,
+      });
+      expect(result[1].expenses).toBeGreaterThan(result[0].expenses);
+    });
+
+    it("sets assets to 0 if they go negative", () => {
+      const result = generateAnnualSimulation({
+        ...params,
+        initialAssets: 1000,
+        monthlyIncome: 0,
+        monthlyExpense: 1000000,
+      });
+      expect(result[1].assets).toBe(0);
     });
   });
 });
