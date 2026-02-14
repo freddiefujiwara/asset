@@ -273,7 +273,6 @@ function calculateCurrentMonthlyExpense({
 function simulateTrial({
   initialAssets,
   riskAssetRatio,
-  monthlyInvestment,
   annualReturnRate,
   annualStandardDeviation,
   monthlyExpense,
@@ -328,7 +327,10 @@ function simulateTrial({
     const grownRiskAssets = riskAssets * (1 + returnRate);
     const grownSafeAssets = safeAssets; // Assume safe assets (cash) have 0% return for simplicity
 
-    assets = grownRiskAssets + grownSafeAssets + monthlyIncome + monthlyInvestment;
+    // monthlyIncome already includes all regular/bonus cashflow assumptions,
+    // and expense is deducted below. Do not add monthlyInvestment separately,
+    // otherwise investment capital is double-counted.
+    assets = grownRiskAssets + grownSafeAssets + monthlyIncome;
     assets -= currentMonthlyExpense;
 
     if (assets < 0) return maxMonths;
@@ -343,7 +345,6 @@ export function simulateFire(params) {
   const {
     initialAssets,
     riskAssets,
-    monthlyInvestment,
     annualReturnRate,
     annualStandardDeviation,
     monthlyExpense,
@@ -368,7 +369,6 @@ export function simulateFire(params) {
       simulateTrial({
         initialAssets,
         riskAssetRatio,
-        monthlyInvestment,
         annualReturnRate,
         annualStandardDeviation,
         monthlyExpense,
@@ -410,7 +410,6 @@ export function generateGrowthTable(params) {
   const {
     initialAssets,
     riskAssets,
-    monthlyInvestment,
     annualReturnRate,
     monthlyExpense,
     monthlyIncome = 0,
@@ -475,14 +474,12 @@ export function generateGrowthTable(params) {
     const riskPart = assets * riskAssetRatio;
     const safePart = assets - riskPart;
 
-    let currentInvestment = monthlyInvestment;
     let currentIncome = monthlyIncome;
     let currentWithdrawal;
 
     if (isFire) {
       // Once FIRE is reached, stop investment and perform withdrawal (annually / 12)
       // or withdraw monthly expense, whichever is higher to ensure living.
-      currentInvestment = 0;
       currentIncome = 0;
       const amountFromWithdrawalRate = assets * withdrawalRate / 12;
       currentWithdrawal = Math.max(currentMonthlyExpense, amountFromWithdrawalRate);
@@ -490,7 +487,9 @@ export function generateGrowthTable(params) {
       currentWithdrawal = currentMonthlyExpense;
     }
 
-    assets = riskPart * (1 + monthlyReturnMean) + safePart + currentIncome + currentInvestment;
+    // monthlyIncome already contains ongoing cashflow assumptions.
+    // Do not add monthlyInvestment separately to avoid double-counting.
+    assets = riskPart * (1 + monthlyReturnMean) + safePart + currentIncome;
     assets -= currentWithdrawal;
 
     if (assets < 0) {
