@@ -49,6 +49,9 @@ export function calculateExcludedOwnerAssets(portfolio, excludedOwnerId = "daugh
     totalAssetsYen: sumByKeys(allAssetKeys),
     riskAssetsYen: sumByKeys(riskAssetKeys),
   };
+}
+
+/**
  * Calculate cash assets (Total Assets - Risk Assets).
  */
 export function calculateCashAssets(portfolio) {

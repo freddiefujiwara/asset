@@ -69,6 +69,25 @@ describe("fire domain", () => {
         totalAssetsYen: 1005000,
         riskAssetsYen: 900000,
       });
+    });
+
+    it("handles non-array holdings entries", () => {
+      const portfolio = {
+        holdings: {
+          cashLike: { "名称・説明": "普通預金@aojiru.pudding", "残高": "100000" },
+          stocks: null,
+          funds: undefined,
+          pensions: "invalid",
+          points: 123,
+        },
+      };
+
+      expect(calculateExcludedOwnerAssets(portfolio, "daughter")).toEqual({
+        totalAssetsYen: 0,
+        riskAssetsYen: 0,
+      });
+    });
+  });
   describe("calculateCashAssets", () => {
     it("returns 0 for empty portfolio", () => {
       expect(calculateCashAssets(null)).toBe(0);
