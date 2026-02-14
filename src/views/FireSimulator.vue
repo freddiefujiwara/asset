@@ -1,12 +1,11 @@
 <script setup>
-import { computed, ref, watchEffect } from "vue";
+import { computed, ref, watchEffect, watch, onUnmounted } from "vue";
 import { usePortfolioData } from "@/composables/usePortfolioData";
 import { formatYen } from "@/domain/format";
 import {
   calculateFirePortfolio,
   estimateMonthlyExpenses,
   estimateIncomeSplit,
-  simulateFire,
   generateGrowthTable,
   generateAnnualSimulation,
   estimateMortgageMonthlyPayment,
@@ -118,28 +117,74 @@ watchEffect(() => {
   }
 });
 
-// Simulation results
-const simResult = computed(() => {
-  return simulateFire({
-    initialAssets: initialAssets.value,
-    riskAssets: riskAssets.value,
-    annualReturnRate: annualReturnRate.value / 100,
-    annualStandardDeviation: annualStandardDeviation.value / 100,
-    monthlyExpense: monthlyExpense.value,
-    monthlyIncome: monthlyIncome.value,
-    includeInflation: includeInflation.value,
-    inflationRate: inflationRate.value / 100,
-    currentAge: currentAge.value,
-    includeTax: includeTax.value,
-    taxRate: taxRate.value / 100,
-    withdrawalRate: withdrawalRate.value / 100,
-    mortgageMonthlyPayment: mortgageMonthlyPayment.value,
-    mortgagePayoffDate: mortgagePayoffDate.value || null,
-    postFireExtraExpense: postFireExtraExpense.value,
-    iterations: iterations.value,
-    includePension: true,
-  });
+// Simulation results (Async with Web Worker)
+const simResult = ref({ trials: [], stats: { mean: 0, median: 0, p5: 0, p95: 0 } });
+const isCalculating = ref(false);
+let worker = null;
+let debounceTimer = null;
+
+const runSimulation = () => {
+  if (debounceTimer) clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    if (!worker) {
+      worker = new Worker(new URL("../workers/fireWorker.js", import.meta.url), { type: "module" });
+      worker.onmessage = (e) => {
+        if (e.data.type === "success") {
+          simResult.value = e.data.result;
+        }
+        isCalculating.value = false;
+      };
+    }
+
+    isCalculating.value = true;
+    worker.postMessage({
+      initialAssets: initialAssets.value,
+      riskAssets: riskAssets.value,
+      annualReturnRate: annualReturnRate.value / 100,
+      annualStandardDeviation: annualStandardDeviation.value / 100,
+      monthlyExpense: monthlyExpense.value,
+      monthlyIncome: monthlyIncome.value,
+      includeInflation: includeInflation.value,
+      inflationRate: inflationRate.value / 100,
+      currentAge: currentAge.value,
+      includeTax: includeTax.value,
+      taxRate: taxRate.value / 100,
+      withdrawalRate: withdrawalRate.value / 100,
+      mortgageMonthlyPayment: mortgageMonthlyPayment.value,
+      mortgagePayoffDate: mortgagePayoffDate.value || null,
+      postFireExtraExpense: postFireExtraExpense.value,
+      iterations: iterations.value,
+      includePension: true,
+    });
+  }, 300);
+};
+
+onUnmounted(() => {
+  if (worker) worker.terminate();
 });
+
+watch(
+  () => [
+    initialAssets.value,
+    riskAssets.value,
+    annualReturnRate.value,
+    annualStandardDeviation.value,
+    monthlyExpense.value,
+    monthlyIncome.value,
+    includeInflation.value,
+    inflationRate.value,
+    currentAge.value,
+    includeTax.value,
+    taxRate.value,
+    withdrawalRate.value,
+    mortgageMonthlyPayment.value,
+    mortgagePayoffDate.value,
+    postFireExtraExpense.value,
+    iterations.value,
+  ],
+  runSimulation,
+  { immediate: true },
+);
 
 const growthData = computed(() => {
   const params = {
@@ -188,6 +233,31 @@ const stats = computed(() => simResult.value.stats);
 
 const medianFireAge = computed(() => Math.floor(currentAge.value + stats.value.median / 12));
 const medianPensionAnnual = computed(() => calculateMonthlyPension(60, medianFireAge.value) * 12);
+
+const mortgagePayoffAge = computed(() => {
+  if (!mortgagePayoffDate.value) return null;
+  const payoff = new Date(mortgagePayoffDate.value + "-01");
+  const birthDate = new Date("1979-09-02");
+  let age = payoff.getFullYear() - birthDate.getFullYear();
+  const m = payoff.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && payoff.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age;
+});
+
+const chartAnnotations = computed(() => {
+  const list = [];
+  if (stats.value.median > 0 && stats.value.median < 1200) {
+    list.push({ age: medianFireAge.value, label: "FIRE達成" });
+  }
+  list.push({ age: 60, label: "年金開始(本人)" });
+  list.push({ age: 62, label: "年金開始(妻)" });
+  if (mortgagePayoffAge.value) {
+    list.push({ age: mortgagePayoffAge.value, label: "ローン完済" });
+  }
+  return list;
+});
 
 const fireDate = (months) => {
   if (months >= 1200) return "未達成 (100年以上)";
@@ -455,7 +525,16 @@ const estimatedMonthlyWithdrawal = computed(() => {
                 <li>配偶者加算: 奥様（1976年生）が65歳に達した時点から、奥様自身の基礎年金が世帯収入に加算されるものとして計算。</li>
               </ul>
               <li style="margin-top: 8px;">住宅ローンの完済月以降は、月間支出からローン返済額を自動的に差し引いてシミュレーションを継続します。</li>
-              <li>達成時期の90%信頼区間: {{ formatMonths(stats.p5) }} 〜 {{ formatMonths(stats.p95) }} (不確実性を考慮した予測)</li>
+              <li style="margin-top: 8px; list-style: none; font-weight: bold; color: var(--text);">■ 各項目の算出定義</li>
+              <ul style="margin: 0; padding-left: 20px;">
+                <li><strong>収入 (年金込):</strong> 定期収入（給与等） + 年金受給額の合算です。</li>
+                <li><strong>支出:</strong> (基本生活費 - 住宅ローン) × インフレ調整 + 住宅ローン(固定) + FIRE後追加支出（FIRE達成月より加算）</li>
+                <li><strong>運用益:</strong> 当年中の運用リターン合計。月次複利で計算されます。</li>
+                <li><strong>取り崩し額:</strong> 生活費の不足分、または「資産 × 取崩率」のいずれか大きい額を引き出します（税金考慮時はグロスアップ）。</li>
+                <li><strong>貯金額 (現金):</strong> 前年末残高 + 当年収支(収入 - 支出) - 当年投資額 + リスク資産からの補填（純額）</li>
+                <li><strong>リスク資産額:</strong> 前年末残高 + 投資額 + 運用益 - 取崩額(グロス)</li>
+              </ul>
+              <li style="margin-top: 8px;">達成時期の90%信頼区間: {{ formatMonths(stats.p5) }} 〜 {{ formatMonths(stats.p95) }} (不確実性を考慮した予測)</li>
               <li>100歳までの達成率: <span :class="achievementProbability > 80 ? 'is-positive' : 'is-negative' " style="font-weight: bold;">{{ achievementProbability.toFixed(1) }}%</span> ({{ iterations }}回の試行結果に基づく)</li>
               <li>FIRE後の追加支出（デフォルト<span class="amount-value">6万円</span>）は、国民年金（夫婦2名分: <span class="amount-value">約3.5万円</span>）、国民健康保険（均等割7割軽減想定: <span class="amount-value">約1.5万円</span>）、固定資産税（<span class="amount-value">月1万円</span>）を合算した目安値です。</li>
               <li>※ 注意：リタイア1年目は前年の所得に基づき社会保険料・住民税が高額になる「1年目の罠」があるため、別途数十万円単位の予備費確保を推奨します。</li>
@@ -465,7 +544,10 @@ const estimatedMonthlyWithdrawal = computed(() => {
       </div>
     </div>
 
-    <div class="card-grid">
+    <div class="card-grid" :style="{ opacity: isCalculating ? 0.6 : 1, transition: 'opacity 0.2s' }">
+      <div v-if="isCalculating" class="calculating-overlay">
+        <span>計算中...</span>
+      </div>
       <article class="card">
         <h2>FIRE達成まで (中央値)</h2>
         <p class="is-positive">{{ formatMonths(stats.median) }}</p>
@@ -493,16 +575,34 @@ const estimatedMonthlyWithdrawal = computed(() => {
     <FireGrowthChart :data="growthData.table" :base-age="currentAge" />
 
     <div class="chart-grid">
-      <HistogramChart :data="simResult.trials" :max-months="1200" />
+      <HistogramChart :data="simResult.trials" :max-months="1200" :base-age="currentAge" />
     </div>
 
-    <FireSimulationChart :data="annualSimulationData" />
+    <FireSimulationChart :data="annualSimulationData" :annotations="chartAnnotations" />
     <FireSimulationTable :data="annualSimulationData" />
 
   </section>
 </template>
 
 <style scoped>
+.calculating-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: rgba(var(--bg), 0.3);
+  z-index: 5;
+  font-weight: bold;
+  color: var(--primary);
+  pointer-events: none;
+}
+.card-grid {
+  position: relative;
+}
 .fire-form-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
