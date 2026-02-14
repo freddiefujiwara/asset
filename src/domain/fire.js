@@ -329,17 +329,6 @@ export function estimateMortgageMonthlyPayment(cashFlow) {
 }
 
 /**
- * Box-Muller transform for normal distribution random numbers.
- */
-function boxMuller() {
-  let u = 0;
-  let v = 0;
-  while (u === 0) u = Math.random();
-  while (v === 0) v = Math.random();
-  return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
-}
-
-/**
  * Calculate required assets to last until age 100.
  * Account for inflation, pension, and the 4% withdrawal floor rule.
  * Uses a simplified numerical approximation for the target asset.
@@ -378,10 +367,7 @@ function calculateRequiredAssets({
     const A_case1 = (A / (1 + r)) + W_expense / (1 - t);
 
     // Case 2: Withdrawal Floor > Expense
-    // A = (A/(1+r)) + (A*w - P)/(1-t)  => A(1 - w/(1-t)) = A/(1+r) - P/(1-t)
-    // This is more complex to solve simply in a loop without knowing A.
-    // However, if A*w > E-P, it means we are withdrawing more than needed.
-    // A simplified conservative approach:
+    // Conservative approach:
     const A_case2 = (A / (1 + r) - (P / (1 - t))) / (1 - (w / (1 - t)));
 
     A = Math.max(A_case1, A_case2);
@@ -425,12 +411,11 @@ function calculateCurrentMonthlyExpense({
 /**
  * Internal simulation engine.
  */
-function _runCoreSimulation(params, { recordMonthly = false, fireMonth = -1, returnsArray = null, randomReturn = false } = {}) {
+function _runCoreSimulation(params, { recordMonthly = false, fireMonth = -1, returnsArray = null } = {}) {
   const {
     initialAssets,
     riskAssets,
     annualReturnRate,
-    annualStandardDeviation,
     monthlyExpense,
     monthlyExpenses,
     monthlyIncome = 0,
@@ -450,7 +435,6 @@ function _runCoreSimulation(params, { recordMonthly = false, fireMonth = -1, ret
 
   const monthlyExp = monthlyExpense ?? (monthlyExpenses ? monthlyExpenses / 12 : 0);
   const monthlyReturnMean = Math.pow(1 + annualReturnRate, 1 / 12) - 1;
-  const monthlySD = (annualStandardDeviation || 0) / Math.sqrt(12);
   const monthlyInflationRate = Math.pow(1 + (includeInflation ? inflationRate : 0), 1 / 12) - 1;
   const totalMonthsUntil100 = (100 - currentAge) * 12;
   const simulationStartDate = new Date();
@@ -561,8 +545,7 @@ function _runCoreSimulation(params, { recordMonthly = false, fireMonth = -1, ret
       currentRisk -= grossFromRisk;
       currentRisk = Math.max(0, currentRisk);
 
-      // 3. Ledger balance (NewCash = OldCash + Income - Expenses + Divestment)
-      // Note: We don't Math.max(0) here to allow realistic "Debt/Negative Savings" if total assets are 0
+      // 3. Ledger balance
       currentCash += (incomeAvailable + actualNetFromRisk - monthlyExpensesVal);
 
       monthlyWithdrawal = takenFromCash + grossFromRisk;
@@ -626,22 +609,17 @@ function findSurvivalMonth(params, returnsArray = null) {
  * Core simulation engine. Finds survival month if not forced.
  */
 function performFireSimulation(params, options = {}) {
-  const { forceFireMonth = null, returnsArray = null, randomReturn = false, recordMonthly = false } = options;
+  const { forceFireMonth = null, returnsArray = null, recordMonthly = false } = options;
 
   let targetReturns = returnsArray;
   if (!targetReturns) {
-    const { currentAge = 40, annualReturnRate = 0, annualStandardDeviation = 0 } = params;
+    const { currentAge = 40, annualReturnRate = 0 } = params;
     const totalMonthsUntil100 = (100 - currentAge) * 12;
     const monthlyReturnMean = Math.pow(1 + annualReturnRate, 1 / 12) - 1;
-    const monthlySD = annualStandardDeviation / Math.sqrt(12);
 
     targetReturns = [];
     for (let m = 0; m <= totalMonthsUntil100; m++) {
-      if (randomReturn) {
-        targetReturns.push(monthlyReturnMean + monthlySD * boxMuller());
-      } else {
-        targetReturns.push(monthlyReturnMean);
-      }
+      targetReturns.push(monthlyReturnMean);
     }
   }
 
@@ -658,28 +636,6 @@ function performFireSimulation(params, options = {}) {
 }
 
 /**
- * Monte Carlo simulation for FIRE achievement.
- */
-export function simulateFire(params) {
-  const { currentAge = 40, maxMonths = 1200 } = params;
-  const iterations = params.iterations ?? 1000;
-  const maxMonthsLimit = Math.min(maxMonths, (100 - currentAge) * 12);
-
-  const trials = [];
-  for (let i = 0; i < iterations; i++) {
-    const res = performFireSimulation(params, { randomReturn: true });
-    const reached = res.fireReachedMonth === -1 ? maxMonthsLimit : res.fireReachedMonth;
-    trials.push(reached);
-  }
-  trials.sort((a, b) => a - b);
-  const median = trials[Math.floor(trials.length / 2)];
-  const p5 = trials[Math.floor(trials.length * 0.05)];
-  const p95 = trials[Math.floor(trials.length * 0.95)];
-  const mean = trials.reduce((a, b) => a + b, 0) / trials.length;
-  return { trials, stats: { mean, median, p5, p95 } };
-}
-
-/**
  * Generate a deterministic growth table for charting.
  */
 export function generateGrowthTable(params) {
@@ -687,6 +643,7 @@ export function generateGrowthTable(params) {
   return {
     table: monthlyData.map(d => ({
       month: d.month,
+      age: d.age,
       assets: d.assets,
       requiredAssets: d.requiredAssets,
       isFire: d.isFire,
