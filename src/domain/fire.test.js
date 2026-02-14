@@ -9,6 +9,7 @@ import {
   estimateMortgageMonthlyPayment,
   simulateFire,
   generateGrowthTable,
+  calculateMonthlyPension,
 } from "./fire";
 
 describe("fire domain", () => {
@@ -573,6 +574,107 @@ describe("fire domain", () => {
       // FIRE reached at month 0, so month 1 should subtract expense only (income is forced to 0)
       expect(result.fireReachedMonth).toBe(0);
       expect(result.table[1].assets).toBe(99900000);
+    });
+  });
+
+  describe("calculateMonthlyPension", () => {
+    it("returns 0 before age 60", () => {
+      expect(calculateMonthlyPension(59.9, 50)).toBe(0);
+    });
+
+    it("returns approx 116,666 (1.4M / 12) at age 60 if FIRE at 50", () => {
+      // User: (780k * 0.9 * 0.76) + (26 * 33,326) = 533,520 + 866,476 = 1,399,996
+      // Monthly: 1,399,996 / 12 = 116,666.33
+      expect(calculateMonthlyPension(60, 50)).toBe(116666);
+    });
+
+    it("adds spouse pension (approx 65,000) at user age 62", () => {
+      // User part: 116,666
+      // Spouse part: 780,000 / 12 = 65,000
+      // Total: 116,666 + 65,000 = 181,666
+      expect(calculateMonthlyPension(62, 50)).toBe(181666);
+    });
+
+    it("adjusts user pension based on FIRE age", () => {
+      // FIRE at 40 (16 years participation: 40-24)
+      // User pension: 533,520 + 16 * 33,326 = 533,520 + 533,216 = 1,066,736
+      // Monthly: 1,066,736 / 12 = 88,894.66 -> 88,895
+      expect(calculateMonthlyPension(60, 40)).toBe(88895);
+    });
+
+    it("caps participation at age 60", () => {
+      // FIRE at 65, but participation for pension calculation caps at 60
+      expect(calculateMonthlyPension(60, 65)).toBe(calculateMonthlyPension(60, 60));
+    });
+  });
+
+  describe("pension impact on simulation", () => {
+    it("reduces requiredAssets when pension is near", () => {
+      const params = {
+        initialAssets: 10000000,
+        riskAssets: 0,
+        annualReturnRate: 0,
+        monthlyExpense: 200000,
+        currentAge: 59,
+        maxMonths: 1,
+        includePension: true,
+      };
+      const resultAt59 = generateGrowthTable(params);
+      const resultAt40 = generateGrowthTable({ ...params, currentAge: 40 });
+
+      // Required assets at age 59 should be much lower than at age 40 because pension starts in 1 year
+      expect(resultAt59.table[0].requiredAssets).toBeLessThan(resultAt40.table[0].requiredAssets);
+    });
+
+    it("includes pension in post-FIRE cash flow", () => {
+      // Start at age 60, already FIRE'd
+      const initialAssets = 100000000;
+      const monthlyExpense = 200000;
+      const pension = calculateMonthlyPension(60, 60); // approx 116,666
+
+      const result = generateGrowthTable({
+        initialAssets,
+        riskAssets: 0,
+        annualReturnRate: 0,
+        monthlyExpense,
+        currentAge: 60,
+        maxMonths: 1,
+        withdrawalRate: 0,
+        includePension: true,
+      });
+
+      // assets at m1 = initial + pension - expense
+      // 100,000,000 + 116,666 - 200,000 = 99,916,666
+      expect(result.table[1].assets).toBe(initialAssets + pension - monthlyExpense);
+    });
+
+    it("handles tax with pension enabled", () => {
+      const result = generateGrowthTable({
+        initialAssets: 10000000,
+        riskAssets: 0,
+        annualReturnRate: 0.05,
+        monthlyExpense: 200000,
+        currentAge: 50,
+        maxMonths: 1,
+        includePension: true,
+        includeTax: true,
+        taxRate: 0.2,
+      });
+      expect(result.table[0].requiredAssets).toBeGreaterThan(0);
+    });
+
+    it("works in simulateFire with pension enabled", () => {
+      const result = simulateFire({
+        initialAssets: 1000000,
+        riskAssets: 0,
+        annualReturnRate: 0.05,
+        annualStandardDeviation: 0.1,
+        monthlyExpense: 200000,
+        currentAge: 50,
+        iterations: 1,
+        includePension: true,
+      });
+      expect(result.stats.median).toBeDefined();
     });
   });
 });

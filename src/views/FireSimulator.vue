@@ -137,6 +137,7 @@ const simResult = computed(() => {
     mortgagePayoffDate: mortgagePayoffDate.value || null,
     postFireExtraExpense: postFireExtraExpense.value,
     iterations: iterations.value,
+    includePension: true,
   });
 });
 
@@ -156,6 +157,7 @@ const growthData = computed(() => {
     mortgageMonthlyPayment: mortgageMonthlyPayment.value,
     mortgagePayoffDate: mortgagePayoffDate.value || null,
     postFireExtraExpense: postFireExtraExpense.value,
+    includePension: true,
   });
 });
 
@@ -410,7 +412,21 @@ const estimatedMonthlyWithdrawal = computed(() => {
               <li>娘名義の資産（現金・株式・投資信託・年金・ポイント）は初期資産から除外してシミュレーションしています。</li>
               <li>FIRE達成後は追加投資を停止し、定期収入（給与・ボーナス等）もゼロになると仮定しています。</li>
               <li>FIRE達成後は、年間支出または資産の{{ withdrawalRate }}%（設定値）のいずれか大きい額を引き出すと仮定しています。</li>
-              <li>住宅ローンの完済月以降は、月間支出からローン返済額を自動的に差し引いてシミュレーションを継続します。</li>
+              <li style="margin-top: 8px; list-style: none; font-weight: bold; color: var(--text);">■ 年金受給の見込みについて</li>
+              <li>本シミュレーションでは、ご本人が50歳でFIREし、60歳から年金を繰上げ受給する以下のシナリオを想定しています。</li>
+              <ul style="margin: 0; padding-left: 20px;">
+                <li>受給開始: 60歳（2039年〜）</li>
+                <li>世帯受給額（概算）: <strong>年額 約130万〜150万円</strong>（月額 約11万〜12.5万円）</li>
+                <li>算定根拠:
+                  <ul style="margin: 0; padding-left: 20px;">
+                    <li>20代前半の未納期間（4年間）による基礎年金の減額を反映。</li>
+                    <li>{{ Math.floor(currentAge + stats.median / 12) }}歳リタイア(シミュレーション結果による)に伴う厚生年金加入期間の停止を考慮。</li>
+                    <li>60歳繰上げ受給による受給額24%減額を適用。</li>
+                  </ul>
+                </li>
+                <li>配偶者加算: 奥様（1976年生）が65歳に達した時点から、奥様自身の基礎年金が世帯収入に加算されるものとして計算。</li>
+              </ul>
+              <li style="margin-top: 8px;">住宅ローンの完済月以降は、月間支出からローン返済額を自動的に差し引いてシミュレーションを継続します。</li>
               <li>達成時期の90%信頼区間: {{ formatMonths(stats.p5) }} 〜 {{ formatMonths(stats.p95) }} (不確実性を考慮した予測)</li>
               <li>100歳までの達成率: <span :class="achievementProbability > 80 ? 'is-positive' : 'is-negative' " style="font-weight: bold;">{{ achievementProbability.toFixed(1) }}%</span> ({{ iterations }}回の試行結果に基づく)</li>
               <li>FIRE後の追加支出（デフォルト6万円）は、国民年金（夫婦2名分: 約3.5万円）、国民健康保険（均等割7割軽減想定: 約1.5万円）、固定資産税（月1万円）を合算した目安値です。</li>
