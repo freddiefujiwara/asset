@@ -20,9 +20,7 @@ The app has these routes:
 
 - `/` -> redirects to `/balance-sheet`
 - `/balance-sheet` -> balance sheet page
-- `/dashboard` -> redirects to `/balance-sheet`
-- `/holdings` -> holdings page
-- `/family-assets` -> redirects to `/holdings?owner=all`
+- `/holdings` -> redirects to `/balance-sheet`
 - `/cash-flow` -> cash flow page
 - `/fire` -> FIRE simulator page
 
@@ -32,34 +30,20 @@ The app has these routes:
 
 ### 1) Balance Sheet (`/balance-sheet`)
 
-This page shows:
+This integrated page provides a comprehensive view of your financial status:
 
-- total assets
-- total liabilities
-- net worth
-- assets pie chart
-- liabilities pie chart
-- assets table
-- liabilities table
-
-### 2) Holdings (`/holdings`)
-
-This page shows:
-
-- owner filter tabs: All / Me / Wife / Daughter
-- total value for stocks and funds
-- total profit and profit rate
-- total daily change
-- category cards (cash, stocks, funds, pension, points, liabilities)
-- stock tiles (treemap style)
-- detail tables for each category
+- **Asset Management Summary**: Copyable JSON status, owner filters (All / Me / Wife / Daughter), total value/profit for stocks and funds, and category cards.
+- **Balance Sheet Diagram**: Visual contrast between total assets, liabilities, and net worth.
+- **Asset Breakdown Charts**: Pie charts for asset and liability distribution.
+- **Detailed Asset Lists**: Sortable tables for Cash, Stocks (with treemap), Investment Trusts, Pensions, and Points.
+- **Liability Details**: Summary and detailed tables for all liabilities.
 
 You can also:
 
 - sort table columns
 - open Google stock search from stock names
 
-### 3) Cash Flow (`/cash-flow`)
+### 2) Cash Flow (`/cash-flow`)
 
 This page shows:
 
@@ -74,7 +58,7 @@ You can copy:
 - monthly cash flow rows (`mfcf`)
 - non-`mfcf` response data
 
-### 4) FIRE Simulator (`/fire`)
+### 3) FIRE Simulator (`/fire`)
 
 This page lets you set inputs like:
 
