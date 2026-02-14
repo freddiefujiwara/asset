@@ -396,6 +396,34 @@ describe("fire domain", () => {
       expect(result.stats.p95).toBeDefined();
     });
 
+    it("uses default iterations and maxMonths in simulateFire", () => {
+      const result = simulateFire({
+        ...params,
+        iterations: undefined,
+        maxMonths: undefined,
+        initialAssets: 0,
+        riskAssets: 0,
+        monthlyIncome: 0,
+        monthlyExpense: 1000000,
+        currentAge: 0, // Set age to 0 to allow maxMonths of 1200
+      });
+      expect(result.trials).toHaveLength(1000);
+      expect(result.trials[0]).toBe(1200);
+    });
+
+    it("uses explicit maxMonths in simulateFire when no FIRE", () => {
+      const result = simulateFire({
+        ...params,
+        maxMonths: 500,
+        initialAssets: 0,
+        riskAssets: 0,
+        monthlyIncome: 0,
+        monthlyExpense: 1000000,
+        currentAge: 0,
+      });
+      expect(result.trials[0]).toBe(500);
+    });
+
     it("handles 0 initial assets", () => {
       const result = simulateFire({ ...params, initialAssets: 0, riskAssets: 0 });
       expect(result.stats.median).toBeGreaterThan(0);
@@ -496,22 +524,23 @@ describe("fire domain", () => {
     });
 
     it("detects FIRE reached month and stops investment / performs withdrawal based on withdrawalRate", () => {
+      const initialAssets = 500000000;
       const result = generateGrowthTable({
         ...params,
-        initialAssets: 100000000, // already reached FIRE
+        initialAssets, // 500M survives even with 0% return
         monthlyExpense: 100000,
         annualReturnRate: 0,
         currentAge: 40,
-        withdrawalRate: 0.03, // Custom rate
+        withdrawalRate: 0.03, // 3% of 500M = 15M/year = 1.25M/month
       });
       expect(result.fireReachedMonth).toBe(0);
       expect(result.table[0].isFire).toBe(true);
-      // month 0 assets: 100,000,000
-      // 3% withdrawal: 100,000,000 * 0.03 / 12 = 250,000
+      // month 0 assets: 500,000,000
+      // 3% withdrawal: 500,000,000 * 0.03 / 12 = 1,250,000
       // monthlyExpense: 100,000
-      // withdrawal = max(100k, 250k) = 250,000
-      // month 1 assets: 100,000,000 - 250,000 = 99,750,000
-      expect(result.table[1].assets).toBeCloseTo(99750000, 0);
+      // withdrawal = max(100k, 1.25M) = 1,250,000
+      // month 1 assets: 500,000,000 - 1,250,000 + (1,250,000 - 100,000) = 499,900,000
+      expect(result.table[1].assets).toBeCloseTo(499900000, 0);
     });
 
     it("depletes exactly at age 100 in deterministic table if returns=0", () => {
@@ -541,16 +570,19 @@ describe("fire domain", () => {
         includeInflation: true,
         includeTax: true,
       });
-      expect(result.table[1].requiredAssets).toBeGreaterThan(result.table[0].requiredAssets);
+      // With backward calculation, required assets at month 1 should be less than at month 0
+      // because you have one less month to live.
+      expect(result.table[1].requiredAssets).toBeLessThan(result.table[0].requiredAssets);
     });
 
     it("grosses up withdrawal by taxRate when includeTax is true post-FIRE", () => {
-      const initialAssets = 100000000;
+      const initialAssets = 500000000;
       const monthlyExpense = 100000;
       const taxRate = 0.2; // 20%
       const result = generateGrowthTable({
         ...params,
         initialAssets,
+        riskAssets: initialAssets, // Ensure we take from risk to trigger tax
         monthlyExpense,
         includeTax: true,
         taxRate,
@@ -563,7 +595,7 @@ describe("fire domain", () => {
     });
 
     it("increases requiredAssets and withdrawal when postFireExtraExpense is provided", () => {
-      const initialAssets = 200000000;
+      const initialAssets = 500000000;
       const monthlyExpense = 100000;
       const postFireExtraExpense = 50000;
       const result = generateGrowthTable({
@@ -582,6 +614,25 @@ describe("fire domain", () => {
       expect(result.table[0].requiredAssets).toBe(108000000);
     });
 
+    it("handles tax impact when cash is negative in accumulation phase", () => {
+      const result = generateGrowthTable({
+        initialAssets: 1000,
+        riskAssets: 1000,
+        annualReturnRate: 0,
+        monthlyIncome: 0,
+        monthlyExpense: 2000,
+        includeTax: true,
+        taxRate: 0.2,
+        maxMonths: 1,
+      });
+      // Month 0: cash 0, risk 1000.
+      // Month 1: growth 0. cash = 0 + 0 - 2000 = -2000.
+      // shortfall 2000. taxImpact = (2000 / 0.8) - 2000 = 2500 - 2000 = 500.
+      // currentRisk = 1000 - 500 = 500.
+      // Total assets = -2000 + 500 = -1500 -> capped at 0.
+      expect(result.table[1].assets).toBe(0);
+    });
+
     it("sets assets to 0 if they go negative", () => {
       const result = generateGrowthTable({
         ...params,
@@ -590,6 +641,58 @@ describe("fire domain", () => {
         monthlyExpense: 1000000,
       });
       expect(result.table[1].assets).toBe(0);
+      expect(result.table[1].isFire).toBe(false);
+    });
+
+    it("handles extreme negative flow with current assets", () => {
+       const result = generateGrowthTable({
+         ...params,
+         initialAssets: 100,
+         riskAssets: 100,
+         monthlyIncome: 0,
+         monthlyExpense: 1000000,
+         includeTax: true,
+         taxRate: 0.2
+       });
+       expect(result.table[1].assets).toBe(0);
+    });
+
+    it("uses monthlyExpenses if monthlyExpense is missing", () => {
+      const result = generateAnnualSimulation({
+        ...params,
+        monthlyExpense: undefined,
+        monthlyExpenses: 2400000, // 200k/month
+        monthlyIncome: 300000,
+        initialAssets: 1000,
+      });
+      expect(result[0].expenses).toBe(200000 * 12);
+    });
+
+    it("defaults monthlyExp to 0 if both are missing", () => {
+      const result = generateAnnualSimulation({
+        ...params,
+        monthlyExpense: undefined,
+        monthlyExpenses: undefined,
+        monthlyIncome: 300000,
+        initialAssets: 1000,
+      });
+      expect(result[0].expenses).toBe(0);
+    });
+
+    it("caps investment in growth table by available cash", () => {
+      const result = generateGrowthTable({
+        initialAssets: 1000,
+        riskAssets: 0,
+        monthlyIncome: 0,
+        monthlyExpense: 0,
+        monthlyInvestment: 5000, // Exceeds 1000
+        annualReturnRate: 0,
+        maxMonths: 1
+      });
+      // Month 0: assets 1000.
+      // Month 1 transition: available 1000. investment capped at 1000.
+      // Month 1: cash 0, risk 1000. Total assets 1000.
+      expect(result.table[1].assets).toBe(1000);
     });
 
     it("handles initialAssets 0 in ratio calculation", () => {
@@ -618,17 +721,19 @@ describe("fire domain", () => {
         mortgagePayoffDate: "2026-02",
       });
 
-      // m0: before payoff -> expense 90,000, assets +10,000
+      // m0: 2026-01 (Paid) -> income 100k, expense 90k -> assets 10k
       expect(result.table[1].assets).toBe(10000);
-      // m1 update happens after payoff month start -> expense becomes 40,000, assets +60,000
-      expect(result.table[2].assets).toBe(70000);
+      // m1: 2026-02 (Paid - payoff month itself is paid) -> income 100k, expense 90k -> assets 20k
+      expect(result.table[2].assets).toBe(20000);
+      // m2 (if we had it): 2026-03 (Free) -> income 100k, expense 40k -> assets 80k
 
       vi.useRealTimers();
     });
 
     it("sets income to 0 after FIRE is reached", () => {
+      const initialAssets = 500000000;
       const result = generateGrowthTable({
-        initialAssets: 100000000,
+        initialAssets,
         riskAssets: 0,
         monthlyInvestment: 0,
         monthlyIncome: 500000,
@@ -641,7 +746,7 @@ describe("fire domain", () => {
 
       // FIRE reached at month 0, so month 1 should subtract expense only (income is forced to 0)
       expect(result.fireReachedMonth).toBe(0);
-      expect(result.table[1].assets).toBe(99900000);
+      expect(result.table[1].assets).toBe(initialAssets - 100000);
     });
   });
 
@@ -722,6 +827,70 @@ describe("fire domain", () => {
       expect(result.table[1].assets).toBe(initialAssets + pension - monthlyExpense);
     });
 
+    it("verifies that pension income reduces withdrawal from assets efficiently (Bug 1)", () => {
+      // If pension covers some expenses, we shouldn't sell extra risk assets.
+      const initialAssets = 100000000;
+      const monthlyExpense = 200000;
+      // Pension is approx 143,529 (see calculateMonthlyPension logic for FIRE at 60)
+      const pension = calculateMonthlyPension(60, 60);
+
+      const result = generateGrowthTable({
+        initialAssets,
+        riskAssets: initialAssets,
+        annualReturnRate: 0,
+        monthlyExpense,
+        currentAge: 60,
+        maxMonths: 1,
+        withdrawalRate: 0,
+        includePension: true,
+      });
+
+      const month1 = result.table[1];
+      // Monthly withdrawal should be exactly the shortfall: Expense - Pension
+      // 200,000 - 143,529 = 56,471
+      // Asset change should be exactly -56,471
+      expect(initialAssets - month1.assets).toBe(monthlyExpense - pension);
+    });
+
+    it("verifies that 4% rule is correctly applied as a minimum withdrawal (Bug 2)", () => {
+      // If 4% Assets > Expenses, we should withdraw 4% Assets.
+      const initialAssets = 100000000; // 100M
+      const monthlyExpense = 100000; // 1.2M/year
+      const withdrawalRate = 0.04; // 4% rule -> 4M/year = 333,333/month
+
+      const result = generateGrowthTable({
+        initialAssets,
+        riskAssets: initialAssets,
+        annualReturnRate: 0,
+        monthlyExpense,
+        currentAge: 60,
+        maxMonths: 1,
+        withdrawalRate,
+        includePension: false,
+      });
+
+      const month1 = result.table[1];
+      // Total assets after 1 month should be:
+      // start - expenses (we withdrew more but the excess stayed in cash)
+      // 100,000,000 - 100,000 = 99,900,000
+      expect(month1.assets).toBe(initialAssets - monthlyExpense);
+
+      // But the "reported" withdrawal for that month should be 4% rule target
+      const sim = generateAnnualSimulation({
+        initialAssets,
+        riskAssets: initialAssets,
+        annualReturnRate: 0,
+        monthlyExpense,
+        currentAge: 60,
+        withdrawalRate,
+        includePension: false,
+      });
+      // Monthly ~333,333 * 12. Since assets decrease slightly each month,
+      // the total will be slightly less than 4,000,000.
+      expect(sim[0].withdrawal).toBeGreaterThan(3900000);
+      expect(sim[0].withdrawal).toBeLessThan(4100000);
+    });
+
     it("handles tax with pension enabled", () => {
       const result = generateGrowthTable({
         initialAssets: 10000000,
@@ -770,6 +939,24 @@ describe("fire domain", () => {
       expect(result[result.length - 1].age).toBe(100);
     });
 
+    it("caps investment by available cash and keeps cashAssets non-negative", () => {
+      const result = generateAnnualSimulation({
+        initialAssets: 1000000,
+        riskAssets: 0,
+        monthlyIncome: 100000,
+        monthlyExpense: 100000,
+        monthlyInvestment: 500000, // Exceeds monthly surplus (0), so it should draw from 1M initial cash
+        annualReturnRate: 0,
+        currentAge: 40
+      });
+
+      // After 1 month: cash = 1M + 0 - 500k = 500k.
+      // After 2 months: cash = 0.
+      // After 3 months: investment should be capped at 0 because cash is 0 and surplus is 0.
+      expect(result[0].cashAssets).toBeGreaterThanOrEqual(0);
+      expect(result[0].riskAssets).toBeLessThanOrEqual(1000000); // capped at initial + available
+    });
+
     it("aggregates monthly income and expenses into annual values", () => {
       const result = generateAnnualSimulation({
         ...params,
@@ -802,8 +989,8 @@ describe("fire domain", () => {
     it("calculates withdrawal amount when expenses > income", () => {
       const result = generateAnnualSimulation({
         ...params,
-        initialAssets: 0,
-        riskAssets: 0,
+        initialAssets: 10000000,
+        riskAssets: 10000000,
         monthlyIncome: 100000,
         monthlyExpense: 200000,
         annualReturnRate: 0,
@@ -812,14 +999,44 @@ describe("fire domain", () => {
       expect(result[0].withdrawal).toBe(1200000);
     });
 
-    it("maintains risk asset ratio", () => {
+    it("tracks risk assets separately without forced rebalancing", () => {
       const result = generateAnnualSimulation({
         ...params,
         initialAssets: 10000000,
         riskAssets: 8000000, // 80%
+        annualReturnRate: 0,
       });
+      const year1 = result[1];
+      // Year 0 (start) assets: 10M
+      // Year 1 (start of next year) assets: after 12 months.
+      // Monthly: Income 300k, Expense 200k -> Cash +100k.
+      // After 12 months: Cash = 2M + 1.2M = 3.2M. Risk = 8M.
+      // Total = 11.2M. Risk ratio = 8 / 11.2 = 0.714
+      expect(year1.riskAssets).toBe(8000000);
+      expect(year1.assets).toBe(11200000);
+      expect(year1.riskAssets / year1.assets).toBeCloseTo(0.714, 2);
+    });
+
+    it("calculates investment gain and handles monthly investment", () => {
+      const result = generateAnnualSimulation({
+        ...params,
+        initialAssets: 10000000,
+        riskAssets: 5000000,
+        annualReturnRate: 0.1, // 10%
+        monthlyInvestment: 100000, // 1.2M / year
+        monthlyIncome: 300000,
+        monthlyExpense: 200000,
+      });
+
       const year0 = result[0];
-      expect(year0.riskAssets / year0.assets).toBeCloseTo(0.8, 2);
+      const year1 = result[1];
+      // Monthly return = (1.1)^(1/12) - 1 ≈ 0.007974
+      // Surplus is 100k, investment is 100k. Cash stays at 5M.
+      // Month 1: gain = (5M + 100k) * 0.007974 = 40667. Risk = 5,140,667.
+      // Sum of gains over 12 months will be > 500,000.
+      expect(year0.investmentGain).toBeGreaterThan(500000);
+      expect(year1.riskAssets).toBeGreaterThan(5000000 + 1200000);
+      expect(year1.cashAssets).toBe(5000000); // 5M - 0 (surplus used for investment)
     });
 
     it("handles mid-year mortgage payoff", () => {
@@ -830,18 +1047,15 @@ describe("fire domain", () => {
         ...params,
         currentAge: 40,
         mortgageMonthlyPayment: 100000,
-        mortgagePayoffDate: "2026-07", // 6 months of mortgage in the first year
-        monthlyExpense: 200000, // base expense
+        mortgagePayoffDate: "2026-07", // 7 months (Jan-Jul) of mortgage in the first year
+        monthlyExpense: 200000, // base expense (includes mortgage)
       });
 
       // Total expenses for first year:
-      // Jan-Jun: 200k (incl mortgage if baseExpense includes it?)
-      // Wait, in our logic baseMonthlyExpense is the total expense,
-      // and mortgage is subtracted after payoff.
-      // So first 6 months: 200k
-      // Next 6 months: 200k - 100k = 100k
-      // Total: 6 * 200k + 6 * 100k = 1.2M + 0.6M = 1.8M
-      expect(result[0].expenses).toBe(1800000);
+      // Jan-Jul: 200k (7 months)
+      // Aug-Dec: 200k - 100k = 100k (5 months)
+      // Total: 7 * 200k + 5 * 100k = 1.4M + 0.5M = 1.9M
+      expect(result[0].expenses).toBe(1900000);
 
       vi.useRealTimers();
     });
@@ -849,8 +1063,8 @@ describe("fire domain", () => {
     it("handles tax on withdrawal", () => {
       const result = generateAnnualSimulation({
         ...params,
-        initialAssets: 0,
-        riskAssets: 0,
+        initialAssets: 10000000,
+        riskAssets: 10000000,
         monthlyIncome: 0,
         monthlyExpense: 100000,
         includeTax: true,
@@ -864,12 +1078,14 @@ describe("fire domain", () => {
       const result = generateAnnualSimulation({
         ...params,
         initialAssets: 100000000,
+        riskAssets: 100000000, // Withdraw from risk assets to see tax gross-up
+        monthlyIncome: 0,
         monthlyExpense: 100000,
         includeTax: true,
         taxRate: 0.2,
         withdrawalRate: 0,
       });
-      // 100k / 0.8 = 125k. Annual: 1.5M
+      // Shortfall 100k -> Gross up 125k. Annual: 125k * 12 = 1.5M
       expect(result[0].withdrawal).toBe(1500000);
     });
 
@@ -890,6 +1106,30 @@ describe("fire domain", () => {
         monthlyExpense: 1000000,
       });
       expect(result[1].assets).toBe(0);
+    });
+
+    it("handles surplus during FIRE (no investment)", () => {
+      const result = generateAnnualSimulation({
+        ...params,
+        initialAssets: 1000000000, // huge assets to force FIRE immediately
+        riskAssets: 900000000,
+        monthlyIncome: 1000000,
+        monthlyExpense: 100000,
+        monthlyInvestment: 500000,
+        currentAge: 70, // Pension will be active
+        withdrawalRate: 0,
+        includePension: true,
+        includeTax: false,
+        includeInflation: false,
+      });
+      // Year 0 (FIRE reached)
+      const year0 = result[0];
+      // Income will be 0 because FIRE reached.
+      // Pension at 70 is approx 181k.
+      // Expenses are 100k.
+      // Net flow = 181k - 100k = 81k.
+      // Savings = 81k * 12 = 972k.
+      expect(year0.savings).toBeGreaterThan(0);
     });
   });
 });

@@ -9,6 +9,7 @@ describe("FireSimulationTable.vue", () => {
       income: 8000000,
       pension: 0,
       expenses: 4000000,
+      investmentGain: 1000000,
       withdrawal: 0,
       assets: 50000000,
       cashAssets: 10000000,
@@ -19,6 +20,7 @@ describe("FireSimulationTable.vue", () => {
       income: 0,
       pension: 2000000,
       expenses: 3000000,
+      investmentGain: 2000000,
       withdrawal: 1000000,
       assets: 60000000,
       cashAssets: 12000000,
@@ -50,9 +52,9 @@ describe("FireSimulationTable.vue", () => {
     const rows = wrapper.findAll("tbody tr");
 
     // First row: withdrawal 0
-    expect(rows[0].findAll("td")[3].classes()).not.toContain("is-negative");
+    expect(rows[0].findAll("td")[4].classes()).not.toContain("is-negative");
 
     // Second row: withdrawal 1000000
-    expect(rows[1].findAll("td")[3].classes()).toContain("is-negative");
+    expect(rows[1].findAll("td")[4].classes()).toContain("is-negative");
   });
 });

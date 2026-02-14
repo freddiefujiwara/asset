@@ -50,7 +50,7 @@ const firePortfolio = computed(() =>
     ? calculateFirePortfolio(data.value)
     : { totalAssetsYen: 0, riskAssetsYen: 0, cashAssetsYen: 0, liabilitiesYen: 0, netWorthYen: 0 },
 );
-const initialAssets = computed(() => firePortfolio.value.netWorthYen);
+const initialAssets = computed(() => firePortfolio.value.totalAssetsYen);
 const riskAssets = computed(() => firePortfolio.value.riskAssetsYen);
 const cashAssets = computed(() => firePortfolio.value.cashAssetsYen);
 const monthsOfCash = computed(() => (monthlyExpense.value > 0 ? cashAssets.value / monthlyExpense.value : 0));
@@ -158,6 +158,7 @@ const growthData = computed(() => {
     mortgagePayoffDate: mortgagePayoffDate.value || null,
     postFireExtraExpense: postFireExtraExpense.value,
     includePension: true,
+    monthlyInvestment: monthlyInvestment.value,
   };
   return generateGrowthTable(params);
 });
@@ -179,6 +180,7 @@ const annualSimulationData = computed(() => {
     mortgagePayoffDate: mortgagePayoffDate.value || null,
     postFireExtraExpense: postFireExtraExpense.value,
     includePension: true,
+    monthlyInvestment: monthlyInvestment.value,
   });
 });
 
@@ -322,7 +324,7 @@ const estimatedMonthlyWithdrawal = computed(() => {
         </div>
         <div class="filter-item">
           <label>ローン完済年月</label>
-          <select v-model="mortgagePayoffDate" class="is-public date-select">
+          <select v-model="mortgagePayoffDate" class="date-select">
             <option v-for="opt in mortgageOptions" :key="opt.val" :value="opt.val">
               {{ opt.label }}
             </option>
@@ -332,7 +334,7 @@ const estimatedMonthlyWithdrawal = computed(() => {
           <label>インフレ考慮</label>
           <div style="display: flex; gap: 8px; align-items: center;">
             <input type="checkbox" v-model="includeInflation" />
-            <input v-if="includeInflation" v-model.number="inflationRate" type="number" step="0.1" style="width: 60px;" />
+            <input v-if="includeInflation" v-model.number="inflationRate" type="number" step="0.1" style="width: 60px;" class="is-public" />
             <span v-if="includeInflation">%</span>
           </div>
         </div>
@@ -340,11 +342,11 @@ const estimatedMonthlyWithdrawal = computed(() => {
           <label>税金考慮</label>
           <div style="display: flex; gap: 8px; align-items: center;">
             <input type="checkbox" v-model="includeTax" />
-            <input v-if="includeTax" v-model.number="taxRate" type="number" step="0.1" style="width: 80px;" />
+            <input v-if="includeTax" v-model.number="taxRate" type="number" step="0.1" style="width: 80px;" class="is-public" />
             <span v-if="includeTax">%</span>
           </div>
         </div>
-        <div class="filter-item amount-value">
+        <div class="filter-item">
           <label>FIRE後の社会保険料・税(月額)</label>
           <input v-model.number="postFireExtraExpense" type="number" step="5000" />
         </div>
@@ -434,6 +436,7 @@ const estimatedMonthlyWithdrawal = computed(() => {
               <li>100歳寿命までの必要資産額を、将来の支出額から現在価値（PV）に割り戻して算出しています。</li>
               <li>リスク資産の運用益は正規乱数（期待リターンと標準偏差）を用いて再現しており、不確実性を考慮しています。</li>
               <li>娘名義の資産（現金・株式・投資信託・年金・ポイント）は初期資産から除外してシミュレーションしています。</li>
+              <li style="color: var(--primary); font-weight: bold;">投資優先順位ルール: 生活防衛資金として現金を維持するため、毎月の投資額は「前月までの貯金残高 + 当月の収支剰余金」を上限として自動調整されます（貯金がマイナスにならないよう制限されます）。</li>
               <li>FIRE達成後は追加投資を停止し、定期収入（給与・ボーナス等）もゼロになると仮定しています。</li>
               <li>FIRE達成後は、年間支出または資産の{{ withdrawalRate }}%（設定値）のいずれか大きい額を引き出すと仮定しています。</li>
               <li style="margin-top: 8px; list-style: none; font-weight: bold; color: var(--text);">■ 年金受給の見込みについて</li>
@@ -454,7 +457,7 @@ const estimatedMonthlyWithdrawal = computed(() => {
               <li style="margin-top: 8px;">住宅ローンの完済月以降は、月間支出からローン返済額を自動的に差し引いてシミュレーションを継続します。</li>
               <li>達成時期の90%信頼区間: {{ formatMonths(stats.p5) }} 〜 {{ formatMonths(stats.p95) }} (不確実性を考慮した予測)</li>
               <li>100歳までの達成率: <span :class="achievementProbability > 80 ? 'is-positive' : 'is-negative' " style="font-weight: bold;">{{ achievementProbability.toFixed(1) }}%</span> ({{ iterations }}回の試行結果に基づく)</li>
-              <li>FIRE後の追加支出（デフォルト6万円）は、国民年金（夫婦2名分: 約3.5万円）、国民健康保険（均等割7割軽減想定: 約1.5万円）、固定資産税（月1万円）を合算した目安値です。</li>
+              <li>FIRE後の追加支出（デフォルト<span class="amount-value">6万円</span>）は、国民年金（夫婦2名分: <span class="amount-value">約3.5万円</span>）、国民健康保険（均等割7割軽減想定: <span class="amount-value">約1.5万円</span>）、固定資産税（<span class="amount-value">月1万円</span>）を合算した目安値です。</li>
               <li>※ 注意：リタイア1年目は前年の所得に基づき社会保険料・住民税が高額になる「1年目の罠」があるため、別途数十万円単位の予備費確保を推奨します。</li>
             </ul>
           </div>
