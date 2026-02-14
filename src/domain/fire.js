@@ -389,6 +389,31 @@ export function estimateIncomeSplit(cashFlow) {
 }
 
 /**
+ * Aggregate past 5 months summary (excluding current month) for copying and simulation.
+ */
+export function getPast5MonthSummary(cashFlow) {
+  const expenses = estimateMonthlyExpenses(cashFlow);
+  const income = estimateIncomeSplit(cashFlow);
+
+  return {
+    monthlyLivingExpenses: {
+      average: expenses.total,
+      breakdown: expenses.breakdown,
+      averageSpecial: expenses.averageSpecial,
+    },
+    monthlyRegularIncome: {
+      average: income.regularMonthly,
+      breakdown: income.regularBreakdown,
+    },
+    annualBonus: {
+      average: income.bonusAnnual,
+      breakdown: income.bonusBreakdown,
+    },
+    monthCount: expenses.monthCount,
+  };
+}
+
+/**
  * Estimate mortgage monthly payment from category "住宅/ローン返済".
  */
 export function estimateMortgageMonthlyPayment(cashFlow) {

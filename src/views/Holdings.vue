@@ -116,7 +116,7 @@ function selectOwner(ownerId) {
         </button>
       </div>
       <div class="summary-row">
-        <span>評価額合計: <strong class="amount-value">{{ formatYen(stocksAndFundsTotal) }}</strong></span>
+        <span>評価額合計: <strong class="amount-value is-positive">{{ formatYen(stocksAndFundsTotal) }}</strong></span>
         <span>
           評価損益合計:
           <strong :class="['amount-value', totalProfitClass]">{{ formatSignedYen(totalProfitYen) }}</strong>
@@ -141,6 +141,7 @@ function selectOwner(ownerId) {
         :title="card.title"
         :amount-yen="card.amountYen"
         :count="card.count"
+        :is-liability="card.isLiability"
       />
     </section>
 
@@ -178,7 +179,12 @@ function selectOwner(ownerId) {
           </article>
         </div>
       </section>
-      <HoldingTable :title="config.title" :rows="filteredHoldings[config.key]" :columns="config.columns" />
+      <HoldingTable
+        :title="config.title"
+        :rows="filteredHoldings[config.key]"
+        :columns="config.columns"
+        :is-liability="config.isLiability"
+      />
       <p class="back-top-wrap"><a href="#holdings-top">↑ トップへ戻る</a></p>
     </section>
   </section>
