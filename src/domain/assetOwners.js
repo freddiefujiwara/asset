@@ -14,7 +14,7 @@ const CATEGORY_SUMMARY_DEFS = [
   { key: "funds", title: "投資信託" },
   { key: "pensions", title: "年金" },
   { key: "points", title: "ポイント" },
-  { key: "liabilitiesDetail", title: "負債" },
+  { key: "liabilitiesDetail", title: "負債", isLiability: true },
 ];
 
 function categoryRows(holdings, key) {
@@ -49,12 +49,13 @@ export function filterHoldingsByOwner(holdings, ownerId = "all") {
 export function summarizeByCategory(holdings) {
   const safe = holdings ?? EMPTY_HOLDINGS;
 
-  return CATEGORY_SUMMARY_DEFS.map(({ key, title }) => {
+  return CATEGORY_SUMMARY_DEFS.map(({ key, title, isLiability }) => {
     const rows = categoryRows(safe, key);
 
     return {
       key,
       title,
+      isLiability: Boolean(isLiability),
       amountYen: rows.reduce((sum, row) => sum + assetAmountYen(row), 0),
       count: rows.length,
     };

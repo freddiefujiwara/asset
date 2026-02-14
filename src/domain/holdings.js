@@ -68,6 +68,7 @@ export const HOLDING_TABLE_CONFIGS = [
   {
     title: "負債詳細",
     key: "liabilitiesDetail",
+    isLiability: true,
     columns: [
       { key: "種類", label: "種類" },
       { key: "名称・説明", label: "名称" },

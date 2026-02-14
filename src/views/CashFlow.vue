@@ -14,6 +14,7 @@ import {
   sortCashFlow,
   getSixMonthAverages,
 } from "@/domain/cashFlow";
+import { getPast5MonthSummary } from "@/domain/fire";
 import CashFlowBarChart from "@/components/CashFlowBarChart.vue";
 import CashFlowTable from "@/components/CashFlowTable.vue";
 import PieChart from "@/components/PieChart.vue";
@@ -119,6 +120,10 @@ const getMonthlyMfcfJson = (month) => {
   return JSON.stringify(targetRows, null, 2);
 };
 
+const getPast5MonthSummaryJson = () => {
+  return JSON.stringify(getPast5MonthSummary(cashFlowRaw.value), null, 2);
+};
+
 const resetFilters = () => {
   monthFilter.value = "";
   largeCategoryFilter.value = "";
@@ -201,6 +206,10 @@ const resetFilters = () => {
     </div>
 
     <div class="table-wrap api-actions">
+      <CopyButton
+        label="📋 過去5ヶ月分のサマリをコピー"
+        :copy-value="getPast5MonthSummaryJson"
+      />
       <CopyButton
         v-for="month in copyTargetMonths"
         :key="month"

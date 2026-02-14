@@ -7,6 +7,7 @@ const props = defineProps({
   rows: { type: Array, default: () => [] },
   columns: { type: Array, default: () => [] },
   title: { type: String, required: true },
+  isLiability: { type: Boolean, default: false },
 });
 
 const safeRows = computed(() => (Array.isArray(props.rows) ? props.rows : []));
@@ -115,7 +116,8 @@ function formatCell(column, row) {
     return rawValue;
   }
 
-  return formatYen(rawValue);
+  const formatted = formatYen(rawValue);
+  return props.isLiability ? `-${formatted}` : formatted;
 }
 
 function stockPriceUrl(name) {
@@ -127,19 +129,23 @@ function isStockNameColumn(column, row) {
 }
 
 function cellClass(column, row) {
-  let value = null;
+  if (column.key === "評価損益" || column.key === "評価損益率") {
+    const value = toNumber(row?.[column.key]);
+    if (value == null || value === 0) return "";
+    return value > 0 ? "is-positive" : "is-negative";
+  }
 
   if (column.key === "__dailyChange") {
-    value = dailyChangeYen(row);
-  } else if (column.key === "評価損益" || column.key === "評価損益率") {
-    value = toNumber(row?.[column.key]);
+    const value = dailyChangeYen(row);
+    if (value == null || value === 0) return "";
+    return value > 0 ? "is-positive" : "is-negative";
   }
 
-  if (value == null || value === 0) {
-    return "";
+  if (isAmountColumn(column)) {
+    return props.isLiability ? "is-negative" : "is-positive";
   }
 
-  return value > 0 ? "is-positive" : "is-negative";
+  return "";
 }
 </script>
 

@@ -6,8 +6,6 @@ import { detectAssetOwner, assetAmountYen, calculateAge, USER_BIRTH_DATE } from 
 import CopyButton from "@/components/CopyButton.vue";
 import {
   calculateFirePortfolio,
-  estimateMonthlyExpenses,
-  estimateIncomeSplit,
   generateGrowthTable,
   generateAnnualSimulation,
   estimateMortgageMonthlyPayment,
@@ -15,6 +13,7 @@ import {
   FIRE_ALGORITHM_CONSTANTS,
   calculateDaughterAssetsBreakdown,
   generateAlgorithmExplanationSegments,
+  getPast5MonthSummary,
 } from "@/domain/fire";
 import FireSimulationTable from "@/components/FireSimulationTable.vue";
 import FireSimulationChart from "@/components/FireSimulationChart.vue";
@@ -43,19 +42,21 @@ const initialAssets = computed(() => firePortfolio.value.totalAssetsYen);
 const riskAssets = computed(() => firePortfolio.value.riskAssetsYen);
 const cashAssets = computed(() => firePortfolio.value.cashAssetsYen);
 const monthsOfCash = computed(() => (monthlyExpense.value > 0 ? cashAssets.value / monthlyExpense.value : 0));
-const expenseResult = computed(() =>
+
+const past5MonthSummary = computed(() =>
   data.value?.cashFlow
-    ? estimateMonthlyExpenses(data.value.cashFlow)
-    : { total: 0, breakdown: [], averageSpecial: 0, monthCount: 0 },
+    ? getPast5MonthSummary(data.value.cashFlow)
+    : {
+        monthlyLivingExpenses: { average: 0, breakdown: [], averageSpecial: 0 },
+        monthlyRegularIncome: { average: 0, breakdown: [] },
+        annualBonus: { average: 0, breakdown: [] },
+        monthCount: 0,
+      },
 );
-const autoMonthlyExpense = computed(() => expenseResult.value.total);
-const autoIncomeSplit = computed(() =>
-  data.value?.cashFlow
-    ? estimateIncomeSplit(data.value.cashFlow)
-    : { regularMonthly: 0, bonusAnnual: 0, monthlyTotal: 0, regularBreakdown: [], bonusBreakdown: [], monthCount: 0 },
-);
-const autoRegularMonthlyIncome = computed(() => autoIncomeSplit.value.regularMonthly);
-const autoAnnualBonus = computed(() => autoIncomeSplit.value.bonusAnnual);
+
+const autoMonthlyExpense = computed(() => past5MonthSummary.value.monthlyLivingExpenses.average);
+const autoRegularMonthlyIncome = computed(() => past5MonthSummary.value.monthlyRegularIncome.average);
+const autoAnnualBonus = computed(() => past5MonthSummary.value.annualBonus.average);
 const autoMortgageMonthlyPayment = computed(() =>
   data.value?.cashFlow ? estimateMortgageMonthlyPayment(data.value.cashFlow) : 0,
 );
@@ -293,16 +294,16 @@ const copyAnnualTable = () => JSON.stringify(buildAnnualTableJson(), null, 2);
             </label>
           </div>
           <input v-model.number="manualMonthlyExpense" type="number" step="10000" :disabled="useAutoExpense" />
-          <div v-if="useAutoExpense && expenseResult.monthCount > 0" class="expense-breakdown">
+          <div v-if="useAutoExpense && past5MonthSummary.monthCount > 0" class="expense-breakdown">
             <details>
-              <summary>算出内訳 ({{ expenseResult.monthCount }}ヶ月平均)</summary>
+              <summary>算出内訳 ({{ past5MonthSummary.monthCount }}ヶ月平均)</summary>
               <div class="breakdown-content">
-                <div v-for="item in expenseResult.breakdown" :key="item.name" class="breakdown-row">
+                <div v-for="item in past5MonthSummary.monthlyLivingExpenses.breakdown" :key="item.name" class="breakdown-row">
                   <span class="cat-name">{{ item.name }}</span>
                   <span class="cat-amount amount-value">{{ formatYen(item.amount) }}</span>
                 </div>
-                <div v-if="expenseResult.averageSpecial > 0" class="special-info">
-                  <span class="meta">※ 特別な支出 (平均 {{ formatYen(expenseResult.averageSpecial) }}) は除外済み</span>
+                <div v-if="past5MonthSummary.monthlyLivingExpenses.averageSpecial > 0" class="special-info">
+                  <span class="meta">※ 特別な支出 (平均 {{ formatYen(past5MonthSummary.monthlyLivingExpenses.averageSpecial) }}) は除外済み</span>
                 </div>
               </div>
             </details>
@@ -316,11 +317,11 @@ const copyAnnualTable = () => JSON.stringify(buildAnnualTableJson(), null, 2);
             </label>
           </div>
           <input v-model.number="manualRegularMonthlyIncome" type="number" step="10000" :disabled="useAutoIncome" />
-          <div v-if="useAutoIncome && autoIncomeSplit.monthCount > 0" class="expense-breakdown">
+          <div v-if="useAutoIncome && past5MonthSummary.monthCount > 0" class="expense-breakdown">
             <details>
-              <summary>算出内訳 ({{ autoIncomeSplit.monthCount }}ヶ月平均)</summary>
+              <summary>算出内訳 ({{ past5MonthSummary.monthCount }}ヶ月平均)</summary>
               <div class="breakdown-content">
-                <div v-for="item in autoIncomeSplit.regularBreakdown" :key="item.name" class="breakdown-row">
+                <div v-for="item in past5MonthSummary.monthlyRegularIncome.breakdown" :key="item.name" class="breakdown-row">
                   <span class="cat-name">{{ item.name }}</span>
                   <span class="cat-amount amount-value">{{ formatYen(item.amount) }}</span>
                 </div>
@@ -341,11 +342,11 @@ const copyAnnualTable = () => JSON.stringify(buildAnnualTableJson(), null, 2);
             </div>
           </div>
           <input v-model.number="manualAnnualBonus" type="number" step="10000" :disabled="useAutoBonus || !includeBonus" />
-          <div v-if="useAutoBonus && autoIncomeSplit.monthCount > 0" class="expense-breakdown">
+          <div v-if="useAutoBonus && past5MonthSummary.monthCount > 0" class="expense-breakdown">
             <details>
-              <summary>算出内訳 ({{ autoIncomeSplit.monthCount }}ヶ月平均)</summary>
+              <summary>算出内訳 ({{ past5MonthSummary.monthCount }}ヶ月平均)</summary>
               <div class="breakdown-content">
-                <div v-for="item in autoIncomeSplit.bonusBreakdown" :key="item.name" class="breakdown-row">
+                <div v-for="item in past5MonthSummary.annualBonus.breakdown" :key="item.name" class="breakdown-row">
                   <span class="cat-name">{{ item.name }}</span>
                   <span class="cat-amount amount-value">{{ formatYen(item.amount) }}</span>
                 </div>

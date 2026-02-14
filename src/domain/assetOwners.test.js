@@ -29,11 +29,15 @@ describe("assetOwners domain", () => {
     expect(wife.stocks[0]["銘柄名"]).toBe("B");
   });
 
-  it("summarizes each category amount and count", () => {
+  it("summarizes each category amount and count including liability flag", () => {
     const summary = summarizeByCategory(holdings);
     const stock = summary.find((entry) => entry.key === "stocks");
     expect(stock.amountYen).toBe(1500);
     expect(stock.count).toBe(2);
+    expect(stock.isLiability).toBe(false);
+
+    const liability = summary.find((entry) => entry.key === "liabilitiesDetail");
+    expect(liability.isLiability).toBe(true);
   });
 
   it("returns original holdings for all filter and handles nullish input", () => {
