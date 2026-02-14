@@ -1,6 +1,42 @@
 import { getUniqueMonths } from "./cashFlow";
 import { assetAmountYen, detectAssetOwner } from "./family";
 
+const PENSION_USER_START_AGE = 60;
+const PENSION_SPOUSE_USER_AGE_START = 62; // Spouse (1976) age 65 when User (1979) is 62
+const PENSION_BASIC_FULL = 780000;
+const PENSION_BASIC_REDUCTION = 0.9; // 10% reduction for 4 years gap
+const PENSION_EARLY_REDUCTION = 0.76; // 24% reduction for starting at 60
+const PENSION_USER_DATA_AGE = 44; // Age at which premium data was provided
+const PENSION_USER_KOSEN_ACCRUED_AT_44 = 892252; // Accrued Employees' Pension based on 14.9M premiums
+const PENSION_USER_KOSEN_FUTURE_FACTOR = 42000; // Estimated future accrual per year worked
+
+/**
+ * Calculate pension monthly amount for the given age and FIRE age.
+ * @param {number} age - Current age in simulation
+ * @param {number} fireAge - Age at which user reaches FIRE
+ */
+export function calculateMonthlyPension(age, fireAge) {
+  let totalAnnual = 0;
+
+  // User pension (starts at 60)
+  if (age >= PENSION_USER_START_AGE) {
+    const basicPart = PENSION_BASIC_FULL * PENSION_BASIC_REDUCTION * PENSION_EARLY_REDUCTION;
+    // Participation stops at FIRE or age 60 (whichever comes first, as pension starts at 60)
+    const participationEndAge = Math.min(60, fireAge);
+    const futureYears = Math.max(0, participationEndAge - PENSION_USER_DATA_AGE);
+    const employeesPartAt65 = PENSION_USER_KOSEN_ACCRUED_AT_44 + futureYears * PENSION_USER_KOSEN_FUTURE_FACTOR;
+
+    totalAnnual += (basicPart + employeesPartAt65 * PENSION_EARLY_REDUCTION);
+  }
+
+  // Spouse pension (starts when User is 62, i.e., Spouse is 65)
+  if (age >= PENSION_SPOUSE_USER_AGE_START) {
+    totalAnnual += PENSION_BASIC_FULL;
+  }
+
+  return Math.round(totalAnnual / 12);
+}
+
 /**
  * Identify risk assets and sum their values.
  */
@@ -247,7 +283,7 @@ function boxMuller() {
 
 /**
  * Calculate required assets to last until age 100.
- * Using PV of a growing annuity formula.
+ * Using PV of a growing annuity formula, considering future pension benefits.
  */
 function calculateRequiredAssets({
   monthlyExpense,
@@ -256,19 +292,51 @@ function calculateRequiredAssets({
   remainingMonths,
   taxRate,
   includeTax,
+  currentAgeInSimulation,
+  includePension = true,
 }) {
   if (remainingMonths <= 0) return 0;
 
-  let pv;
   const g = monthlyInflation;
   const r = monthlyReturn;
   const n = remainingMonths;
 
-  if (Math.abs(r - g) < 1e-10) {
-    pv = monthlyExpense * n;
-  } else {
+  const pvAnnuity = (P, periods) => {
+    if (Math.abs(r - g) < 1e-10) return P * periods;
     const x = (1 + g) / (1 + r);
-    pv = monthlyExpense * (1 - Math.pow(x, n)) / (r - g);
+    return P * (1 - Math.pow(x, periods)) / (r - g);
+  };
+
+  // PV of Expenses
+  let pv = pvAnnuity(monthlyExpense, n);
+
+  // Subtract PV of Pensions (Deferred Annuities)
+  if (!includePension) {
+    if (includeTax) {
+      pv /= (1 - taxRate);
+    }
+    return Math.max(0, pv);
+  }
+
+  // User pension starts at 60
+  const userPensionAmount = calculateMonthlyPension(60, currentAgeInSimulation);
+  const monthsToUserPension = Math.max(0, (60 - currentAgeInSimulation) * 12);
+  if (monthsToUserPension < n) {
+    const periods = n - monthsToUserPension;
+    const pvPension = pvAnnuity(userPensionAmount, periods);
+    const discount = Math.pow((1 + g) / (1 + r), monthsToUserPension);
+    pv -= pvPension * discount;
+  }
+
+  // Spouse pension starts when user is 62
+  const totalPensionAt62 = calculateMonthlyPension(62, currentAgeInSimulation);
+  const spousePensionAmount = totalPensionAt62 - userPensionAmount;
+  const monthsToSpousePension = Math.max(0, (62 - currentAgeInSimulation) * 12);
+  if (monthsToSpousePension < n) {
+    const periods = n - monthsToSpousePension;
+    const pvSpouse = pvAnnuity(spousePensionAmount, periods);
+    const discount = Math.pow((1 + g) / (1 + r), monthsToSpousePension);
+    pv -= pvSpouse * discount;
   }
 
   if (includeTax) {
@@ -328,6 +396,7 @@ function simulateTrial({
   mortgageMonthlyPayment,
   mortgagePayoffDate,
   postFireExtraExpense,
+  includePension = false,
 }) {
   let assets = initialAssets;
   const monthlyReturnMean = Math.pow(1 + annualReturnRate, 1 / 12) - 1;
@@ -339,6 +408,7 @@ function simulateTrial({
   const simulationStartDate = new Date();
 
   for (let m = 0; m <= maxMonths; m++) {
+    const ageAtMonthM = currentAge + m / 12;
     const remainingMonths = totalMonthsUntil100 - m;
     const currentMonthlyExpense = calculateCurrentMonthlyExpense({
       baseMonthlyExpense: monthlyExpense,
@@ -358,6 +428,8 @@ function simulateTrial({
       remainingMonths,
       taxRate,
       includeTax,
+      currentAgeInSimulation: ageAtMonthM,
+      includePension,
     });
 
     if (assets >= requiredAssets) {
@@ -371,10 +443,11 @@ function simulateTrial({
     const grownRiskAssets = riskAssets * (1 + returnRate);
     const grownSafeAssets = safeAssets; // Assume safe assets (cash) have 0% return for simplicity
 
+    const currentMonthlyPension = includePension ? calculateMonthlyPension(ageAtMonthM, ageAtMonthM) : 0;
     // monthlyIncome already includes all regular/bonus cashflow assumptions,
     // and expense is deducted below. Do not add monthlyInvestment separately,
     // otherwise investment capital is double-counted.
-    const netCashflow = monthlyIncome - currentMonthlyExpense;
+    const netCashflow = monthlyIncome - currentMonthlyExpense + currentMonthlyPension;
     if (netCashflow >= 0) {
       assets = grownRiskAssets + grownSafeAssets + netCashflow;
     } else {
@@ -412,6 +485,7 @@ export function simulateFire(params) {
     mortgageMonthlyPayment = 0,
     mortgagePayoffDate = null,
     postFireExtraExpense = 0,
+    includePension = false,
   } = params;
 
   const riskAssetRatio = initialAssets > 0 ? riskAssets / initialAssets : 0;
@@ -436,6 +510,7 @@ export function simulateFire(params) {
         mortgageMonthlyPayment,
         mortgagePayoffDate,
         postFireExtraExpense,
+        includePension,
       }),
     );
   }
@@ -477,6 +552,7 @@ export function generateGrowthTable(params) {
     mortgageMonthlyPayment = 0,
     mortgagePayoffDate = null,
     postFireExtraExpense = 0,
+    includePension = false,
   } = params;
 
   const riskAssetRatio = initialAssets > 0 ? riskAssets / initialAssets : 0;
@@ -492,6 +568,7 @@ export function generateGrowthTable(params) {
   const simulationStartDate = new Date();
 
   for (let m = 0; m <= actualMaxMonths; m++) {
+    const ageAtMonthM = currentAge + m / 12;
     const remainingMonths = totalMonthsUntil100 - m;
     const currentMonthlyExpense = calculateCurrentMonthlyExpense({
       baseMonthlyExpense: monthlyExpense,
@@ -511,6 +588,8 @@ export function generateGrowthTable(params) {
       remainingMonths,
       taxRate,
       includeTax,
+      currentAgeInSimulation: ageAtMonthM,
+      includePension,
     });
 
     if (fireReachedMonth === -1 && assets >= requiredAssets) {
@@ -531,6 +610,9 @@ export function generateGrowthTable(params) {
     const riskPart = assets * riskAssetRatio;
     const safePart = assets - riskPart;
 
+    const fireReachedAge = fireReachedMonth === -1 ? ageAtMonthM : currentAge + fireReachedMonth / 12;
+    const currentMonthlyPension = includePension ? calculateMonthlyPension(ageAtMonthM, fireReachedAge) : 0;
+
     let currentIncome = monthlyIncome;
     let currentWithdrawal;
 
@@ -550,7 +632,7 @@ export function generateGrowthTable(params) {
 
     // monthlyIncome already contains ongoing cashflow assumptions.
     // Do not add monthlyInvestment separately to avoid double-counting.
-    assets = riskPart * (1 + monthlyReturnMean) + safePart + currentIncome;
+    assets = riskPart * (1 + monthlyReturnMean) + safePart + currentIncome + currentMonthlyPension;
     assets -= currentWithdrawal;
 
     if (assets < 0) {

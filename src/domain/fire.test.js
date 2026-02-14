@@ -9,6 +9,7 @@ import {
   estimateMortgageMonthlyPayment,
   simulateFire,
   generateGrowthTable,
+  calculateMonthlyPension,
 } from "./fire";
 
 describe("fire domain", () => {
@@ -573,6 +574,113 @@ describe("fire domain", () => {
       // FIRE reached at month 0, so month 1 should subtract expense only (income is forced to 0)
       expect(result.fireReachedMonth).toBe(0);
       expect(result.table[1].assets).toBe(99900000);
+    });
+  });
+
+  describe("calculateMonthlyPension", () => {
+    it("returns 0 before age 60", () => {
+      expect(calculateMonthlyPension(59.9, 50)).toBe(0);
+    });
+
+    it("returns approx 116,929 (1.4M / 12) at age 60 if FIRE at 50", () => {
+      // User Basic (60): 780k * 0.9 * 0.76 = 533,520
+      // User Kosei (65): 892,252 (accrued at 44) + (50 - 44) * 42,000 = 892,252 + 252,000 = 1,144,252
+      // User Kosei (60): 1,144,252 * 0.76 = 869,632
+      // Total (60): 533,520 + 869,632 = 1,403,152
+      // Monthly: 1,403,152 / 12 = 116,929
+      expect(calculateMonthlyPension(60, 50)).toBe(116929);
+    });
+
+    it("adds spouse pension (approx 65,000) at user age 62", () => {
+      // User part: 116,929
+      // Spouse part: 780,000 / 12 = 65,000
+      // Total: 116,929 + 65,000 = 181,929
+      expect(calculateMonthlyPension(62, 50)).toBe(181929);
+    });
+
+    it("adjusts user pension based on FIRE age", () => {
+      // FIRE at 40 (Participation stops before age 44 data point)
+      // User Basic (60): 533,520
+      // User Kosei (65): 892,252 (capped at accrued amount so far)
+      // User Kosei (60): 892,252 * 0.76 = 678,112
+      // Total (60): 533,520 + 678,112 = 1,211,632
+      // Monthly: 1,211,632 / 12 = 100,969
+      expect(calculateMonthlyPension(60, 40)).toBe(100969);
+    });
+
+    it("caps participation at age 60", () => {
+      // FIRE at 65, but participation for pension calculation caps at 60
+      expect(calculateMonthlyPension(60, 65)).toBe(calculateMonthlyPension(60, 60));
+    });
+  });
+
+  describe("pension impact on simulation", () => {
+    it("reduces requiredAssets when pension is near", () => {
+      const params = {
+        initialAssets: 10000000,
+        riskAssets: 0,
+        annualReturnRate: 0,
+        monthlyExpense: 200000,
+        currentAge: 59,
+        maxMonths: 1,
+        includePension: true,
+      };
+      const resultAt59 = generateGrowthTable(params);
+      const resultAt40 = generateGrowthTable({ ...params, currentAge: 40 });
+
+      // Required assets at age 59 should be much lower than at age 40 because pension starts in 1 year
+      expect(resultAt59.table[0].requiredAssets).toBeLessThan(resultAt40.table[0].requiredAssets);
+    });
+
+    it("includes pension in post-FIRE cash flow", () => {
+      // Start at age 60, already FIRE'd
+      const initialAssets = 100000000;
+      const monthlyExpense = 200000;
+      const pension = calculateMonthlyPension(60, 60);
+
+      const result = generateGrowthTable({
+        initialAssets,
+        riskAssets: 0,
+        annualReturnRate: 0,
+        monthlyExpense,
+        currentAge: 60,
+        maxMonths: 1,
+        withdrawalRate: 0,
+        includePension: true,
+      });
+
+      // assets at m1 = initial + pension - expense
+      // 100,000,000 + 116,666 - 200,000 = 99,916,666
+      expect(result.table[1].assets).toBe(initialAssets + pension - monthlyExpense);
+    });
+
+    it("handles tax with pension enabled", () => {
+      const result = generateGrowthTable({
+        initialAssets: 10000000,
+        riskAssets: 0,
+        annualReturnRate: 0.05,
+        monthlyExpense: 200000,
+        currentAge: 50,
+        maxMonths: 1,
+        includePension: true,
+        includeTax: true,
+        taxRate: 0.2,
+      });
+      expect(result.table[0].requiredAssets).toBeGreaterThan(0);
+    });
+
+    it("works in simulateFire with pension enabled", () => {
+      const result = simulateFire({
+        initialAssets: 1000000,
+        riskAssets: 0,
+        annualReturnRate: 0.05,
+        annualStandardDeviation: 0.1,
+        monthlyExpense: 200000,
+        currentAge: 50,
+        iterations: 1,
+        includePension: true,
+      });
+      expect(result.stats.median).toBeDefined();
     });
   });
 });
