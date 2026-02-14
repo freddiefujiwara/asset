@@ -49,6 +49,12 @@ export function calculateExcludedOwnerAssets(portfolio, excludedOwnerId = "daugh
     totalAssetsYen: sumByKeys(allAssetKeys),
     riskAssetsYen: sumByKeys(riskAssetKeys),
   };
+ * Calculate cash assets (Total Assets - Risk Assets).
+ */
+export function calculateCashAssets(portfolio) {
+  const riskAssets = calculateRiskAssets(portfolio);
+  const totalAssets = portfolio?.totals?.assetsYen || 0;
+  return totalAssets - riskAssets;
 }
 
 function getPastFiveMonths(now) {

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   calculateRiskAssets,
   calculateExcludedOwnerAssets,
+  calculateCashAssets,
   estimateMonthlyExpenses,
   estimateMonthlyIncome,
   estimateIncomeSplit,
@@ -68,6 +69,23 @@ describe("fire domain", () => {
         totalAssetsYen: 1005000,
         riskAssetsYen: 900000,
       });
+  describe("calculateCashAssets", () => {
+    it("returns 0 for empty portfolio", () => {
+      expect(calculateCashAssets(null)).toBe(0);
+    });
+
+    it("calculates total assets minus risk assets", () => {
+      const portfolio = {
+        totals: { assetsYen: 10000 },
+        summary: {
+          assetsByClass: [
+            { name: "預金・現金", amountYen: 4000 },
+            { name: "株式（現物）", amountYen: 6000 },
+          ],
+        },
+      };
+      // Total 10000, Risk 6000 -> Cash 4000
+      expect(calculateCashAssets(portfolio)).toBe(4000);
     });
   });
 
