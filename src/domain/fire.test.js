@@ -524,23 +524,23 @@ describe("fire domain", () => {
     });
 
     it("detects FIRE reached month and stops investment / performs withdrawal based on withdrawalRate", () => {
+      const initialAssets = 500000000;
       const result = generateGrowthTable({
         ...params,
-        initialAssets: 100000000, // already reached FIRE
+        initialAssets, // 500M survives even with 0% return
         monthlyExpense: 100000,
         annualReturnRate: 0,
         currentAge: 40,
-        withdrawalRate: 0.03, // Custom rate
+        withdrawalRate: 0.03, // 3% of 500M = 15M/year = 1.25M/month
       });
       expect(result.fireReachedMonth).toBe(0);
       expect(result.table[0].isFire).toBe(true);
-      // month 0 assets: 100,000,000
-      // 3% withdrawal: 100,000,000 * 0.03 / 12 = 250,000
+      // month 0 assets: 500,000,000
+      // 3% withdrawal: 500,000,000 * 0.03 / 12 = 1,250,000
       // monthlyExpense: 100,000
-      // withdrawal = max(100k, 250k) = 250,000
-      // Excess withdrawal (250k - 100k = 150k) stays in cash
-      // month 1 assets: 100,000,000 - 250,000 (from risk) + 150,000 (to cash) = 99,900,000
-      expect(result.table[1].assets).toBeCloseTo(99900000, 0);
+      // withdrawal = max(100k, 1.25M) = 1,250,000
+      // month 1 assets: 500,000,000 - 1,250,000 + (1,250,000 - 100,000) = 499,900,000
+      expect(result.table[1].assets).toBeCloseTo(499900000, 0);
     });
 
     it("depletes exactly at age 100 in deterministic table if returns=0", () => {
@@ -570,11 +570,13 @@ describe("fire domain", () => {
         includeInflation: true,
         includeTax: true,
       });
-      expect(result.table[1].requiredAssets).toBeGreaterThan(result.table[0].requiredAssets);
+      // With backward calculation, required assets at month 1 should be less than at month 0
+      // because you have one less month to live.
+      expect(result.table[1].requiredAssets).toBeLessThan(result.table[0].requiredAssets);
     });
 
     it("grosses up withdrawal by taxRate when includeTax is true post-FIRE", () => {
-      const initialAssets = 100000000;
+      const initialAssets = 500000000;
       const monthlyExpense = 100000;
       const taxRate = 0.2; // 20%
       const result = generateGrowthTable({
@@ -593,7 +595,7 @@ describe("fire domain", () => {
     });
 
     it("increases requiredAssets and withdrawal when postFireExtraExpense is provided", () => {
-      const initialAssets = 200000000;
+      const initialAssets = 500000000;
       const monthlyExpense = 100000;
       const postFireExtraExpense = 50000;
       const result = generateGrowthTable({
@@ -729,8 +731,9 @@ describe("fire domain", () => {
     });
 
     it("sets income to 0 after FIRE is reached", () => {
+      const initialAssets = 500000000;
       const result = generateGrowthTable({
-        initialAssets: 100000000,
+        initialAssets,
         riskAssets: 0,
         monthlyInvestment: 0,
         monthlyIncome: 500000,
@@ -743,7 +746,7 @@ describe("fire domain", () => {
 
       // FIRE reached at month 0, so month 1 should subtract expense only (income is forced to 0)
       expect(result.fireReachedMonth).toBe(0);
-      expect(result.table[1].assets).toBe(99900000);
+      expect(result.table[1].assets).toBe(initialAssets - 100000);
     });
   });
 
