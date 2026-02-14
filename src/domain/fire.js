@@ -19,6 +19,15 @@ export function calculateRiskAssets(portfolio) {
     .reduce((sum, item) => sum + item.amountYen, 0);
 }
 
+function getPastFiveMonths(now) {
+  const months = [];
+  for (let i = 1; i <= 5; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  }
+  return months;
+}
+
 /**
  * Estimate monthly basic expenses from cash flow.
  * Returns a breakdown by category and excludes special expenses.
@@ -26,12 +35,9 @@ export function calculateRiskAssets(portfolio) {
  */
 export function estimateMonthlyExpenses(cashFlow) {
   const now = new Date();
-  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  const targetMonths = getUniqueMonths(cashFlow)
-    .filter((month) => month !== currentMonthKey)
-    .slice(0, 5);
+  const targetMonths = getPastFiveMonths(now);
   const monthSet = new Set(targetMonths);
-  const monthCount = targetMonths.length;
+  const divisor = 5;
 
   const breakdownMap = {};
   let totalNormalExpense = 0;
@@ -63,8 +69,6 @@ export function estimateMonthlyExpenses(cashFlow) {
     breakdownMap[largeCat] = (breakdownMap[largeCat] || 0) + absAmount;
   });
 
-  const divisor = Math.max(monthCount, 1);
-
   const breakdown = Object.entries(breakdownMap)
     .map(([name, total]) => ({
       name,
@@ -79,7 +83,7 @@ export function estimateMonthlyExpenses(cashFlow) {
     total: finalTotal,
     breakdown,
     averageSpecial: Math.round(totalSpecialExpense / divisor),
-    monthCount,
+    monthCount: divisor,
   };
 }
 
@@ -88,12 +92,9 @@ export function estimateMonthlyExpenses(cashFlow) {
  */
 export function estimateMonthlyIncome(cashFlow) {
   const now = new Date();
-  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  const targetMonths = getUniqueMonths(cashFlow)
-    .filter((month) => month !== currentMonthKey)
-    .slice(0, 5);
+  const targetMonths = getPastFiveMonths(now);
   const monthSet = new Set(targetMonths);
-  const divisor = Math.max(targetMonths.length, 1);
+  const divisor = 5;
 
   let totalIncome = 0;
 
@@ -116,15 +117,14 @@ export function estimateMonthlyIncome(cashFlow) {
  */
 export function estimateIncomeSplit(cashFlow) {
   const now = new Date();
-  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  const targetMonths = getUniqueMonths(cashFlow)
-    .filter((month) => month !== currentMonthKey)
-    .slice(0, 5);
+  const targetMonths = getPastFiveMonths(now);
   const monthSet = new Set(targetMonths);
-  const divisor = Math.max(targetMonths.length, 1);
+  const divisor = 5;
 
   let totalRegularIncome = 0;
   let totalBonusIncome = 0;
+  const regularBreakdownMap = {};
+  const bonusBreakdownMap = {};
 
   cashFlow.forEach((item) => {
     if (item.isTransfer || item.amount <= 0) return;
@@ -132,23 +132,39 @@ export function estimateIncomeSplit(cashFlow) {
     const month = item.date?.substring(0, 7) || "";
     if (!monthSet.has(month)) return;
 
-    const category = item.category || "";
-    const isBonus = category.includes("賞与") || category.includes("ボーナス");
-
-    if (isBonus) {
-      totalBonusIncome += item.amount;
-    } else {
+    const category = item.category || "未分類";
+    if (category === "収入/給与") {
       totalRegularIncome += item.amount;
+      regularBreakdownMap[category] = (regularBreakdownMap[category] || 0) + item.amount;
+    } else if (category.startsWith("収入/")) {
+      totalBonusIncome += item.amount;
+      bonusBreakdownMap[category] = (bonusBreakdownMap[category] || 0) + item.amount;
     }
   });
-
   const regularMonthly = Math.round(totalRegularIncome / divisor);
   const bonusAnnual = Math.round(totalBonusIncome * (12 / divisor));
+
+  const regularBreakdown = Object.entries(regularBreakdownMap)
+    .map(([name, total]) => ({
+      name,
+      amount: Math.round(total / divisor),
+    }))
+    .sort((a, b) => b.amount - a.amount);
+
+  const bonusBreakdown = Object.entries(bonusBreakdownMap)
+    .map(([name, total]) => ({
+      name,
+      amount: Math.round(total * (12 / divisor)),
+    }))
+    .sort((a, b) => b.amount - a.amount);
 
   return {
     regularMonthly,
     bonusAnnual,
     monthlyTotal: regularMonthly + bonusAnnual / 12,
+    regularBreakdown,
+    bonusBreakdown,
+    monthCount: divisor,
   };
 }
 
@@ -157,12 +173,9 @@ export function estimateIncomeSplit(cashFlow) {
  */
 export function estimateMortgageMonthlyPayment(cashFlow) {
   const now = new Date();
-  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  const targetMonths = getUniqueMonths(cashFlow)
-    .filter((month) => month !== currentMonthKey)
-    .slice(0, 5);
+  const targetMonths = getPastFiveMonths(now);
   const monthSet = new Set(targetMonths);
-  const divisor = Math.max(targetMonths.length, 1);
+  const divisor = 5;
 
   let totalMortgage = 0;
 

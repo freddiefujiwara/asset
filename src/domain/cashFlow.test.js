@@ -238,6 +238,10 @@ describe("cashFlow domain", () => {
         { label: "Food", value: 300 },
       ]);
     });
+
+    it("returns empty array when no data in range for coverage", () => {
+        expect(aggregateByCategory([], { averageMonths: 1 })).toEqual([]);
+    });
   });
 
   describe("getUniqueMonths", () => {

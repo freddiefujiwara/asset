@@ -37,6 +37,7 @@ const includeTax = ref(false);
 const taxRate = ref(20.315);
 const withdrawalRate = ref(4);
 const iterations = ref(1000);
+const includeBonus = ref(true);
 
 // Data-derived parameters
 const initialAssets = computed(() => data.value?.totals?.netWorthYen ?? 0);
@@ -50,7 +51,7 @@ const autoMonthlyExpense = computed(() => expenseResult.value.total);
 const autoIncomeSplit = computed(() =>
   data.value?.cashFlow
     ? estimateIncomeSplit(data.value.cashFlow)
-    : { regularMonthly: 0, bonusAnnual: 0, monthlyTotal: 0 },
+    : { regularMonthly: 0, bonusAnnual: 0, monthlyTotal: 0, regularBreakdown: [], bonusBreakdown: [], monthCount: 0 },
 );
 const autoRegularMonthlyIncome = computed(() => autoIncomeSplit.value.regularMonthly);
 const autoAnnualBonus = computed(() => autoIncomeSplit.value.bonusAnnual);
@@ -66,12 +67,24 @@ const useAutoIncome = ref(true);
 const mortgageMonthlyPayment = ref(0);
 const mortgagePayoffDate = ref("2042-07");
 
+const mortgageOptions = computed(() => {
+  const options = [];
+  const start = new Date();
+  for (let i = 0; i <= 420; i++) {
+    const d = new Date(start.getFullYear(), start.getMonth() + i, 1);
+    const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const label = `${d.getFullYear()}年${d.getMonth() + 1}月`;
+    options.push({ val, label });
+  }
+  return options;
+});
+
 const monthlyExpense = computed(() => (useAutoExpense.value ? autoMonthlyExpense.value : manualMonthlyExpense.value));
 const regularMonthlyIncome = computed(() =>
   useAutoIncome.value ? autoRegularMonthlyIncome.value : manualRegularMonthlyIncome.value,
 );
 const annualBonus = computed(() => (useAutoIncome.value ? autoAnnualBonus.value : manualAnnualBonus.value));
-const monthlyIncome = computed(() => regularMonthlyIncome.value + annualBonus.value / 12);
+const monthlyIncome = computed(() => regularMonthlyIncome.value + (includeBonus.value ? annualBonus.value / 12 : 0));
 
 watchEffect(() => {
   if (autoMonthlyExpense.value && useAutoExpense.value) {
@@ -209,11 +222,37 @@ const achievementProbability = computed(() => {
             </label>
           </div>
           <input v-model.number="manualRegularMonthlyIncome" type="number" step="10000" :disabled="useAutoIncome" />
+          <div v-if="useAutoIncome && autoIncomeSplit.monthCount > 0" class="expense-breakdown">
+            <details>
+              <summary>算出内訳 ({{ autoIncomeSplit.monthCount }}ヶ月平均)</summary>
+              <div class="breakdown-content">
+                <div v-for="item in autoIncomeSplit.regularBreakdown" :key="item.name" class="breakdown-row">
+                  <span class="cat-name">{{ item.name }}</span>
+                  <span class="cat-amount amount-value">{{ formatYen(item.amount) }}</span>
+                </div>
+              </div>
+            </details>
+          </div>
         </div>
         <div class="filter-item expense-item">
-          <label>ボーナス (年額)</label>
-          <input v-model.number="manualAnnualBonus" type="number" step="10000" :disabled="useAutoIncome" />
-          <span v-if="useAutoIncome" class="meta">自動算出: {{ formatYen(autoAnnualBonus) }}</span>
+          <div class="label-row">
+            <label>ボーナス (年額)</label>
+            <label class="auto-toggle">
+              <input type="checkbox" v-model="includeBonus" /> ボーナスを考慮
+            </label>
+          </div>
+          <input v-model.number="manualAnnualBonus" type="number" step="10000" :disabled="useAutoIncome || !includeBonus" />
+          <div v-if="useAutoIncome && autoIncomeSplit.monthCount > 0" class="expense-breakdown">
+            <details>
+              <summary>算出内訳 ({{ autoIncomeSplit.monthCount }}ヶ月平均)</summary>
+              <div class="breakdown-content">
+                <div v-for="item in autoIncomeSplit.bonusBreakdown" :key="item.name" class="breakdown-row">
+                  <span class="cat-name">{{ item.name }}</span>
+                  <span class="cat-amount amount-value">{{ formatYen(item.amount) }}</span>
+                </div>
+              </div>
+            </details>
+          </div>
         </div>
         <div class="filter-item">
           <label>住宅ローン月額 (円)</label>
@@ -221,7 +260,11 @@ const achievementProbability = computed(() => {
         </div>
         <div class="filter-item">
           <label>ローン完済年月</label>
-          <input v-model="mortgagePayoffDate" type="month" class="is-public" />
+          <select v-model="mortgagePayoffDate" class="is-public date-select">
+            <option v-for="opt in mortgageOptions" :key="opt.val" :value="opt.val">
+              {{ opt.label }}
+            </option>
+          </select>
         </div>
         <div class="filter-item">
           <label>インフレ考慮</label>
@@ -243,7 +286,7 @@ const achievementProbability = computed(() => {
 
       <div class="initial-summary">
         <details>
-          <summary>初期条件の確認</summary>
+          <summary>条件の確認</summary>
           <div class="initial-summary-grid">
             <div>
               <span class="meta">現在の純資産:</span>
@@ -271,6 +314,51 @@ const achievementProbability = computed(() => {
               <span class="amount-value" style="margin-left: 8px;">{{ formatYen(Math.round(growthData.table[0]?.requiredAssets ?? 0)) }}</span>
               <span class="meta"> (100歳寿命)</span>
             </div>
+            <div>
+              <span class="meta">ローン完済年月:</span>
+              <span style="margin-left: 8px;">{{ mortgagePayoffDate || '設定なし' }}</span>
+            </div>
+            <div>
+              <span class="meta">期待リターン:</span>
+              <span style="margin-left: 8px;">{{ annualReturnRate }}%</span>
+            </div>
+            <div>
+              <span class="meta">リスク:</span>
+              <span style="margin-left: 8px;">{{ annualStandardDeviation }}%</span>
+            </div>
+            <div>
+              <span class="meta">取り崩し率:</span>
+              <span style="margin-left: 8px;">{{ withdrawalRate }}%</span>
+            </div>
+            <div v-if="includeInflation">
+              <span class="meta">インフレ率:</span>
+              <span style="margin-left: 8px;">{{ inflationRate }}%</span>
+            </div>
+            <div v-if="includeTax">
+              <span class="meta">税率:</span>
+              <span style="margin-left: 8px;">{{ taxRate }}%</span>
+            </div>
+          </div>
+        </details>
+      </div>
+
+      <div class="initial-summary" style="margin-top: 0; border-top: none;">
+        <details>
+          <summary>FIREアルゴリズムの詳細</summary>
+          <div class="algorithm-details" style="font-size: 0.8rem; color: var(--muted); margin-top: 10px; line-height: 1.6;">
+            <ul style="margin: 0; padding-left: 20px;">
+              <li>{{ iterations }}回試行のモンテカルロ・シミュレーションにより達成時期の分布を算出しています。</li>
+              <li>100歳寿命までの必要資産額を、将来の支出額から現在価値（PV）に割り戻して算出しています。</li>
+              <li>リスク資産の運用益は正規乱数（期待リターンと標準偏差）を用いて再現しており、不確実性を考慮しています。</li>
+              <li>FIRE達成後は追加投資を停止し、定期収入（給与・ボーナス等）もゼロになると仮定しています。</li>
+              <li>FIRE達成後は、年間支出または資産の{{ withdrawalRate }}%（設定値）のいずれか大きい額を引き出すと仮定しています。</li>
+              <li>住宅ローンの完済月以降は、月間支出からローン返済額を自動的に差し引いてシミュレーションを継続します。</li>
+              <li>達成時期の90%信頼区間: {{ formatMonths(stats.p5) }} 〜 {{ formatMonths(stats.p95) }} (不確実性を考慮した予測)</li>
+              <li>100歳までの達成率: <span :class="achievementProbability > 80 ? 'is-positive' : 'is-negative' " style="font-weight: bold;">{{ achievementProbability.toFixed(1) }}%</span> ({{ iterations }}回の試行結果に基づく)</li>
+              <li style="margin-top: 8px; list-style: none; font-weight: bold; color: var(--text);">【達成期間の算出根拠について】</li>
+              <li>大きな資産不足があっても短期間でFIRE達成と判定されるのは、現在の高い貯蓄ペース（投資額）と期待リターンによる複利効果を将来にわたって投影しているためです。</li>
+              <li>シミュレーションでは、毎月の投資額が運用され続け、資産成長が必要資産額（将来支出の現在価値合計）を上回るタイミングを「達成」と定義しています。</li>
+            </ul>
           </div>
         </details>
       </div>
@@ -288,16 +376,14 @@ const achievementProbability = computed(() => {
         <p class="meta">現在 {{ currentAge }}歳</p>
       </article>
       <article class="card">
-        <h2>90%信頼区間</h2>
-        <p>{{ formatMonths(stats.p5) }} 〜 {{ formatMonths(stats.p95) }}</p>
-        <p class="meta">不確実性を考慮した予測</p>
+        <h2>FIRE達成に必要な資産</h2>
+        <p class="is-positive amount-value">{{ formatYen(Math.round(growthData.table[0]?.requiredAssets ?? 0)) }}</p>
+        <p class="meta">あと <span class="amount-value">{{ formatYen(Math.max(0, Math.round(growthData.table[0]?.requiredAssets ?? 0) - initialAssets)) }}</span> 不足</p>
       </article>
       <article class="card">
-        <h2>100歳までの達成率</h2>
-        <p :class="achievementProbability > 80 ? 'is-positive' : 'is-negative'">
-          {{ achievementProbability.toFixed(1) }}%
-        </p>
-        <p class="meta">{{ iterations }}回の試行結果</p>
+        <h2>月額の予定支出額</h2>
+        <p>{{ formatYen(monthlyExpense) }}</p>
+        <p class="meta">{{ useAutoExpense ? '過去5ヶ月の平均実績に基づく' : 'ユーザーによる手入力設定' }}</p>
       </article>
     </div>
 
@@ -326,7 +412,8 @@ const achievementProbability = computed(() => {
   font-size: 0.85rem;
   color: var(--muted);
 }
-.filter-item input[type="number"] {
+.filter-item input[type="number"],
+.filter-item .date-select {
   padding: 8px 12px;
   border-radius: 6px;
   border: 1px solid var(--border);
