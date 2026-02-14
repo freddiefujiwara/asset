@@ -4,6 +4,7 @@ import { usePortfolioData } from "@/composables/usePortfolioData";
 import { formatYen } from "@/domain/format";
 import {
   calculateRiskAssets,
+  calculateExcludedOwnerAssets,
   estimateMonthlyExpenses,
   estimateIncomeSplit,
   simulateFire,
@@ -41,8 +42,15 @@ const iterations = ref(1000);
 const includeBonus = ref(true);
 
 // Data-derived parameters
-const initialAssets = computed(() => data.value?.totals?.netWorthYen ?? 0);
-const riskAssets = computed(() => (data.value ? calculateRiskAssets(data.value) : 0));
+const excludedAssets = computed(() => (data.value ? calculateExcludedOwnerAssets(data.value, "daughter") : { totalAssetsYen: 0, riskAssetsYen: 0 }));
+const initialAssets = computed(() => {
+  const baseNetWorth = data.value?.totals?.netWorthYen ?? 0;
+  return Math.max(0, baseNetWorth - excludedAssets.value.totalAssetsYen);
+});
+const riskAssets = computed(() => {
+  const baseRiskAssets = data.value ? calculateRiskAssets(data.value) : 0;
+  return Math.max(0, baseRiskAssets - excludedAssets.value.riskAssetsYen);
+});
 const expenseResult = computed(() =>
   data.value?.cashFlow
     ? estimateMonthlyExpenses(data.value.cashFlow)
@@ -381,6 +389,7 @@ const estimatedMonthlyWithdrawal = computed(() => {
               <li>{{ iterations }}回試行のモンテカルロ・シミュレーションにより達成時期の分布を算出しています。</li>
               <li>100歳寿命までの必要資産額を、将来の支出額から現在価値（PV）に割り戻して算出しています。</li>
               <li>リスク資産の運用益は正規乱数（期待リターンと標準偏差）を用いて再現しており、不確実性を考慮しています。</li>
+              <li>娘名義の資産（現金・株式・投資信託・年金・ポイント）は初期資産から除外してシミュレーションしています。</li>
               <li>FIRE達成後は追加投資を停止し、定期収入（給与・ボーナス等）もゼロになると仮定しています。</li>
               <li>FIRE達成後は、年間支出または資産の{{ withdrawalRate }}%（設定値）のいずれか大きい額を引き出すと仮定しています。</li>
               <li>住宅ローンの完済月以降は、月間支出からローン返済額を自動的に差し引いてシミュレーションを継続します。</li>
