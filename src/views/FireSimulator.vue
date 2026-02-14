@@ -374,9 +374,6 @@ const estimatedMonthlyWithdrawal = computed(() => {
               <li>住宅ローンの完済月以降は、月間支出からローン返済額を自動的に差し引いてシミュレーションを継続します。</li>
               <li>達成時期の90%信頼区間: {{ formatMonths(stats.p5) }} 〜 {{ formatMonths(stats.p95) }} (不確実性を考慮した予測)</li>
               <li>100歳までの達成率: <span :class="achievementProbability > 80 ? 'is-positive' : 'is-negative' " style="font-weight: bold;">{{ achievementProbability.toFixed(1) }}%</span> ({{ iterations }}回の試行結果に基づく)</li>
-              <li style="margin-top: 8px; list-style: none; font-weight: bold; color: var(--text);">【達成期間の算出根拠について】</li>
-              <li>大きな資産不足があっても短期間でFIRE達成と判定されるのは、現在の高い純貯蓄ペース（収入−支出）と期待リターンによる複利効果を将来にわたって投影しているためです。</li>
-              <li>シミュレーションでは、毎月の純キャッシュフロー（収入−支出）と運用成長を積み上げ、資産成長が必要資産額（将来支出の現在価値合計）を上回るタイミングを「達成」と定義しています。</li>
             </ul>
           </div>
         </details>
