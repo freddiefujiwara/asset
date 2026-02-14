@@ -13,28 +13,28 @@ defineProps({
       <table class="simulation-table">
         <thead>
           <tr>
-            <th title="シミュレーション上の年齢（年度末時点）">年齢</th>
-            <th class="text-right" title="定期収入 + 年金受給額（インフレ調整なし）">収入 (年金込)</th>
-            <th class="text-right" title="基本生活費（インフレ調整済）+ FIRE後追加費用 - 住宅ローン削減分（固定額）">支出</th>
-            <th class="text-right" title="当年中のリスク資産の運用リターン（複利効果）">運用益(当年分)</th>
-            <th class="text-right" title="FIRE後の資産取崩し額 = Max(支出[税込], 資産 × 設定取崩率)">取り崩し額</th>
-            <th class="text-right" title="年度末時点の総資産額（貯金額 + リスク資産額）">金融資産(合計)</th>
-            <th class="text-right" title="前年末の貯金 + 当年のキャッシュフロー（収入 + 取崩額 - 支出 - 投資額）">貯金額</th>
-            <th class="text-right" title="前年末のリスク資産 + 当年の投資額 + 当年の運用益 - 当年の取崩額">リスク資産額</th>
+            <th title="年度末時点の年齢。誕生月に基づき算出されます。">年齢</th>
+            <th class="text-right" title="定期収入（給与等） + 年金受給額の合算です。">収入 (年金込)</th>
+            <th class="text-right" title="年間支出 = (基本生活費 - 住宅ローン) × インフレ調整 + 住宅ローン(固定) + FIRE後追加支出（FIRE達成月より加算）">支出</th>
+            <th class="text-right" title="当年中の運用リターン合計。月次複利で計算されます。">運用益(当年分)</th>
+            <th class="text-right" title="資産取崩し額 = Max(0, Max(支出, 資産×取崩率) - 収入 - 年金) ※税金考慮時はグロスアップ算出">取り崩し額</th>
+            <th class="text-right" title="金融資産(合計) = 貯金額(現金) + リスク資産額。100歳時点で0以上なら成功です。">金融資産(合計)</th>
+            <th class="text-right" title="貯金額 = 前年末残高 + 当年収支(収入 - 支出) - 当年投資額 + リスク資産からの補填（純額）">貯金額</th>
+            <th class="text-right" title="リスク資産額 = 前年末残高 + 投資額 + 運用益 - 取崩額(グロス)">リスク資産額</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="row in data" :key="row.age">
             <td class="age-cell" title="年度末時点の年齢">{{ row.age }}歳</td>
             <td class="amount-value text-right" :title="`定期収入: ${formatYen(row.income)} + 年金: ${formatYen(row.pension)}` ">{{ formatYen(row.income + row.pension) }}</td>
-            <td class="amount-value text-right" title="基本生活費（インフレ適用） + FIRE後追加支出 - 住宅ローン削減分">{{ formatYen(row.expenses) }}</td>
-            <td class="amount-value text-right is-positive" title="リスク資産 × 期待リターン（月次複利計算の年間合計）">{{ formatYen(row.investmentGain) }}</td>
-            <td class="amount-value text-right" :class="{ 'is-negative': row.withdrawal > 0 }" title="FIRE達成後の資産取崩しルールに基づく引出額（税金考慮済）">
+            <td class="amount-value text-right" title="基本生活費（インフレ調整済） + 住宅ローン返済額 + FIRE後追加支出">{{ formatYen(row.expenses) }}</td>
+            <td class="amount-value text-right is-positive" title="リスク資産 × 期待リターン（月次複利の12ヶ月分合計）">{{ formatYen(row.investmentGain) }}</td>
+            <td class="amount-value text-right" :class="{ 'is-negative': row.withdrawal > 0 }" title="生活費の不足分、または取崩率ルールに基づく資産からの引出額（税金込）">
               {{ formatYen(row.withdrawal) }}
             </td>
             <td class="amount-value text-right" style="font-weight: bold;" title="貯金額（現金） + リスク資産額">{{ formatYen(row.assets) }}</td>
-            <td class="amount-value text-right" :class="{ 'is-negative': row.cashAssets < 0 }" title="当年の収支剰余金（または不足補填後の残キャッシュ）">{{ formatYen(row.cashAssets) }}</td>
-            <td class="amount-value text-right" title="リスク資産の年度末残高（運用益反映後）">{{ formatYen(row.riskAssets) }}</td>
+            <td class="amount-value text-right" :class="{ 'is-negative': row.cashAssets < 0 }" title="手元の現金残高。収入・支出・投資の結果、余った分（または不足分）を保持します。">{{ formatYen(row.cashAssets) }}</td>
+            <td class="amount-value text-right" title="株式・投資信託等の評価額。運用益と積立・取崩が反映されます。">{{ formatYen(row.riskAssets) }}</td>
           </tr>
         </tbody>
       </table>

@@ -463,7 +463,7 @@ function performFireSimulation(params, { randomReturn = false, recordMonthly = f
     monthlyInvestment = 0,
   } = params;
 
-  const monthlyExp = monthlyExpense ?? monthlyExpenses ?? 0;
+  const monthlyExp = monthlyExpense ?? (monthlyExpenses ? monthlyExpenses / 12 : 0);
   const monthlyReturnMean = Math.pow(1 + annualReturnRate, 1 / 12) - 1;
   const monthlySD = (annualStandardDeviation || 0) / Math.sqrt(12);
   const monthlyInflationRate = Math.pow(1 + (includeInflation ? inflationRate : 0), 1 / 12) - 1;
@@ -488,7 +488,7 @@ function performFireSimulation(params, { randomReturn = false, recordMonthly = f
       mortgagePayoffDate,
     });
     const extraWithInf = postFireExtraExpense * Math.pow(1 + monthlyInflationRate, m);
-    const assets = currentCash + currentRisk;
+    const assets = Math.max(0, currentCash + currentRisk);
 
     const reqAssets = calculateRequiredAssets({
       monthlyExpense: curMonthlyExp + extraWithInf,
@@ -511,6 +511,7 @@ function performFireSimulation(params, { randomReturn = false, recordMonthly = f
 
     const monthlyIncomeVal = isFire ? 0 : monthlyIncome;
     const monthlyExpensesVal = curMonthlyExp + (isFire ? extraWithInf : 0);
+    const incomeAvailable = monthlyIncomeVal + curPension;
 
     if (recordMonthly) {
       monthlyData.push({
@@ -532,61 +533,59 @@ function performFireSimulation(params, { randomReturn = false, recordMonthly = f
     if (!recordMonthly && fireReachedMonth !== -1) return { fireReachedMonth };
     if (m === maxMonths || m === totalMonthsUntil100) break;
 
-    const netFlow = (monthlyIncomeVal + curPension) - monthlyExpensesVal;
     let monthlyWithdrawal = 0;
     let monthlyInvest = 0;
     let investmentGain = 0;
-
     const returnRate = randomReturn ? (monthlyReturnMean + monthlySD * boxMuller()) : monthlyReturnMean;
 
-    // Unified investment and shortfall logic
-    // 1. Calculate available cash after income/expenses but before investment
-    let cashAfterFlow = currentCash + netFlow;
+    if (!isFire) {
+      // Accumulation: Pay expenses from income + cash, then invest surplus
+      const netFlow = incomeAvailable - monthlyExpensesVal;
+      const cashAfterFlow = currentCash + netFlow;
 
-    // 2. Determine investment (only in accumulation, capped by available cash)
-    monthlyInvest = (!isFire) ? Math.min(monthlyInvestment, Math.max(0, cashAfterFlow)) : 0;
-    cashAfterFlow -= monthlyInvest;
+      if (cashAfterFlow < 0) {
+        // Shortfall: take from risk (capped by available risk)
+        const needed = Math.abs(cashAfterFlow);
+        const maxNetFromRisk = Math.max(0, currentRisk * (includeTax ? (1 - taxRate) : 1));
+        const actualNetFromRisk = Math.min(needed, maxNetFromRisk);
+        const grossFromRisk = actualNetFromRisk / (includeTax ? (1 - taxRate) : 1);
+        currentRisk -= grossFromRisk;
+        currentRisk = Math.max(0, currentRisk);
 
-    let shortfall = 0;
-    let extraDivestment = 0;
-
-    if (cashAfterFlow < 0) {
-      shortfall = Math.abs(cashAfterFlow);
-      if (includeTax) {
-        // Entire shortfall must come from risk assets (as cash is zero), so gross up
-        shortfall = shortfall / (1 - taxRate);
+        currentCash = cashAfterFlow + actualNetFromRisk;
+        monthlyWithdrawal = actualNetFromRisk > 0 ? grossFromRisk : 0;
+      } else {
+        // Surplus: invest
+        monthlyInvest = Math.min(monthlyInvestment, cashAfterFlow);
+        currentCash = cashAfterFlow - monthlyInvest;
+        currentRisk += monthlyInvest;
+        monthlyWithdrawal = 0;
       }
-      currentCash = 0;
     } else {
-      currentCash = cashAfterFlow;
-      shortfall = 0;
+      // FIRE: Use income/pension first, then assets (cash/risk) to satisfy withdrawal target or cover expenses
+      const targetWithdrawalFromAssets = (assets * withdrawalRate) / 12;
+      const expenseShortfall = Math.max(0, monthlyExpensesVal - incomeAvailable);
+      const netToTakeFromAssets = Math.max(expenseShortfall, targetWithdrawalFromAssets);
+
+      // 1. Take from Cash first
+      const takenFromCash = Math.min(currentCash, netToTakeFromAssets);
+      const remainingShortfall = netToTakeFromAssets - takenFromCash;
+
+      // 2. Take from Risk if Cash is insufficient (capped by available risk)
+      const maxNetFromRisk = Math.max(0, currentRisk * (includeTax ? (1 - taxRate) : 1));
+      const actualNetFromRisk = Math.min(remainingShortfall, maxNetFromRisk);
+      const grossFromRisk = actualNetFromRisk / (includeTax ? (1 - taxRate) : 1);
+      currentRisk -= grossFromRisk;
+      currentRisk = Math.max(0, currentRisk);
+
+      // 3. Ledger balance (NewCash = OldCash + Income - Expenses + Divestment)
+      // Note: We don't Math.max(0) here to allow realistic "Debt/Negative Savings" if total assets are 0
+      currentCash += (incomeAvailable + actualNetFromRisk - monthlyExpensesVal);
+
+      monthlyWithdrawal = takenFromCash + grossFromRisk;
     }
 
-    if (isFire) {
-      // User rule: Withdrawal should be at least max(Expenses, 4% Assets)
-      // Note: Expenses in minGrossWithdrawal should also be grossed up if tax is included
-      const grossMonthlyExp = includeTax ? (monthlyExpensesVal / (1 - taxRate)) : monthlyExpensesVal;
-      const minGrossWithdrawal = Math.max(grossMonthlyExp, (assets * withdrawalRate) / 12);
-
-      if (shortfall < minGrossWithdrawal) {
-        extraDivestment = minGrossWithdrawal - shortfall;
-      }
-    }
-
-    // 3. Execute withdrawals/divestments from risk
-    let withdrawalFromRisk = Math.min(shortfall, currentRisk);
-    currentRisk -= withdrawalFromRisk;
-
-    // Divest extra from risk to cash to satisfy withdrawalRate (if in FIRE)
-    const actualExtra = Math.min(extraDivestment, currentRisk);
-    currentRisk -= actualExtra;
-    currentCash += actualExtra;
-
-    // Total reported withdrawal (for chart/table)
-    monthlyWithdrawal = shortfall + extraDivestment;
-
-    // 4. Apply investment and growth
-    currentRisk += monthlyInvest; // Investment from earlier
+    // Apply growth
     investmentGain = currentRisk * returnRate;
     currentRisk += investmentGain;
 
@@ -604,11 +603,13 @@ function performFireSimulation(params, { randomReturn = false, recordMonthly = f
  * Monte Carlo simulation for FIRE achievement.
  */
 export function simulateFire(params) {
+  const iterations = params.iterations ?? 1000;
+  const maxMonthsLimit = params.maxMonths ?? 1200;
   const trials = [];
-  const iterations = params.iterations || 1000;
   for (let i = 0; i < iterations; i++) {
     const res = performFireSimulation(params, { randomReturn: true, recordMonthly: false });
-    trials.push(res.fireReachedMonth === -1 ? (params.maxMonths || 1200) : res.fireReachedMonth);
+    const reached = res.fireReachedMonth === -1 ? maxMonthsLimit : res.fireReachedMonth;
+    trials.push(reached);
   }
   trials.sort((a, b) => a - b);
   const median = trials[Math.floor(trials.length / 2)];

@@ -396,6 +396,34 @@ describe("fire domain", () => {
       expect(result.stats.p95).toBeDefined();
     });
 
+    it("uses default iterations and maxMonths in simulateFire", () => {
+      const result = simulateFire({
+        ...params,
+        iterations: undefined,
+        maxMonths: undefined,
+        initialAssets: 0,
+        riskAssets: 0,
+        monthlyIncome: 0,
+        monthlyExpense: 1000000,
+        currentAge: 0, // Set age to 0 to allow maxMonths of 1200
+      });
+      expect(result.trials).toHaveLength(1000);
+      expect(result.trials[0]).toBe(1200);
+    });
+
+    it("uses explicit maxMonths in simulateFire when no FIRE", () => {
+      const result = simulateFire({
+        ...params,
+        maxMonths: 500,
+        initialAssets: 0,
+        riskAssets: 0,
+        monthlyIncome: 0,
+        monthlyExpense: 1000000,
+        currentAge: 0,
+      });
+      expect(result.trials[0]).toBe(500);
+    });
+
     it("handles 0 initial assets", () => {
       const result = simulateFire({ ...params, initialAssets: 0, riskAssets: 0 });
       expect(result.stats.median).toBeGreaterThan(0);
@@ -627,6 +655,28 @@ describe("fire domain", () => {
        expect(result.table[1].assets).toBe(0);
     });
 
+    it("uses monthlyExpenses if monthlyExpense is missing", () => {
+      const result = generateAnnualSimulation({
+        ...params,
+        monthlyExpense: undefined,
+        monthlyExpenses: 2400000, // 200k/month
+        monthlyIncome: 300000,
+        initialAssets: 1000,
+      });
+      expect(result[0].expenses).toBe(200000 * 12);
+    });
+
+    it("defaults monthlyExp to 0 if both are missing", () => {
+      const result = generateAnnualSimulation({
+        ...params,
+        monthlyExpense: undefined,
+        monthlyExpenses: undefined,
+        monthlyIncome: 300000,
+        initialAssets: 1000,
+      });
+      expect(result[0].expenses).toBe(0);
+    });
+
     it("caps investment in growth table by available cash", () => {
       const result = generateGrowthTable({
         initialAssets: 1000,
@@ -774,6 +824,70 @@ describe("fire domain", () => {
       expect(result.table[1].assets).toBe(initialAssets + pension - monthlyExpense);
     });
 
+    it("verifies that pension income reduces withdrawal from assets efficiently (Bug 1)", () => {
+      // If pension covers some expenses, we shouldn't sell extra risk assets.
+      const initialAssets = 100000000;
+      const monthlyExpense = 200000;
+      // Pension is approx 143,529 (see calculateMonthlyPension logic for FIRE at 60)
+      const pension = calculateMonthlyPension(60, 60);
+
+      const result = generateGrowthTable({
+        initialAssets,
+        riskAssets: initialAssets,
+        annualReturnRate: 0,
+        monthlyExpense,
+        currentAge: 60,
+        maxMonths: 1,
+        withdrawalRate: 0,
+        includePension: true,
+      });
+
+      const month1 = result.table[1];
+      // Monthly withdrawal should be exactly the shortfall: Expense - Pension
+      // 200,000 - 143,529 = 56,471
+      // Asset change should be exactly -56,471
+      expect(initialAssets - month1.assets).toBe(monthlyExpense - pension);
+    });
+
+    it("verifies that 4% rule is correctly applied as a minimum withdrawal (Bug 2)", () => {
+      // If 4% Assets > Expenses, we should withdraw 4% Assets.
+      const initialAssets = 100000000; // 100M
+      const monthlyExpense = 100000; // 1.2M/year
+      const withdrawalRate = 0.04; // 4% rule -> 4M/year = 333,333/month
+
+      const result = generateGrowthTable({
+        initialAssets,
+        riskAssets: initialAssets,
+        annualReturnRate: 0,
+        monthlyExpense,
+        currentAge: 60,
+        maxMonths: 1,
+        withdrawalRate,
+        includePension: false,
+      });
+
+      const month1 = result.table[1];
+      // Total assets after 1 month should be:
+      // start - expenses (we withdrew more but the excess stayed in cash)
+      // 100,000,000 - 100,000 = 99,900,000
+      expect(month1.assets).toBe(initialAssets - monthlyExpense);
+
+      // But the "reported" withdrawal for that month should be 4% rule target
+      const sim = generateAnnualSimulation({
+        initialAssets,
+        riskAssets: initialAssets,
+        annualReturnRate: 0,
+        monthlyExpense,
+        currentAge: 60,
+        withdrawalRate,
+        includePension: false,
+      });
+      // Monthly ~333,333 * 12. Since assets decrease slightly each month,
+      // the total will be slightly less than 4,000,000.
+      expect(sim[0].withdrawal).toBeGreaterThan(3900000);
+      expect(sim[0].withdrawal).toBeLessThan(4100000);
+    });
+
     it("handles tax with pension enabled", () => {
       const result = generateGrowthTable({
         initialAssets: 10000000,
@@ -872,8 +986,8 @@ describe("fire domain", () => {
     it("calculates withdrawal amount when expenses > income", () => {
       const result = generateAnnualSimulation({
         ...params,
-        initialAssets: 0,
-        riskAssets: 0,
+        initialAssets: 10000000,
+        riskAssets: 10000000,
         monthlyIncome: 100000,
         monthlyExpense: 200000,
         annualReturnRate: 0,
@@ -946,8 +1060,8 @@ describe("fire domain", () => {
     it("handles tax on withdrawal", () => {
       const result = generateAnnualSimulation({
         ...params,
-        initialAssets: 0,
-        riskAssets: 0,
+        initialAssets: 10000000,
+        riskAssets: 10000000,
         monthlyIncome: 0,
         monthlyExpense: 100000,
         includeTax: true,
