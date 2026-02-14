@@ -3,9 +3,7 @@ import { computed, ref, watchEffect } from "vue";
 import { usePortfolioData } from "@/composables/usePortfolioData";
 import { formatYen } from "@/domain/format";
 import {
-  calculateRiskAssets,
-  calculateExcludedOwnerAssets,
-  calculateCashAssets,
+  calculateFirePortfolio,
   estimateMonthlyExpenses,
   estimateIncomeSplit,
   simulateFire,
@@ -47,16 +45,14 @@ const iterations = ref(1000);
 const includeBonus = ref(true);
 
 // Data-derived parameters
-const excludedAssets = computed(() => (data.value ? calculateExcludedOwnerAssets(data.value, "daughter") : { totalAssetsYen: 0, riskAssetsYen: 0 }));
-const initialAssets = computed(() => {
-  const baseNetWorth = data.value?.totals?.netWorthYen ?? 0;
-  return Math.max(0, baseNetWorth - excludedAssets.value.totalAssetsYen);
-});
-const riskAssets = computed(() => {
-  const baseRiskAssets = data.value ? calculateRiskAssets(data.value) : 0;
-  return Math.max(0, baseRiskAssets - excludedAssets.value.riskAssetsYen);
-});
-const cashAssets = computed(() => (data.value ? calculateCashAssets(data.value) : 0));
+const firePortfolio = computed(() =>
+  data.value
+    ? calculateFirePortfolio(data.value)
+    : { totalAssetsYen: 0, riskAssetsYen: 0, cashAssetsYen: 0, liabilitiesYen: 0, netWorthYen: 0 },
+);
+const initialAssets = computed(() => firePortfolio.value.netWorthYen);
+const riskAssets = computed(() => firePortfolio.value.riskAssetsYen);
+const cashAssets = computed(() => firePortfolio.value.cashAssetsYen);
 const monthsOfCash = computed(() => (monthlyExpense.value > 0 ? cashAssets.value / monthlyExpense.value : 0));
 const expenseResult = computed(() =>
   data.value?.cashFlow
@@ -348,9 +344,9 @@ const estimatedMonthlyWithdrawal = computed(() => {
             <span v-if="includeTax">%</span>
           </div>
         </div>
-        <div class="filter-item">
+        <div class="filter-item amount-value">
           <label>FIRE後の社会保険料・税(月額)</label>
-          <input v-model.number="postFireExtraExpense" type="number" step="5000" class="is-public" />
+          <input v-model.number="postFireExtraExpense" type="number" step="5000" />
         </div>
       </div>
 
@@ -444,10 +440,10 @@ const estimatedMonthlyWithdrawal = computed(() => {
               <li>本シミュレーションでは、ご本人が{{ medianFireAge }}歳でFIREし、60歳から年金を繰上げ受給する以下のシナリオを想定しています。</li>
               <ul style="margin: 0; padding-left: 20px;">
                 <li>受給開始: 60歳（2039年〜）</li>
-                <li>世帯受給額（概算）: <strong>年額 {{ formatYen(medianPensionAnnual) }}</strong>（月額 {{ formatYen(Math.round(medianPensionAnnual / 12)) }}）</li>
+              <li>世帯受給額（概算）: <strong class="amount-value">年額 {{ formatYen(medianPensionAnnual) }}</strong>（<span class="amount-value">月額 {{ formatYen(Math.round(medianPensionAnnual / 12)) }}</span>）</li>
                 <li>算定根拠:
                   <ul style="margin: 0; padding-left: 20px;">
-                    <li>ねんきん特別便のデータ（累計納付額 約1,496万円）に基づき、現在までの加入実績を反映。</li>
+                  <li>ねんきん特別便のデータ（累計納付額 <span class="amount-value">約1,496万円</span>）に基づき、現在までの加入実績を反映。</li>
                     <li>20代前半の未納期間（4年間）による基礎年金の減額を反映。</li>
                     <li>{{ medianFireAge }}歳リタイア(シミュレーション結果による)に伴う厚生年金加入期間の停止を考慮。</li>
                     <li>60歳繰上げ受給による受給額24%減額を適用。</li>

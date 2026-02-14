@@ -88,6 +88,64 @@ export function calculateExcludedOwnerAssets(portfolio, excludedOwnerId = "daugh
 }
 
 /**
+ * Sum assets and liabilities for specific owners (Self and Spouse).
+ * This ensures strict isolation for FIRE simulation.
+ */
+export function calculateFirePortfolio(portfolio, includedOwnerIds = ["me", "wife"]) {
+  if (!portfolio?.holdings) {
+    return { totalAssetsYen: 0, riskAssetsYen: 0, cashAssetsYen: 0, liabilitiesYen: 0, netWorthYen: 0 };
+  }
+
+  const riskCategories = [
+    "株式（現物）",
+    "株式（信用）",
+    "投資信託",
+    "年金",
+    "先物・オプション",
+    "外貨預金",
+    "債券",
+  ];
+
+  const allAssetKeys = ["cashLike", "stocks", "funds", "pensions", "points"];
+
+  let totalAssetsYen = 0;
+  let riskAssetsYen = 0;
+
+  allAssetKeys.forEach((key) => {
+    const rows = Array.isArray(portfolio.holdings?.[key]) ? portfolio.holdings[key] : [];
+    rows.forEach((row) => {
+      const owner = detectAssetOwner(row);
+      if (!includedOwnerIds.includes(owner.id)) return;
+
+      const amount = assetAmountYen(row);
+      totalAssetsYen += amount;
+
+      const category = row.category || "";
+      if (riskCategories.includes(category)) {
+        riskAssetsYen += amount;
+      }
+    });
+  });
+
+  const liabRows = Array.isArray(portfolio.holdings?.liabilitiesDetail)
+    ? portfolio.holdings.liabilitiesDetail
+    : [];
+  const liabilitiesYen = liabRows.reduce((sum, row) => {
+    const owner = detectAssetOwner(row);
+    if (!includedOwnerIds.includes(owner.id)) return sum;
+    return sum + assetAmountYen(row);
+  }, 0);
+
+  return {
+    totalAssetsYen,
+    riskAssetsYen,
+    cashAssetsYen: totalAssetsYen - riskAssetsYen,
+    liabilitiesYen,
+    netWorthYen: totalAssetsYen - liabilitiesYen,
+  };
+}
+
+/**
  * Calculate cash assets (Total Assets - Risk Assets).
  */
 export function calculateCashAssets(portfolio) {

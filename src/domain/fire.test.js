@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   calculateRiskAssets,
   calculateExcludedOwnerAssets,
+  calculateFirePortfolio,
   calculateCashAssets,
   estimateMonthlyExpenses,
   estimateMonthlyIncome,
@@ -90,6 +91,72 @@ describe("fire domain", () => {
       });
     });
   });
+
+  describe("calculateFirePortfolio", () => {
+    const portfolio = {
+      holdings: {
+        cashLike: [
+          { category: "預金・現金", "名称・説明": "銀行A", 残高: "1000000" }, // me
+          { category: "預金・現金", "名称・説明": "銀行B@chipop", 残高: "500000" }, // wife
+          { category: "預金・現金", "名称・説明": "銀行C@aojiru.pudding", 残高: "200000" }, // daughter
+        ],
+        stocks: [
+          { category: "株式（現物）", 銘柄名: "株A", 評価額: "2000000" }, // me
+          { category: "株式（現物）", 銘柄名: "株B@aojiru.pudding", 評価額: "300000" }, // daughter
+        ],
+        liabilitiesDetail: [
+          { 種類: "住宅ローン", 残高: "10000000" }, // me
+          { 種類: "カード借入@aojiru.pudding", 残高: "5000" }, // daughter
+        ],
+      },
+    };
+
+    it("returns zeros for empty portfolio", () => {
+      expect(calculateFirePortfolio(null)).toEqual({
+        totalAssetsYen: 0,
+        riskAssetsYen: 0,
+        cashAssetsYen: 0,
+        liabilitiesYen: 0,
+        netWorthYen: 0,
+      });
+    });
+
+    it("aggregates assets and liabilities strictly for me and wife", () => {
+      const result = calculateFirePortfolio(portfolio);
+      // Assets: me(1M cash, 2M stock) + wife(0.5M cash) = 3.5M
+      // Risk: me(2M stock) = 2.0M
+      // Cash: 3.5M - 2.0M = 1.5M
+      // Liabilities: me(10M loan) = 10M
+      // Net Worth: 3.5M - 10M = -6.5M
+      expect(result.totalAssetsYen).toBe(3500000);
+      expect(result.riskAssetsYen).toBe(2000000);
+      expect(result.cashAssetsYen).toBe(1500000);
+      expect(result.liabilitiesYen).toBe(10000000);
+      expect(result.netWorthYen).toBe(-6500000);
+    });
+
+    it("supports custom owner list", () => {
+      const result = calculateFirePortfolio(portfolio, ["me"]);
+      expect(result.totalAssetsYen).toBe(3000000);
+      expect(result.liabilitiesYen).toBe(10000000);
+    });
+
+    it("handles missing categories and missing liability section", () => {
+      const partialPortfolio = {
+        holdings: {
+          cashLike: [
+            { "名称・説明": "不明な資産", 残高: "50000" } // me, no category
+          ]
+          // stocks and liabilitiesDetail missing
+        }
+      };
+      const result = calculateFirePortfolio(partialPortfolio);
+      expect(result.totalAssetsYen).toBe(50000);
+      expect(result.riskAssetsYen).toBe(0);
+      expect(result.liabilitiesYen).toBe(0);
+    });
+  });
+
   describe("calculateCashAssets", () => {
     it("returns 0 for empty portfolio", () => {
       expect(calculateCashAssets(null)).toBe(0);
