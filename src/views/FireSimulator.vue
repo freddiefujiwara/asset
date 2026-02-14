@@ -2,7 +2,7 @@
 import { computed, ref, watchEffect } from "vue";
 import { usePortfolioData } from "@/composables/usePortfolioData";
 import { formatYen } from "@/domain/format";
-import { detectAssetOwner, assetAmountYen } from "@/domain/family";
+import { detectAssetOwner, assetAmountYen, calculateAge, USER_BIRTH_DATE } from "@/domain/family";
 import CopyButton from "@/components/CopyButton.vue";
 import {
   calculateFirePortfolio,
@@ -13,6 +13,8 @@ import {
   estimateMortgageMonthlyPayment,
   calculateMonthlyPension,
   FIRE_ALGORITHM_CONSTANTS,
+  calculateDaughterAssetsBreakdown,
+  generateAlgorithmExplanationSegments,
 } from "@/domain/fire";
 import FireSimulationTable from "@/components/FireSimulationTable.vue";
 import FireSimulationChart from "@/components/FireSimulationChart.vue";
@@ -20,20 +22,9 @@ import FireSimulationChart from "@/components/FireSimulationChart.vue";
 const { data, loading, error } = usePortfolioData();
 
 // Input parameters
-const calculateInitialAge = () => {
-  const birthDate = new Date("1979-09-02");
-  const today = new Date();
-  let age = today.getFullYear() - birthDate.getFullYear();
-  const m = today.getMonth() - birthDate.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-    age--;
-  }
-  return age;
-};
-
 const monthlyInvestment = ref(423000);
 const annualReturnRate = ref(5);
-const currentAge = ref(calculateInitialAge());
+const currentAge = ref(calculateAge(USER_BIRTH_DATE));
 const includeInflation = ref(true);
 const inflationRate = ref(2);
 const includeTax = ref(false);
@@ -78,6 +69,25 @@ const useAutoBonus = ref(true);
 const mortgageMonthlyPayment = ref(0);
 const mortgagePayoffDate = ref("2042-07");
 
+const simulationParams = computed(() => ({
+  initialAssets: initialAssets.value,
+  riskAssets: riskAssets.value,
+  annualReturnRate: annualReturnRate.value / 100,
+  monthlyExpense: monthlyExpense.value,
+  monthlyIncome: monthlyIncome.value,
+  currentAge: currentAge.value,
+  includeInflation: includeInflation.value,
+  inflationRate: inflationRate.value / 100,
+  includeTax: includeTax.value,
+  taxRate: taxRate.value / 100,
+  withdrawalRate: withdrawalRate.value / 100,
+  mortgageMonthlyPayment: mortgageMonthlyPayment.value,
+  mortgagePayoffDate: mortgagePayoffDate.value || null,
+  postFireExtraExpense: postFireExtraExpense.value,
+  includePension: true,
+  monthlyInvestment: monthlyInvestment.value,
+}));
+
 const mortgageOptions = computed(() => {
   const options = [];
   const start = new Date();
@@ -116,48 +126,9 @@ watchEffect(() => {
   }
 });
 
-const growthData = computed(() => {
-  const params = {
-    initialAssets: initialAssets.value,
-    riskAssets: riskAssets.value,
-    annualReturnRate: annualReturnRate.value / 100,
-    monthlyExpense: monthlyExpense.value,
-    monthlyIncome: monthlyIncome.value,
-    currentAge: currentAge.value,
-    includeInflation: includeInflation.value,
-    inflationRate: inflationRate.value / 100,
-    includeTax: includeTax.value,
-    taxRate: taxRate.value / 100,
-    withdrawalRate: withdrawalRate.value / 100,
-    mortgageMonthlyPayment: mortgageMonthlyPayment.value,
-    mortgagePayoffDate: mortgagePayoffDate.value || null,
-    postFireExtraExpense: postFireExtraExpense.value,
-    includePension: true,
-    monthlyInvestment: monthlyInvestment.value,
-  };
-  return generateGrowthTable(params);
-});
+const growthData = computed(() => generateGrowthTable(simulationParams.value));
 
-const annualSimulationData = computed(() => {
-  return generateAnnualSimulation({
-    initialAssets: initialAssets.value,
-    riskAssets: riskAssets.value,
-    annualReturnRate: annualReturnRate.value / 100,
-    monthlyExpense: monthlyExpense.value,
-    monthlyIncome: monthlyIncome.value,
-    currentAge: currentAge.value,
-    includeInflation: includeInflation.value,
-    inflationRate: inflationRate.value / 100,
-    includeTax: includeTax.value,
-    taxRate: taxRate.value / 100,
-    withdrawalRate: withdrawalRate.value / 100,
-    mortgageMonthlyPayment: mortgageMonthlyPayment.value,
-    mortgagePayoffDate: mortgagePayoffDate.value || null,
-    postFireExtraExpense: postFireExtraExpense.value,
-    includePension: true,
-    monthlyInvestment: monthlyInvestment.value,
-  });
-});
+const annualSimulationData = computed(() => generateAnnualSimulation(simulationParams.value));
 
 const fireAchievementMonth = computed(() => growthData.value.fireReachedMonth);
 const fireAchievementAge = computed(() => Math.floor(currentAge.value + fireAchievementMonth.value / 12));
@@ -174,13 +145,7 @@ const requiredAssetsAtFire = computed(() => {
 const mortgagePayoffAge = computed(() => {
   if (!mortgagePayoffDate.value) return null;
   const payoff = new Date(mortgagePayoffDate.value + "-01");
-  const birthDate = new Date("1979-09-02");
-  let age = payoff.getFullYear() - birthDate.getFullYear();
-  const m = payoff.getMonth() - birthDate.getMonth();
-  if (m < 0 || (m === 0 && payoff.getDate() < birthDate.getDate())) {
-    age--;
-  }
-  return age;
+  return calculateAge(USER_BIRTH_DATE, payoff);
 });
 
 const chartAnnotations = computed(() => {
@@ -228,76 +193,22 @@ const copyText = async (text) => {
   document.body.removeChild(textArea);
 };
 
-const daughterAssetsDetail = computed(() => {
-  if (!data.value?.holdings) return "現金:¥0, 株式:¥0, 投資信託:¥0, 年金:¥0, ポイント:¥0, 負債:¥0";
+const daughterBreakdown = computed(() => calculateDaughterAssetsBreakdown(data.value));
 
-  const breakdown = {
-    cash: 0,
-    stocks: 0,
-    funds: 0,
-    pensions: 0,
-    points: 0,
-    liabilities: 0,
-  };
-
-  const map = {
-    cashLike: "cash",
-    stocks: "stocks",
-    funds: "funds",
-    pensions: "pensions",
-    points: "points",
-  };
-
-  Object.entries(map).forEach(([key, bKey]) => {
-    const rows = data.value.holdings[key] || [];
-    rows.forEach((row) => {
-      if (detectAssetOwner(row).id === "daughter") {
-        breakdown[bKey] += assetAmountYen(row);
-      }
-    });
+const algorithmExplanationSegments = computed(() => {
+  return generateAlgorithmExplanationSegments({
+    daughterBreakdown: daughterBreakdown.value,
+    fireAchievementAge: fireAchievementAge.value,
+    pensionAnnualAtFire: pensionAnnualAtFire.value,
+    withdrawalRatePct: withdrawalRate.value,
+    postFireExtraExpenseMonthly: postFireExtraExpense.value,
   });
-
-  const liabRows = data.value.holdings.liabilitiesDetail || [];
-  liabRows.forEach((row) => {
-    if (detectAssetOwner(row).id === "daughter") {
-      breakdown.liabilities += assetAmountYen(row);
-    }
-  });
-
-  return `現金:${formatYen(breakdown.cash)}, 株式:${formatYen(breakdown.stocks)}, 投資信託:${formatYen(breakdown.funds)}, 年金:${formatYen(breakdown.pensions)}, ポイント:${formatYen(breakdown.points)}, 負債:${formatYen(breakdown.liabilities)}`;
 });
 
 const algorithmExplanationFull = computed(() => {
-  return `本シミュレーションは、設定された期待リターン・インフレ率・年金・ローン等のキャッシュフローに基づき、100歳時点で資産が残る最短リタイア年齢を算出しています。
-・必要資産目安は「FIRE達成年齢で退職して100歳まで資産が尽きない最小条件」を満たす達成時点の金融資産額と同じ定義です。
-・娘名義の資産（${daughterAssetsDetail.value}）は初期資産から除外してシミュレーションしています。
-・投資優先順位ルール: 生活防衛資金として現金を維持するため、毎月の投資額は「前月までの貯金残高 + 当月の収支剰余金」を上限として自動調整されます（貯金がマイナスにならないよう制限されます）。
-・FIRE達成後は追加投資を停止し、定期収入（給与・ボーナス等）もゼロになると仮定しています。
-・FIRE達成後は、年間支出または資産の${withdrawalRate.value}%（設定値）のいずれか大きい額を引き出すと仮定しています。
-
-■ 年金受給の見込みについて
-本シミュレーションでは、ご本人が${fireAchievementAge.value}歳でFIREし、60歳から年金を繰上げ受給する以下のシナリオを想定しています。
-・受給開始: 60歳（2039年〜）
-・世帯受給額（概算）: 年額 ${formatYen(pensionAnnualAtFire.value)}（月額 ${formatYen(Math.round(pensionAnnualAtFire.value / 12))}）
-・算定根拠:
-  - ねんきん特別便のデータ（累計納付額 約1,496万円）に基づき、現在までの加入実績を反映。
-  - 20代前半の未納期間（4年間）による基礎年金の減額を反映。
-  - ${fireAchievementAge.value}歳リタイア(シミュレーション結果による)に伴う厚生年金加入期間の停止を考慮。
-  - 60歳繰上げ受給による受給額24%減額を適用。
-・配偶者加算: 奥様（1976年生）が65歳に達した時点から、奥様自身の基礎年金が世帯収入に加算されるものとして計算。
-
-住宅ローンの完済月以降は、月間支出からローン返済額を自動的に差し引いてシミュレーションを継続します。
-
-■ 各項目の算出定義
-・収入 (年金込): 定期収入（給与等） + 年金受給額の合算です。
-・支出: (基本生活費 - 住宅ローン) × インフレ調整 + 住宅ローン(固定) + FIRE後追加支出（FIRE達成月より加算）
-・運用益: 当年中の運用リターン合計。月次複利で計算されます。
-・取り崩し額: 生活費の不足分、または「資産 × 取崩率」のいずれか大きい額を引き出します（税金考慮時はグロスアップ）。
-・貯金額 (現金): 前年末残高 + 当年収支(収入 - 支出) - 当年投資額 + リスク資産からの補填（純額）
-・リスク資産額: 前年末残高 + 投資額 + 運用益 - 取崩額(グロス)
-
-FIRE後の追加支出（デフォルト${formatYen(60000)}）は、国民年金（夫婦2名分: 約3.5万円）、国民健康保険（均等割7割軽減想定: 約1.5万円）、固定資産税（月1万円）を合算した目安値です。
-※ 注意：リタイア1年目は前年の所得に基づき社会保険料・住民税が高額になる「1年目の罠」があるため、別途数十万円単位の予備費確保を推奨します。`;
+  return algorithmExplanationSegments.value
+    .map((seg) => seg.value)
+    .join("");
 });
 
 const buildConditionsAndAlgorithmJson = () => ({
@@ -557,42 +468,11 @@ const copyAnnualTable = () => JSON.stringify(buildAnnualTableJson(), null, 2);
       <div class="initial-summary" style="margin-top: 0; border-top: none;">
         <details>
           <summary>FIREアルゴリズムの詳細</summary>
-          <div class="algorithm-details" style="font-size: 0.8rem; color: var(--muted); margin-top: 10px; line-height: 1.6;">
-            <ul style="margin: 0; padding-left: 20px;">
-              <li>本シミュレーションは、設定された期待リターン・インフレ率・年金・ローン等のキャッシュフローに基づき、100歳時点で資産が残る最短リタイア年齢を算出しています。</li>
-              <li>必要資産目安は「FIRE達成年齢で退職して100歳まで資産が尽きない最小条件」を満たす達成時点の金融資産額と同じ定義です。</li>
-              <li>娘名義の資産（<span class="amount-value">{{ daughterAssetsDetail }}</span>）は初期資産から除外してシミュレーションしています。</li>
-              <li style="color: var(--primary); font-weight: bold;">投資優先順位ルール: 生活防衛資金として現金を維持するため、毎月の投資額は「前月までの貯金残高 + 当月の収支剰余金」を上限として自動調整されます（貯金がマイナスにならないよう制限されます）。</li>
-              <li>FIRE達成後は追加投資を停止し、定期収入（給与・ボーナス等）もゼロになると仮定しています。</li>
-              <li>FIRE達成後は、年間支出または資産の{{ withdrawalRate }}%（設定値）のいずれか大きい額を引き出すと仮定しています。</li>
-              <li style="margin-top: 8px; list-style: none; font-weight: bold; color: var(--text);">■ 年金受給の見込みについて</li>
-              <li>本シミュレーションでは、ご本人が{{ fireAchievementAge }}歳でFIREし、60歳から年金を繰上げ受給する以下のシナリオを想定しています。</li>
-              <ul style="margin: 0; padding-left: 20px;">
-                <li>受給開始: 60歳（2039年〜）</li>
-              <li>世帯受給額（概算）: <strong class="amount-value">年額 {{ formatYen(pensionAnnualAtFire) }}</strong>（<span class="amount-value">月額 {{ formatYen(Math.round(pensionAnnualAtFire / 12)) }}</span>）</li>
-                <li>算定根拠:
-                  <ul style="margin: 0; padding-left: 20px;">
-                  <li>ねんきん特別便のデータ（累計納付額 <span class="amount-value">約1,496万円</span>）に基づき、現在までの加入実績を反映。</li>
-                    <li>20代前半の未納期間（4年間）による基礎年金の減額を反映。</li>
-                    <li>{{ fireAchievementAge }}歳リタイア(シミュレーション結果による)に伴う厚生年金加入期間の停止を考慮。</li>
-                    <li>60歳繰上げ受給による受給額24%減額を適用。</li>
-                  </ul>
-                </li>
-                <li>配偶者加算: 奥様（1976年生）が65歳に達した時点から、奥様自身の基礎年金が世帯収入に加算されるものとして計算。</li>
-              </ul>
-              <li style="margin-top: 8px;">住宅ローンの完済月以降は、月間支出からローン返済額を自動的に差し引いてシミュレーションを継続します。</li>
-              <li style="margin-top: 8px; list-style: none; font-weight: bold; color: var(--text);">■ 各項目の算出定義</li>
-              <ul style="margin: 0; padding-left: 20px;">
-                <li><strong>収入 (年金込):</strong> 定期収入（給与等） + 年金受給額の合算です。</li>
-                <li><strong>支出:</strong> (基本生活費 - 住宅ローン) × インフレ調整 + 住宅ローン(固定) + FIRE後追加支出（FIRE達成月より加算）</li>
-                <li><strong>運用益:</strong> 当年中の運用リターン合計。月次複利で計算されます。</li>
-                <li><strong>取り崩し額:</strong> 生活費の不足分、または「資産 × 取崩率」のいずれか大きい額を引き出します（税金考慮時はグロスアップ）。</li>
-                <li><strong>貯金額 (現金):</strong> 前年末残高 + 当年収支(収入 - 支出) - 当年投資額 + リスク資産からの補填（純額）</li>
-                <li><strong>リスク資産額:</strong> 前年末残高 + 投資額 + 運用益 - 取崩額(グロス)</li>
-              </ul>
-              <li>FIRE後の追加支出（デフォルト<span class="amount-value">6万円</span>）は、国民年金（夫婦2名分: <span class="amount-value">約3.5万円</span>）、国民健康保険（均等割7割軽減想定: <span class="amount-value">約1.5万円</span>）、固定資産税（<span class="amount-value">月1万円</span>）を合算した目安値です。</li>
-              <li>※ 注意：リタイア1年目は前年の所得に基づき社会保険料・住民税が高額になる「1年目の罠」があるため、別途数十万円単位の予備費確保を推奨します。</li>
-            </ul>
+          <div class="algorithm-details" style="font-size: 0.8rem; color: var(--muted); margin-top: 10px; line-height: 1.6; white-space: pre-wrap;">
+            <template v-for="(seg, idx) in algorithmExplanationSegments" :key="idx">
+              <span v-if="seg.type === 'amount'" class="amount-value">{{ seg.value }}</span>
+              <span v-else>{{ seg.value }}</span>
+            </template>
           </div>
         </details>
       </div>

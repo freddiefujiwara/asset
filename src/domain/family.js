@@ -9,6 +9,24 @@ const OWNER_RULES = [
 
 const DEFAULT_OWNER = { id: "me", label: "私" };
 
+export const USER_BIRTH_DATE = "1979-09-02";
+
+/**
+ * Calculate age based on birth date string and a base date.
+ * @param {string} birthDateStr - ISO date string (YYYY-MM-DD)
+ * @param {Date} [baseDate=new Date()] - Date to calculate age at
+ * @returns {number}
+ */
+export function calculateAge(birthDateStr, baseDate = new Date()) {
+  const birthDate = new Date(birthDateStr);
+  let age = baseDate.getFullYear() - birthDate.getFullYear();
+  const m = baseDate.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && baseDate.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age;
+}
+
 const ASSET_FIELD_CANDIDATES = ["残高", "評価額", "現在価値", "現在の価値", "amount_yen", "金額"];
 
 function evaluationProfitYen(row) {

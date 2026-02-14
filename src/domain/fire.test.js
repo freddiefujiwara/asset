@@ -11,9 +11,89 @@ import {
   generateGrowthTable,
   generateAnnualSimulation,
   calculateMonthlyPension,
+  normalizeFireParams,
+  calculateDaughterAssetsBreakdown,
+  generateAlgorithmExplanationSegments,
+  performFireSimulation,
 } from "./fire";
 
 describe("fire domain", () => {
+  describe("normalizeFireParams", () => {
+    it("returns default values for empty input", () => {
+      const result = normalizeFireParams({});
+      expect(result.currentAge).toBe(40);
+      expect(result.maxMonths).toBe(1200);
+      expect(result.withdrawalRate).toBe(0.04);
+      expect(result.inflationRate).toBe(0.02);
+      expect(result.taxRate).toBe(0.20315);
+    });
+
+    it("handles null/undefined input safely", () => {
+      expect(normalizeFireParams(null).currentAge).toBe(40);
+      expect(normalizeFireParams(undefined).currentAge).toBe(40);
+    });
+
+    it("parses numeric strings", () => {
+      const result = normalizeFireParams({ currentAge: "45", initialAssets: "1000" });
+      expect(result.currentAge).toBe(45);
+      expect(result.initialAssets).toBe(1000);
+    });
+
+    it("respects provided falsey but non-null values", () => {
+      const result = normalizeFireParams({ currentAge: 0, initialAssets: 0 });
+      expect(result.currentAge).toBe(40); // 0 is treated as missing and falls back to 40
+      expect(result.initialAssets).toBe(0); // initialAssets uses ?? 0, so 0 is kept
+    });
+  });
+
+  describe("calculateDaughterAssetsBreakdown", () => {
+    it("returns zero breakdown for empty input", () => {
+      expect(calculateDaughterAssetsBreakdown(null)).toEqual({
+        cash: 0, stocks: 0, funds: 0, pensions: 0, points: 0, liabilities: 0
+      });
+    });
+
+    it("sums daughter assets specifically", () => {
+      const portfolio = {
+        holdings: {
+          cashLike: [{ "名称": "A@aojiru.pudding", "残高": 100 }, { "名称": "B", "残高": 1000 }],
+          stocks: [{ "名称": "C@aojiru.pudding", "評価額": 200 }],
+          funds: [{ "名称": "D@aojiru.pudding", "評価額": 300 }],
+          pensions: [{ "名称": "E@aojiru.pudding", "現在価値": 400 }],
+          points: [{ "名称": "F@aojiru.pudding", "残高": 50 }],
+          liabilitiesDetail: [{ "名称": "G@aojiru.pudding", "残高": 500 }],
+        }
+      };
+      const result = calculateDaughterAssetsBreakdown(portfolio);
+      expect(result).toEqual({
+        cash: 100, stocks: 200, funds: 300, pensions: 400, points: 50, liabilities: 500
+      });
+    });
+
+    it("handles missing categories in holdings", () => {
+      const portfolio = { holdings: {} };
+      expect(calculateDaughterAssetsBreakdown(portfolio)).toEqual({
+        cash: 0, stocks: 0, funds: 0, pensions: 0, points: 0, liabilities: 0
+      });
+    });
+  });
+
+  describe("generateAlgorithmExplanationSegments", () => {
+    it("generates expected segments", () => {
+      const params = {
+        daughterBreakdown: { cash: 100, stocks: 200, funds: 0, pensions: 0, points: 0, liabilities: 0 },
+        fireAchievementAge: 45,
+        pensionAnnualAtFire: 1200000,
+        withdrawalRatePct: 4,
+        postFireExtraExpenseMonthly: 60000,
+      };
+      const segments = generateAlgorithmExplanationSegments(params);
+      expect(segments).toBeInstanceOf(Array);
+      expect(segments.find(s => s.type === "amount" && s.value.includes("現金:¥100"))).toBeDefined();
+      expect(segments.find(s => s.value === "45")).toBeDefined();
+    });
+  });
+
   describe("calculateRiskAssets", () => {
     it("returns 0 for empty portfolio", () => {
       expect(calculateRiskAssets(null)).toBe(0);
@@ -653,6 +733,21 @@ describe("fire domain", () => {
     it("caps participation at age 60", () => {
       // FIRE at 65, but participation for pension calculation caps at 60
       expect(calculateMonthlyPension(60, 65)).toBe(calculateMonthlyPension(60, 60));
+    });
+  });
+
+  describe("performFireSimulation", () => {
+    it("runs simulation with forceFireMonth", () => {
+      const params = { initialAssets: 1000000, monthlyExpense: 10000 };
+      const res = performFireSimulation(params, { forceFireMonth: 12 });
+      expect(res.fireReachedMonth).toBe(12);
+    });
+
+    it("uses returnsArray if provided", () => {
+      const params = { initialAssets: 1000000, monthlyExpense: 10000, currentAge: 99 };
+      const returns = new Array(12).fill(0.1);
+      const res = performFireSimulation(params, { returnsArray: returns, recordMonthly: true });
+      expect(res.monthlyData[0].investmentGain).toBeCloseTo(0, 0); // No risk assets initially
     });
   });
 
