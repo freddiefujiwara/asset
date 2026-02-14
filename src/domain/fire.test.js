@@ -419,6 +419,26 @@ describe("fire domain", () => {
       expect(result.table[1].assets).toBe(initialAssets - 125000);
     });
 
+    it("increases requiredAssets and withdrawal when postFireExtraExpense is provided", () => {
+      const initialAssets = 200000000;
+      const monthlyExpense = 100000;
+      const postFireExtraExpense = 50000;
+      const result = generateGrowthTable({
+        ...params,
+        initialAssets,
+        monthlyExpense,
+        postFireExtraExpense,
+        annualReturnRate: 0,
+        withdrawalRate: 0,
+      });
+      // Post-FIRE withdrawal should be 100,000 + 50,000 = 150,000
+      expect(result.fireReachedMonth).toBe(0);
+      expect(result.table[1].assets).toBe(initialAssets - 150000);
+      // requiredAssets at m=0 for 40->100 age (720 months)
+      // should be (100k + 50k) * 720 = 108,000,000
+      expect(result.table[0].requiredAssets).toBe(108000000);
+    });
+
     it("sets assets to 0 if they go negative", () => {
       const result = generateGrowthTable({
         ...params,

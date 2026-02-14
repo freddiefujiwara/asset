@@ -286,6 +286,7 @@ function simulateTrial({
   withdrawalRate,
   mortgageMonthlyPayment,
   mortgagePayoffDate,
+  postFireExtraExpense,
 }) {
   let assets = initialAssets;
   const monthlyReturnMean = Math.pow(1 + annualReturnRate, 1 / 12) - 1;
@@ -307,8 +308,10 @@ function simulateTrial({
       mortgagePayoffDate,
     });
 
+    const extraWithInflation = postFireExtraExpense * Math.pow(1 + monthlyInflationRate, m);
+
     const requiredAssets = calculateRequiredAssets({
-      monthlyExpense: currentMonthlyExpense,
+      monthlyExpense: currentMonthlyExpense + extraWithInflation,
       monthlyReturn: monthlyReturnMean,
       monthlyInflation: monthlyInflationRate,
       remainingMonths,
@@ -367,6 +370,7 @@ export function simulateFire(params) {
     withdrawalRate = 0.04,
     mortgageMonthlyPayment = 0,
     mortgagePayoffDate = null,
+    postFireExtraExpense = 0,
   } = params;
 
   const riskAssetRatio = initialAssets > 0 ? riskAssets / initialAssets : 0;
@@ -390,6 +394,7 @@ export function simulateFire(params) {
         withdrawalRate,
         mortgageMonthlyPayment,
         mortgagePayoffDate,
+        postFireExtraExpense,
       }),
     );
   }
@@ -430,6 +435,7 @@ export function generateGrowthTable(params) {
     withdrawalRate = 0.04,
     mortgageMonthlyPayment = 0,
     mortgagePayoffDate = null,
+    postFireExtraExpense = 0,
   } = params;
 
   const riskAssetRatio = initialAssets > 0 ? riskAssets / initialAssets : 0;
@@ -455,8 +461,10 @@ export function generateGrowthTable(params) {
       mortgagePayoffDate,
     });
 
+    const extraWithInflation = postFireExtraExpense * Math.pow(1 + monthlyInflationRate, m);
+
     const requiredAssets = calculateRequiredAssets({
-      monthlyExpense: currentMonthlyExpense,
+      monthlyExpense: currentMonthlyExpense + extraWithInflation,
       monthlyReturn: monthlyReturnMean,
       monthlyInflation: monthlyInflationRate,
       remainingMonths,
@@ -489,7 +497,7 @@ export function generateGrowthTable(params) {
       // Once FIRE is reached, stop investment and perform withdrawal (annually / 12)
       // or withdraw monthly expense, whichever is higher to ensure living.
       currentIncome = 0;
-      let grossExpense = currentMonthlyExpense;
+      let grossExpense = currentMonthlyExpense + extraWithInflation;
       if (includeTax) {
         grossExpense /= 1 - taxRate;
       }

@@ -35,6 +35,7 @@ const includeInflation = ref(false);
 const inflationRate = ref(2);
 const includeTax = ref(false);
 const taxRate = ref(20.315);
+const postFireExtraExpense = ref(50000);
 const withdrawalRate = ref(4);
 const iterations = ref(1000);
 const includeBonus = ref(true);
@@ -118,6 +119,7 @@ const simResult = computed(() => {
     withdrawalRate: withdrawalRate.value / 100,
     mortgageMonthlyPayment: mortgageMonthlyPayment.value,
     mortgagePayoffDate: mortgagePayoffDate.value || null,
+    postFireExtraExpense: postFireExtraExpense.value,
     iterations: iterations.value,
   });
 });
@@ -137,6 +139,7 @@ const growthData = computed(() => {
     withdrawalRate: withdrawalRate.value / 100,
     mortgageMonthlyPayment: mortgageMonthlyPayment.value,
     mortgagePayoffDate: mortgagePayoffDate.value || null,
+    postFireExtraExpense: postFireExtraExpense.value,
   });
 });
 
@@ -163,9 +166,10 @@ const achievementProbability = computed(() => {
 });
 
 const estimatedMonthlyWithdrawal = computed(() => {
+  const basePlusExtra = monthlyExpense.value + postFireExtraExpense.value;
   const grossExpense = includeTax.value
-    ? monthlyExpense.value / (1 - taxRate.value / 100)
-    : monthlyExpense.value;
+    ? basePlusExtra / (1 - taxRate.value / 100)
+    : basePlusExtra;
 
   const initialRequiredAssets = Math.round(growthData.value.table[0]?.requiredAssets ?? 0);
   const withdrawalFromRate = (initialRequiredAssets * (withdrawalRate.value / 100)) / 12;
@@ -293,6 +297,10 @@ const estimatedMonthlyWithdrawal = computed(() => {
             <span v-if="includeTax">%</span>
           </div>
         </div>
+        <div class="filter-item">
+          <label>FIRE後の社会保険料・税(月額)</label>
+          <input v-model.number="postFireExtraExpense" type="number" step="5000" class="is-public" />
+        </div>
       </div>
 
       <div class="initial-summary">
@@ -356,6 +364,10 @@ const estimatedMonthlyWithdrawal = computed(() => {
             <div v-if="includeTax">
               <span class="meta">税率:</span>
               <span style="margin-left: 8px;">{{ taxRate }}%</span>
+            </div>
+            <div>
+              <span class="meta">FIRE後追加支出:</span>
+              <span class="amount-value" style="margin-left: 8px;">{{ formatYen(postFireExtraExpense) }}</span>
             </div>
           </div>
         </details>
