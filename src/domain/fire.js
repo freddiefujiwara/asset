@@ -123,6 +123,8 @@ export function estimateIncomeSplit(cashFlow) {
 
   let totalRegularIncome = 0;
   let totalBonusIncome = 0;
+  const regularBreakdownMap = {};
+  const bonusBreakdownMap = {};
 
   cashFlow.forEach((item) => {
     if (item.isTransfer || item.amount <= 0) return;
@@ -130,21 +132,39 @@ export function estimateIncomeSplit(cashFlow) {
     const month = item.date?.substring(0, 7) || "";
     if (!monthSet.has(month)) return;
 
-    const category = item.category || "";
+    const category = item.category || "未分類";
     if (category === "収入/給与") {
       totalRegularIncome += item.amount;
+      regularBreakdownMap[category] = (regularBreakdownMap[category] || 0) + item.amount;
     } else if (category.startsWith("収入/")) {
       totalBonusIncome += item.amount;
+      bonusBreakdownMap[category] = (bonusBreakdownMap[category] || 0) + item.amount;
     }
   });
-
   const regularMonthly = Math.round(totalRegularIncome / divisor);
-  const bonusAnnual = Math.round(totalBonusIncome * (12 / divisor) * 1.5);
+  const bonusAnnual = Math.round(totalBonusIncome * (12 / divisor));
+
+  const regularBreakdown = Object.entries(regularBreakdownMap)
+    .map(([name, total]) => ({
+      name,
+      amount: Math.round(total / divisor),
+    }))
+    .sort((a, b) => b.amount - a.amount);
+
+  const bonusBreakdown = Object.entries(bonusBreakdownMap)
+    .map(([name, total]) => ({
+      name,
+      amount: Math.round(total * (12 / divisor)),
+    }))
+    .sort((a, b) => b.amount - a.amount);
 
   return {
     regularMonthly,
     bonusAnnual,
     monthlyTotal: regularMonthly + bonusAnnual / 12,
+    regularBreakdown,
+    bonusBreakdown,
+    monthCount: divisor,
   };
 }
 
