@@ -1,4 +1,5 @@
 import { getUniqueMonths } from "./cashFlow";
+import { assetAmountYen, detectAssetOwner } from "./family";
 
 /**
  * Identify risk assets and sum their values.
@@ -17,6 +18,37 @@ export function calculateRiskAssets(portfolio) {
   return portfolio.summary.assetsByClass
     .filter((item) => riskCategories.includes(item.name))
     .reduce((sum, item) => sum + item.amountYen, 0);
+}
+
+/**
+ * Sum excluded owner's assets from detailed holdings.
+ * Used for FIRE simulation where specific family member assets should be omitted.
+ */
+export function calculateExcludedOwnerAssets(portfolio, excludedOwnerId = "daughter") {
+  if (!portfolio?.holdings) {
+    return { totalAssetsYen: 0, riskAssetsYen: 0 };
+  }
+
+  const allAssetKeys = ["cashLike", "stocks", "funds", "pensions", "points"];
+  const riskAssetKeys = ["stocks", "funds", "pensions"];
+
+  const sumByKeys = (keys) => keys.reduce((sum, key) => {
+    const rows = Array.isArray(portfolio.holdings?.[key]) ? portfolio.holdings[key] : [];
+    const sectionTotal = rows.reduce((sectionSum, row) => {
+      const owner = detectAssetOwner(row);
+      if (owner.id !== excludedOwnerId) {
+        return sectionSum;
+      }
+      return sectionSum + assetAmountYen(row);
+    }, 0);
+
+    return sum + sectionTotal;
+  }, 0);
+
+  return {
+    totalAssetsYen: sumByKeys(allAssetKeys),
+    riskAssetsYen: sumByKeys(riskAssetKeys),
+  };
 }
 
 /**

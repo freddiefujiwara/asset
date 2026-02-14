@@ -4,6 +4,7 @@ import { usePortfolioData } from "@/composables/usePortfolioData";
 import { formatYen } from "@/domain/format";
 import {
   calculateRiskAssets,
+  calculateExcludedOwnerAssets,
   calculateCashAssets,
   estimateMonthlyExpenses,
   estimateIncomeSplit,
@@ -42,8 +43,15 @@ const iterations = ref(1000);
 const includeBonus = ref(true);
 
 // Data-derived parameters
-const initialAssets = computed(() => data.value?.totals?.netWorthYen ?? 0);
-const riskAssets = computed(() => (data.value ? calculateRiskAssets(data.value) : 0));
+const excludedAssets = computed(() => (data.value ? calculateExcludedOwnerAssets(data.value, "daughter") : { totalAssetsYen: 0, riskAssetsYen: 0 }));
+const initialAssets = computed(() => {
+  const baseNetWorth = data.value?.totals?.netWorthYen ?? 0;
+  return Math.max(0, baseNetWorth - excludedAssets.value.totalAssetsYen);
+});
+const riskAssets = computed(() => {
+  const baseRiskAssets = data.value ? calculateRiskAssets(data.value) : 0;
+  return Math.max(0, baseRiskAssets - excludedAssets.value.riskAssetsYen);
+});
 const cashAssets = computed(() => (data.value ? calculateCashAssets(data.value) : 0));
 const monthsOfCash = computed(() => (monthlyExpense.value > 0 ? cashAssets.value / monthlyExpense.value : 0));
 const expenseResult = computed(() =>
@@ -68,6 +76,7 @@ const useAutoExpense = ref(true);
 const manualRegularMonthlyIncome = ref(0);
 const manualAnnualBonus = ref(0);
 const useAutoIncome = ref(true);
+const useAutoBonus = ref(true);
 const mortgageMonthlyPayment = ref(0);
 const mortgagePayoffDate = ref("2042-07");
 
@@ -87,8 +96,10 @@ const monthlyExpense = computed(() => (useAutoExpense.value ? autoMonthlyExpense
 const regularMonthlyIncome = computed(() =>
   useAutoIncome.value ? autoRegularMonthlyIncome.value : manualRegularMonthlyIncome.value,
 );
-const annualBonus = computed(() => (useAutoIncome.value ? autoAnnualBonus.value : manualAnnualBonus.value));
-const monthlyIncome = computed(() => regularMonthlyIncome.value + (includeBonus.value ? annualBonus.value / 12 : 0));
+const annualBonus = computed(() =>
+  includeBonus.value ? (useAutoBonus.value ? autoAnnualBonus.value : manualAnnualBonus.value) : 0,
+);
+const monthlyIncome = computed(() => regularMonthlyIncome.value + annualBonus.value / 12);
 const annualInvestment = computed(() => monthlyInvestment.value * 12);
 const annualSavings = computed(() => Math.max(0, (monthlyIncome.value - monthlyExpense.value - monthlyInvestment.value) * 12));
 
@@ -98,6 +109,8 @@ watchEffect(() => {
   }
   if (useAutoIncome.value) {
     manualRegularMonthlyIncome.value = autoRegularMonthlyIncome.value;
+  }
+  if (useAutoBonus.value) {
     manualAnnualBonus.value = autoAnnualBonus.value;
   }
   if (autoMortgageMonthlyPayment.value > 0 && mortgageMonthlyPayment.value === 0) {
@@ -255,12 +268,17 @@ const estimatedMonthlyWithdrawal = computed(() => {
         <div class="filter-item expense-item">
           <div class="label-row">
             <label>ボーナス (年額)</label>
-            <label class="auto-toggle">
-              <input type="checkbox" v-model="includeBonus" /> ボーナスを考慮
-            </label>
+            <div class="toggle-group">
+              <label class="auto-toggle">
+                <input type="checkbox" v-model="useAutoBonus" /> 自動算出
+              </label>
+              <label class="auto-toggle">
+                <input type="checkbox" v-model="includeBonus" /> ボーナスを考慮
+              </label>
+            </div>
           </div>
-          <input v-model.number="manualAnnualBonus" type="number" step="10000" :disabled="useAutoIncome || !includeBonus" />
-          <div v-if="useAutoIncome && autoIncomeSplit.monthCount > 0" class="expense-breakdown">
+          <input v-model.number="manualAnnualBonus" type="number" step="10000" :disabled="useAutoBonus || !includeBonus" />
+          <div v-if="useAutoBonus && autoIncomeSplit.monthCount > 0" class="expense-breakdown">
             <details>
               <summary>算出内訳 ({{ autoIncomeSplit.monthCount }}ヶ月平均)</summary>
               <div class="breakdown-content">
@@ -389,6 +407,7 @@ const estimatedMonthlyWithdrawal = computed(() => {
               <li>{{ iterations }}回試行のモンテカルロ・シミュレーションにより達成時期の分布を算出しています。</li>
               <li>100歳寿命までの必要資産額を、将来の支出額から現在価値（PV）に割り戻して算出しています。</li>
               <li>リスク資産の運用益は正規乱数（期待リターンと標準偏差）を用いて再現しており、不確実性を考慮しています。</li>
+              <li>娘名義の資産（現金・株式・投資信託・年金・ポイント）は初期資産から除外してシミュレーションしています。</li>
               <li>FIRE達成後は追加投資を停止し、定期収入（給与・ボーナス等）もゼロになると仮定しています。</li>
               <li>FIRE達成後は、年間支出または資産の{{ withdrawalRate }}%（設定値）のいずれか大きい額を引き出すと仮定しています。</li>
               <li>住宅ローンの完済月以降は、月間支出からローン返済額を自動的に差し引いてシミュレーションを継続します。</li>
@@ -464,6 +483,11 @@ const estimatedMonthlyWithdrawal = computed(() => {
 .label-row {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+}
+.toggle-group {
+  display: flex;
+  gap: 8px;
   align-items: center;
 }
 .auto-toggle {

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   calculateRiskAssets,
+  calculateExcludedOwnerAssets,
   calculateCashAssets,
   estimateMonthlyExpenses,
   estimateMonthlyIncome,
@@ -35,6 +36,58 @@ describe("fire domain", () => {
     });
   });
 
+  describe("calculateExcludedOwnerAssets", () => {
+    it("returns 0 when holdings are missing", () => {
+      expect(calculateExcludedOwnerAssets(null)).toEqual({ totalAssetsYen: 0, riskAssetsYen: 0 });
+      expect(calculateExcludedOwnerAssets({})).toEqual({ totalAssetsYen: 0, riskAssetsYen: 0 });
+    });
+
+    it("sums only daughter assets and risk assets", () => {
+      const portfolio = {
+        holdings: {
+          cashLike: [
+            { "名称・説明": "普通預金@aojiru.pudding", "残高": "100000" },
+            { "名称・説明": "普通預金", "残高": "300000" },
+          ],
+          stocks: [
+            { "名称・説明": "株A@aojiru.pudding", "現在価値": "200000" },
+            { "名称・説明": "株B", "現在価値": "500000" },
+          ],
+          funds: [
+            { "名称・説明": "投信@aojiru.pudding", "評価額": "300000" },
+          ],
+          pensions: [
+            { "名称・説明": "年金@aojiru.pudding", "現在価値": "400000" },
+          ],
+          points: [
+            { "名称・説明": "ポイント@aojiru.pudding", "残高": "5000" },
+          ],
+        },
+      };
+
+      expect(calculateExcludedOwnerAssets(portfolio, "daughter")).toEqual({
+        totalAssetsYen: 1005000,
+        riskAssetsYen: 900000,
+      });
+    });
+
+    it("handles non-array holdings entries", () => {
+      const portfolio = {
+        holdings: {
+          cashLike: { "名称・説明": "普通預金@aojiru.pudding", "残高": "100000" },
+          stocks: null,
+          funds: undefined,
+          pensions: "invalid",
+          points: 123,
+        },
+      };
+
+      expect(calculateExcludedOwnerAssets(portfolio, "daughter")).toEqual({
+        totalAssetsYen: 0,
+        riskAssetsYen: 0,
+      });
+    });
+  });
   describe("calculateCashAssets", () => {
     it("returns 0 for empty portfolio", () => {
       expect(calculateCashAssets(null)).toBe(0);
