@@ -472,6 +472,12 @@ td {
   border-color: #333 !important;
 }
 
+:root[data-private="on"] .privacy-mask {
+  background-color: #000 !important;
+  color: #000 !important;
+  border-radius: 2px;
+}
+
 
 .section-jump {
   display: flex;
