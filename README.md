@@ -36,7 +36,7 @@ This integrated page provides a comprehensive view of your financial status:
 - **Balance Sheet Diagram**: Visual contrast between total assets, liabilities, and net worth.
 - **Asset Breakdown Charts**: Pie charts for asset and liability distribution.
 - **Detailed Asset Lists**: Sortable tables for Cash, Stocks (with treemap), Investment Trusts, Pensions, and Points.
-- **Liability Details**: Summary and detailed tables for all liabilities.
+- **Liability Details**: Detailed tables for all liabilities.
 
 You can also:
 

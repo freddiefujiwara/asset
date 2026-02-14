@@ -286,27 +286,6 @@ const liabilityPie = computed(() =>
       <p class="back-top-wrap"><a href="#balance-sheet-top">↑ トップへ戻る</a></p>
     </section>
 
-    <section class="table-wrap" id="liability-summary">
-      <h3 class="section-title">負債内訳</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>分類</th>
-            <th>金額</th>
-            <th>割合 (%)</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="item in liabilitiesByCategory" :key="item.category">
-            <td>{{ item.category }}</td>
-            <td><span class="amount-value is-negative">-{{ formatYen(item.amountYen) }}</span></td>
-            <td>{{ item.percentage }}</td>
-          </tr>
-        </tbody>
-      </table>
-      <p class="back-top-wrap"><a href="#balance-sheet-top">↑ トップへ戻る</a></p>
-    </section>
-
     <section v-for="config in configs.filter(c => c.isLiability)" :id="`section-${config.key}`" :key="config.key" class="section-block">
       <HoldingTable
         :title="config.title"
