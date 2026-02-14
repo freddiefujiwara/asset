@@ -37,6 +37,7 @@ const includeTax = ref(false);
 const taxRate = ref(20.315);
 const withdrawalRate = ref(4);
 const iterations = ref(1000);
+const includeBonus = ref(true);
 
 // Data-derived parameters
 const initialAssets = computed(() => data.value?.totals?.netWorthYen ?? 0);
@@ -83,7 +84,7 @@ const regularMonthlyIncome = computed(() =>
   useAutoIncome.value ? autoRegularMonthlyIncome.value : manualRegularMonthlyIncome.value,
 );
 const annualBonus = computed(() => (useAutoIncome.value ? autoAnnualBonus.value : manualAnnualBonus.value));
-const monthlyIncome = computed(() => regularMonthlyIncome.value + annualBonus.value / 12);
+const monthlyIncome = computed(() => regularMonthlyIncome.value + (includeBonus.value ? annualBonus.value / 12 : 0));
 
 watchEffect(() => {
   if (autoMonthlyExpense.value && useAutoExpense.value) {
@@ -234,8 +235,13 @@ const achievementProbability = computed(() => {
           </div>
         </div>
         <div class="filter-item expense-item">
-          <label>ボーナス (年額)</label>
-          <input v-model.number="manualAnnualBonus" type="number" step="10000" :disabled="useAutoIncome" />
+          <div class="label-row">
+            <label>ボーナス (年額)</label>
+            <label class="auto-toggle">
+              <input type="checkbox" v-model="includeBonus" /> ボーナスを考慮
+            </label>
+          </div>
+          <input v-model.number="manualAnnualBonus" type="number" step="10000" :disabled="useAutoIncome || !includeBonus" />
           <div v-if="useAutoIncome && autoIncomeSplit.monthCount > 0" class="expense-breakdown">
             <details>
               <summary>算出内訳 ({{ autoIncomeSplit.monthCount }}ヶ月平均)</summary>
@@ -348,6 +354,10 @@ const achievementProbability = computed(() => {
               <li>FIRE達成後は、年間支出または資産の{{ withdrawalRate }}%（設定値）のいずれか大きい額を引き出すと仮定しています。</li>
               <li>住宅ローンの完済月以降は、月間支出からローン返済額を自動的に差し引いてシミュレーションを継続します。</li>
               <li>達成時期の90%信頼区間: {{ formatMonths(stats.p5) }} 〜 {{ formatMonths(stats.p95) }} (不確実性を考慮した予測)</li>
+              <li>100歳までの達成率: <span :class="achievementProbability > 80 ? 'is-positive' : 'is-negative' " style="font-weight: bold;">{{ achievementProbability.toFixed(1) }}%</span> ({{ iterations }}回の試行結果に基づく)</li>
+              <li style="margin-top: 8px; list-style: none; font-weight: bold; color: var(--text);">【達成期間の算出根拠について】</li>
+              <li>大きな資産不足があっても短期間でFIRE達成と判定されるのは、現在の高い貯蓄ペース（投資額）と期待リターンによる複利効果を将来にわたって投影しているためです。</li>
+              <li>シミュレーションでは、毎月の投資額が運用され続け、資産成長が必要資産額（将来支出の現在価値合計）を上回るタイミングを「達成」と定義しています。</li>
             </ul>
           </div>
         </details>
@@ -367,15 +377,13 @@ const achievementProbability = computed(() => {
       </article>
       <article class="card">
         <h2>FIRE達成に必要な資産</h2>
-        <p class="is-positive">{{ formatYen(Math.round(growthData.table[0]?.requiredAssets ?? 0)) }}</p>
-        <p class="meta">あと {{ formatYen(Math.max(0, Math.round(growthData.table[0]?.requiredAssets ?? 0) - initialAssets)) }} 不足</p>
+        <p class="is-positive amount-value">{{ formatYen(Math.round(growthData.table[0]?.requiredAssets ?? 0)) }}</p>
+        <p class="meta">あと <span class="amount-value">{{ formatYen(Math.max(0, Math.round(growthData.table[0]?.requiredAssets ?? 0) - initialAssets)) }}</span> 不足</p>
       </article>
       <article class="card">
-        <h2>100歳までの達成率</h2>
-        <p :class="achievementProbability > 80 ? 'is-positive' : 'is-negative'">
-          {{ achievementProbability.toFixed(1) }}%
-        </p>
-        <p class="meta">{{ iterations }}回の試行結果</p>
+        <h2>月額の予定支出額</h2>
+        <p>{{ formatYen(monthlyExpense) }}</p>
+        <p class="meta">{{ useAutoExpense ? '過去5ヶ月の平均実績に基づく' : 'ユーザーによる手入力設定' }}</p>
       </article>
     </div>
 
