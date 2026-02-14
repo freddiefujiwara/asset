@@ -8,7 +8,6 @@ import {
   estimateMonthlyIncome,
   estimateIncomeSplit,
   estimateMortgageMonthlyPayment,
-  simulateFire,
   generateGrowthTable,
   generateAnnualSimulation,
   calculateMonthlyPension,
@@ -373,136 +372,6 @@ describe("fire domain", () => {
         { date: null, amount: -100, isTransfer: false, category: "住宅/ローン返済" }, // missing date
       ];
       expect(estimateMortgageMonthlyPayment(cashFlow)).toBe(0);
-    });
-  });
-
-  describe("simulateFire", () => {
-    const params = {
-      initialAssets: 10000000,
-      riskAssets: 5000000,
-      monthlyInvestment: 100000,
-      annualReturnRate: 0.05,
-      annualStandardDeviation: 0.1,
-      monthlyExpense: 200000,
-      iterations: 10,
-    };
-
-    it("runs Monte Carlo simulation and returns stats", () => {
-      const result = simulateFire(params);
-      expect(result.trials).toHaveLength(10);
-      expect(result.stats.median).toBeDefined();
-      expect(result.stats.mean).toBeDefined();
-      expect(result.stats.p5).toBeDefined();
-      expect(result.stats.p95).toBeDefined();
-    });
-
-    it("uses default iterations and maxMonths in simulateFire", () => {
-      const result = simulateFire({
-        ...params,
-        iterations: undefined,
-        maxMonths: undefined,
-        initialAssets: 0,
-        riskAssets: 0,
-        monthlyIncome: 0,
-        monthlyExpense: 1000000,
-        currentAge: 0, // Set age to 0 to allow maxMonths of 1200
-      });
-      expect(result.trials).toHaveLength(1000);
-      expect(result.trials[0]).toBe(1200);
-    });
-
-    it("uses explicit maxMonths in simulateFire when no FIRE", () => {
-      const result = simulateFire({
-        ...params,
-        maxMonths: 500,
-        initialAssets: 0,
-        riskAssets: 0,
-        monthlyIncome: 0,
-        monthlyExpense: 1000000,
-        currentAge: 0,
-      });
-      expect(result.trials[0]).toBe(500);
-    });
-
-    it("handles 0 initial assets", () => {
-      const result = simulateFire({ ...params, initialAssets: 0, riskAssets: 0 });
-      expect(result.stats.median).toBeGreaterThan(0);
-    });
-
-    it("returns 0 months if already reached FIRE", () => {
-      const result = simulateFire({
-        ...params,
-        initialAssets: 100000000, // 100M yen
-        monthlyExpense: 100000, // 1.2M/year
-      });
-      expect(result.stats.median).toBe(0);
-    });
-
-    it("handles inflation and tax options", () => {
-      const result = simulateFire({
-        ...params,
-        includeInflation: true,
-        inflationRate: 0.03,
-        includeTax: true,
-        taxRate: 0.2,
-      });
-      expect(result.stats.median).toBeDefined();
-    });
-
-    it("returns maxMonths if assets go below 0", () => {
-      const result = simulateFire({
-        ...params,
-        initialAssets: 1000,
-        monthlyInvestment: 0,
-        monthlyExpense: 1000000,
-        maxMonths: 10,
-      });
-      expect(result.stats.median).toBe(10);
-    });
-
-    it("returns maxMonths if loop finishes without reaching target but stays positive", () => {
-      const result = simulateFire({
-        ...params,
-        initialAssets: 1000,
-        monthlyInvestment: 0,
-        monthlyExpense: 10, // Small expense so assets stay positive but below required
-        annualReturnRate: 0,
-        annualStandardDeviation: 0,
-        maxMonths: 5,
-        iterations: 1
-      });
-      // Required assets for 100-40=60 years will be much more than 1000
-      expect(result.stats.median).toBe(5);
-    });
-
-    it("supports monthly income before FIRE", () => {
-      const resultWithoutIncome = simulateFire({
-        ...params,
-        initialAssets: 0,
-        riskAssets: 0,
-        monthlyInvestment: 0,
-        monthlyIncome: 0,
-        monthlyExpense: 100000,
-        annualReturnRate: 0,
-        annualStandardDeviation: 0,
-        iterations: 1,
-        maxMonths: 12,
-      });
-
-      const resultWithIncome = simulateFire({
-        ...params,
-        initialAssets: 0,
-        riskAssets: 0,
-        monthlyInvestment: 0,
-        monthlyIncome: 500000,
-        monthlyExpense: 100000,
-        annualReturnRate: 0,
-        annualStandardDeviation: 0,
-        iterations: 1,
-        maxMonths: 12,
-      });
-
-      expect(resultWithIncome.stats.median).toBeLessThanOrEqual(resultWithoutIncome.stats.median);
     });
   });
 
@@ -904,20 +773,6 @@ describe("fire domain", () => {
         taxRate: 0.2,
       });
       expect(result.table[0].requiredAssets).toBeGreaterThan(0);
-    });
-
-    it("works in simulateFire with pension enabled", () => {
-      const result = simulateFire({
-        initialAssets: 1000000,
-        riskAssets: 0,
-        annualReturnRate: 0.05,
-        annualStandardDeviation: 0.1,
-        monthlyExpense: 200000,
-        currentAge: 50,
-        iterations: 1,
-        includePension: true,
-      });
-      expect(result.stats.median).toBeDefined();
     });
   });
 

@@ -181,9 +181,9 @@ const hideTooltip = () => {
           <path :d="assetPath" fill="none" stroke="#3b82f6" stroke-width="3" />
 
           <!-- Annotations (Vertical Lines) -->
-          <g v-for="ann in annotationPoints" :key="ann.label + ann.age">
+          <g v-for="(ann, i) in annotationPoints" :key="ann.label + ann.age">
             <line :x1="ann.x" y1="0" :x2="ann.x" :y2="innerHeight" stroke="#8b5cf6" stroke-dasharray="4" stroke-width="1.5" />
-            <text :x="ann.x" y="-10" text-anchor="middle" font-size="10" fill="#8b5cf6" font-weight="bold">
+            <text :x="ann.x" :y="-8 - (i % 3) * 12" text-anchor="middle" font-size="10" fill="#8b5cf6" font-weight="bold">
               {{ ann.label }}
             </text>
             <line :x1="ann.x" y1="0" :x2="ann.x" :y2="innerHeight" stroke="transparent" stroke-width="10" style="cursor: help;"
