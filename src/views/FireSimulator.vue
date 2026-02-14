@@ -443,10 +443,10 @@ const estimatedMonthlyWithdrawal = computed(() => {
               <li>本シミュレーションでは、ご本人が{{ medianFireAge }}歳でFIREし、60歳から年金を繰上げ受給する以下のシナリオを想定しています。</li>
               <ul style="margin: 0; padding-left: 20px;">
                 <li>受給開始: 60歳（2039年〜）</li>
-              <li>世帯受給額（概算）: <strong class="privacy-mask">年額 {{ formatYen(medianPensionAnnual) }}</strong>（<span class="privacy-mask">月額 {{ formatYen(Math.round(medianPensionAnnual / 12)) }}</span>）</li>
+              <li>世帯受給額（概算）: <strong class="amount-value">年額 {{ formatYen(medianPensionAnnual) }}</strong>（<span class="amount-value">月額 {{ formatYen(Math.round(medianPensionAnnual / 12)) }}</span>）</li>
                 <li>算定根拠:
                   <ul style="margin: 0; padding-left: 20px;">
-                  <li>ねんきん特別便のデータ（累計納付額 <span class="privacy-mask">約1,496万円</span>）に基づき、現在までの加入実績を反映。</li>
+                  <li>ねんきん特別便のデータ（累計納付額 <span class="amount-value">約1,496万円</span>）に基づき、現在までの加入実績を反映。</li>
                     <li>20代前半の未納期間（4年間）による基礎年金の減額を反映。</li>
                     <li>{{ medianFireAge }}歳リタイア(シミュレーション結果による)に伴う厚生年金加入期間の停止を考慮。</li>
                     <li>60歳繰上げ受給による受給額24%減額を適用。</li>
@@ -457,7 +457,7 @@ const estimatedMonthlyWithdrawal = computed(() => {
               <li style="margin-top: 8px;">住宅ローンの完済月以降は、月間支出からローン返済額を自動的に差し引いてシミュレーションを継続します。</li>
               <li>達成時期の90%信頼区間: {{ formatMonths(stats.p5) }} 〜 {{ formatMonths(stats.p95) }} (不確実性を考慮した予測)</li>
               <li>100歳までの達成率: <span :class="achievementProbability > 80 ? 'is-positive' : 'is-negative' " style="font-weight: bold;">{{ achievementProbability.toFixed(1) }}%</span> ({{ iterations }}回の試行結果に基づく)</li>
-              <li>FIRE後の追加支出（デフォルト<span class="privacy-mask">6万円</span>）は、国民年金（夫婦2名分: <span class="privacy-mask">約3.5万円</span>）、国民健康保険（均等割7割軽減想定: <span class="privacy-mask">約1.5万円</span>）、固定資産税（<span class="privacy-mask">月1万円</span>）を合算した目安値です。</li>
+              <li>FIRE後の追加支出（デフォルト<span class="amount-value">6万円</span>）は、国民年金（夫婦2名分: <span class="amount-value">約3.5万円</span>）、国民健康保険（均等割7割軽減想定: <span class="amount-value">約1.5万円</span>）、固定資産税（<span class="amount-value">月1万円</span>）を合算した目安値です。</li>
               <li>※ 注意：リタイア1年目は前年の所得に基づき社会保険料・住民税が高額になる「1年目の罠」があるため、別途数十万円単位の予備費確保を推奨します。</li>
             </ul>
           </div>
