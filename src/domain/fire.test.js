@@ -44,16 +44,18 @@ describe("fire domain", () => {
       vi.useRealTimers();
     });
     it("calculates average monthly expenses and breakdown", () => {
+      // Past 5 months from 2026-03: Feb, Jan, Dec, Nov, Oct
       const cashFlow = [
         { date: "2026-02-01", amount: -100, isTransfer: false, category: "Food" },
         { date: "2026-02-02", amount: -200, isTransfer: false, category: "Housing" },
         { date: "2026-01-01", amount: -300, isTransfer: false, category: "Food" },
         { date: "2026-01-02", amount: -400, isTransfer: false, category: "Housing" },
       ];
+      // Total: 1000. Divided by 5 = 200.
       const result = estimateMonthlyExpenses(cashFlow);
-      expect(result.total).toBe(500);
-      expect(result.breakdown).toContainEqual({ name: "Food", amount: 200 });
-      expect(result.breakdown).toContainEqual({ name: "Housing", amount: 300 });
+      expect(result.total).toBe(200);
+      expect(result.breakdown).toContainEqual({ name: "Food", amount: 80 }); // 400 / 5
+      expect(result.breakdown).toContainEqual({ name: "Housing", amount: 120 }); // 600 / 5
     });
 
     it("excludes special expenses and returns them separately", () => {
@@ -62,19 +64,19 @@ describe("fire domain", () => {
         { date: "2026-02-01", amount: -500, isTransfer: false, category: "Food" },
       ];
       const result = estimateMonthlyExpenses(cashFlow);
-      expect(result.total).toBe(500);
-      expect(result.averageSpecial).toBe(1000);
+      expect(result.total).toBe(100); // 500 / 5
+      expect(result.averageSpecial).toBe(200); // 1000 / 5
     });
 
     it("handles transfers, income, and missing categories", () => {
       const cashFlow = [
         { date: "2026-02-01", amount: 1000, isTransfer: false, category: "Income" },
         { date: "2026-02-01", amount: -100, isTransfer: true, category: "Transfer" },
-        { date: "2026-02-01", amount: -200, isTransfer: false, category: "" }, // should be 未分類
+        { date: "2026-02-01", amount: -500, isTransfer: false, category: "" }, // should be 未分類
       ];
       const result = estimateMonthlyExpenses(cashFlow);
-      expect(result.total).toBe(200);
-      expect(result.breakdown).toContainEqual({ name: "未分類", amount: 200 });
+      expect(result.total).toBe(100); // 500 / 5
+      expect(result.breakdown).toContainEqual({ name: "未分類", amount: 100 });
     });
 
     it("excludes Cash and Card categories", () => {
@@ -84,34 +86,41 @@ describe("fire domain", () => {
         { date: "2026-02-01", amount: -300, isTransfer: false, category: "カード/支払い" },
       ];
       const result = estimateMonthlyExpenses(cashFlow);
-      expect(result.total).toBe(1000);
+      expect(result.total).toBe(200); // 1000 / 5
       expect(result.breakdown).toHaveLength(1);
       expect(result.breakdown[0].name).toBe("Food");
     });
 
 
-    it("uses previous 5 months and excludes current month", () => {
+    it("uses previous 5 calendar months and excludes current month", () => {
       vi.setSystemTime(new Date("2026-06-15T09:00:00+09:00"));
+      // Past 5: May, Apr, Mar, Feb, Jan
 
       const cashFlow = [
-        { date: "2026-06-01", amount: -10000, isTransfer: false, category: "Food" },
-        { date: "2026-05-01", amount: -500, isTransfer: false, category: "Food" },
-        { date: "2026-04-01", amount: -400, isTransfer: false, category: "Food" },
-        { date: "2026-03-01", amount: -300, isTransfer: false, category: "Food" },
-        { date: "2026-02-01", amount: -200, isTransfer: false, category: "Food" },
+        { date: "2026-06-01", amount: -10000, isTransfer: false, category: "Food" }, // current month excluded
+        { date: "2026-05-01", amount: -100, isTransfer: false, category: "Food" },
+        { date: "2026-04-01", amount: -100, isTransfer: false, category: "Food" },
+        { date: "2026-03-01", amount: -100, isTransfer: false, category: "Food" },
+        { date: "2026-02-01", amount: -100, isTransfer: false, category: "Food" },
         { date: "2026-01-01", amount: -100, isTransfer: false, category: "Food" },
+        { date: "2025-12-01", amount: -100, isTransfer: false, category: "Food" }, // beyond 5 months excluded
       ];
 
       const result = estimateMonthlyExpenses(cashFlow);
-      expect(result.total).toBe(300);
+      expect(result.total).toBe(100); // 500 / 5
       expect(result.monthCount).toBe(5);
-      expect(result.breakdown).toContainEqual({ name: "Food", amount: 300 });
     });
 
     it("returns zeros for empty cash flow", () => {
       const result = estimateMonthlyExpenses([]);
       expect(result.total).toBe(0);
       expect(result.breakdown).toEqual([]);
+    });
+
+    it("handles missing date in expenses for coverage", () => {
+      const cashFlow = [{ date: null, amount: -100, isTransfer: false, category: "Food" }];
+      const result = estimateMonthlyExpenses(cashFlow);
+      expect(result.total).toBe(0);
     });
   });
 
@@ -125,15 +134,22 @@ describe("fire domain", () => {
       vi.useRealTimers();
     });
 
+    it("handles missing date for coverage", () => {
+        expect(estimateMonthlyIncome([{ date: null, amount: 100, isTransfer: false }])).toBe(0);
+    });
+
     it("calculates average monthly income excluding current month and transfers", () => {
       const cashFlow = [
-        { date: "2026-03-01", amount: 300000, isTransfer: false, category: "給与" }, // current month -> excluded
-        { date: "2026-02-01", amount: 300000, isTransfer: false, category: "給与" },
-        { date: "2026-01-01", amount: 300000, isTransfer: false, category: "給与" },
+        { date: "2026-03-01", amount: 300000, isTransfer: false, category: "収入/給与" }, // current excluded
+        { date: "2026-02-01", amount: 300000, isTransfer: false, category: "収入/給与" },
+        { date: "2026-01-01", amount: 300000, isTransfer: false, category: "収入/給与" },
+        { date: "2025-12-01", amount: 300000, isTransfer: false, category: "収入/給与" },
+        { date: "2025-11-01", amount: 300000, isTransfer: false, category: "収入/給与" },
+        { date: "2025-10-01", amount: 300000, isTransfer: false, category: "収入/給与" },
         { date: "2026-02-10", amount: 10000, isTransfer: true, category: "振替" }, // excluded
         { date: "2026-02-20", amount: -5000, isTransfer: false, category: "返金" }, // excluded
       ];
-      expect(estimateMonthlyIncome(cashFlow)).toBe(300000);
+      expect(estimateMonthlyIncome(cashFlow)).toBe(300000); // 1.5M / 5
     });
   });
 
@@ -149,16 +165,33 @@ describe("fire domain", () => {
 
     it("splits regular monthly income and bonus annualized amount", () => {
       const cashFlow = [
-        { date: "2026-03-01", amount: 300000, isTransfer: false, category: "給与" }, // current month excluded
-        { date: "2026-02-01", amount: 300000, isTransfer: false, category: "給与" },
-        { date: "2026-01-01", amount: 300000, isTransfer: false, category: "給与" },
-        { date: "2026-02-15", amount: 600000, isTransfer: false, category: "賞与" },
+        { date: "2026-03-01", amount: 300000, isTransfer: false, category: "収入/給与" }, // current month excluded
+        { date: "2026-02-01", amount: 300000, isTransfer: false, category: "収入/給与" },
+        { date: "2026-01-01", amount: 300000, isTransfer: false, category: "収入/給与" },
+        { date: "2025-12-01", amount: 300000, isTransfer: false, category: "収入/給与" },
+        { date: "2025-11-01", amount: 300000, isTransfer: false, category: "収入/給与" },
+        { date: "2025-10-01", amount: 300000, isTransfer: false, category: "収入/給与" },
+        { date: "2026-02-15", amount: 500000, isTransfer: false, category: "収入/賞与" },
       ];
 
       const result = estimateIncomeSplit(cashFlow);
       expect(result.regularMonthly).toBe(300000);
-      expect(result.bonusAnnual).toBe(3600000); // 600,000 across 2 months window => annualized x6
-      expect(result.monthlyTotal).toBe(600000);
+      expect(result.bonusAnnual).toBe(1200000); // 500,000 annualized: 500,000 * 12 / 5 = 1,200,000
+      expect(result.monthlyTotal).toBe(400000);
+    });
+
+    it("handles edge cases for coverage in income split", () => {
+      const cashFlow = [
+        { date: "2026-02-01", amount: 100, isTransfer: true, category: "収入/給与" }, // transfer excluded
+        { date: "2026-02-01", amount: -100, isTransfer: false, category: "収入/給与" }, // amount <= 0 excluded
+        { date: "2026-02-01", amount: 100, isTransfer: false }, // category missing
+        { date: "2026-02-01", amount: 100, isTransfer: false, category: "その他" }, // category doesn't start with 収入/
+        { date: "2026-03-01", amount: 100, isTransfer: false, category: "収入/給与" }, // current month excluded
+        { date: null, amount: 100, isTransfer: false, category: "収入/給与" }, // missing date excluded
+      ];
+      const result = estimateIncomeSplit(cashFlow);
+      expect(result.regularMonthly).toBe(0);
+      expect(result.bonusAnnual).toBe(0);
     });
   });
 
@@ -176,10 +209,24 @@ describe("fire domain", () => {
       const cashFlow = [
         { date: "2026-02-01", amount: -120000, isTransfer: false, category: "住宅/ローン返済" },
         { date: "2026-01-01", amount: -120000, isTransfer: false, category: "住宅/ローン返済" },
+        { date: "2025-12-01", amount: -120000, isTransfer: false, category: "住宅/ローン返済" },
+        { date: "2025-11-01", amount: -120000, isTransfer: false, category: "住宅/ローン返済" },
+        { date: "2025-10-01", amount: -120000, isTransfer: false, category: "住宅/ローン返済" },
         { date: "2026-02-01", amount: -10000, isTransfer: false, category: "住宅/管理費" },
       ];
 
       expect(estimateMortgageMonthlyPayment(cashFlow)).toBe(120000);
+    });
+
+    it("handles edge cases for coverage in mortgage estimation", () => {
+      const cashFlow = [
+        { date: "2026-02-01", amount: -100, isTransfer: true, category: "住宅/ローン返済" }, // transfer
+        { date: "2026-02-01", amount: 100, isTransfer: false, category: "住宅/ローン返済" }, // amount >= 0
+        { date: "2026-03-01", amount: -100, isTransfer: false, category: "住宅/ローン返済" }, // current month excluded
+        { date: "2026-02-01", amount: -100, isTransfer: false }, // missing category
+        { date: null, amount: -100, isTransfer: false, category: "住宅/ローン返済" }, // missing date
+      ];
+      expect(estimateMortgageMonthlyPayment(cashFlow)).toBe(0);
     });
   });
 

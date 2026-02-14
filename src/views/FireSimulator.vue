@@ -243,7 +243,7 @@ const achievementProbability = computed(() => {
 
       <div class="initial-summary">
         <details>
-          <summary>初期条件の確認</summary>
+          <summary>条件の確認</summary>
           <div class="initial-summary-grid">
             <div>
               <span class="meta">現在の純資産:</span>
@@ -271,6 +271,45 @@ const achievementProbability = computed(() => {
               <span class="amount-value" style="margin-left: 8px;">{{ formatYen(Math.round(growthData.table[0]?.requiredAssets ?? 0)) }}</span>
               <span class="meta"> (100歳寿命)</span>
             </div>
+            <div>
+              <span class="meta">ローン完済年月:</span>
+              <span style="margin-left: 8px;">{{ mortgagePayoffDate || '設定なし' }}</span>
+            </div>
+            <div>
+              <span class="meta">期待リターン:</span>
+              <span style="margin-left: 8px;">{{ annualReturnRate }}%</span>
+            </div>
+            <div>
+              <span class="meta">リスク:</span>
+              <span style="margin-left: 8px;">{{ annualStandardDeviation }}%</span>
+            </div>
+            <div>
+              <span class="meta">取り崩し率:</span>
+              <span style="margin-left: 8px;">{{ withdrawalRate }}%</span>
+            </div>
+            <div v-if="includeInflation">
+              <span class="meta">インフレ率:</span>
+              <span style="margin-left: 8px;">{{ inflationRate }}%</span>
+            </div>
+            <div v-if="includeTax">
+              <span class="meta">税率:</span>
+              <span style="margin-left: 8px;">{{ taxRate }}%</span>
+            </div>
+          </div>
+        </details>
+      </div>
+
+      <div class="initial-summary" style="margin-top: 0; border-top: none;">
+        <details>
+          <summary>FIREアルゴリズムの詳細</summary>
+          <div class="algorithm-details" style="font-size: 0.8rem; color: var(--muted); margin-top: 10px; line-height: 1.6;">
+            <ul style="margin: 0; padding-left: 20px;">
+              <li>{{ iterations }}回試行のモンテカルロ・シミュレーションにより達成時期の分布を算出しています。</li>
+              <li>100歳寿命までの必要資産額を、将来の支出額から現在価値（PV）に割り戻して算出しています。</li>
+              <li>リスク資産の運用益は正規乱数（期待リターンと標準偏差）を用いて再現しており、不確実性を考慮しています。</li>
+              <li>FIRE達成後は追加投資を停止し、年間支出または資産の{{ withdrawalRate }}%（設定値）のいずれか大きい額を引き出すと仮定しています。</li>
+              <li>住宅ローンの完済月以降は、月間支出からローン返済額を自動的に差し引いてシミュレーションを継続します。</li>
+            </ul>
           </div>
         </details>
       </div>
