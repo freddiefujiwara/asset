@@ -4,6 +4,7 @@ import { usePortfolioData } from "@/composables/usePortfolioData";
 import { formatYen } from "@/domain/format";
 import {
   calculateRiskAssets,
+  calculateCashAssets,
   estimateMonthlyExpenses,
   estimateIncomeSplit,
   simulateFire,
@@ -43,6 +44,8 @@ const includeBonus = ref(true);
 // Data-derived parameters
 const initialAssets = computed(() => data.value?.totals?.netWorthYen ?? 0);
 const riskAssets = computed(() => (data.value ? calculateRiskAssets(data.value) : 0));
+const cashAssets = computed(() => (data.value ? calculateCashAssets(data.value) : 0));
+const monthsOfCash = computed(() => (monthlyExpense.value > 0 ? cashAssets.value / monthlyExpense.value : 0));
 const expenseResult = computed(() =>
   data.value?.cashFlow
     ? estimateMonthlyExpenses(data.value.cashFlow)
@@ -315,6 +318,11 @@ const estimatedMonthlyWithdrawal = computed(() => {
               <span class="meta">うちリスク資産:</span>
               <span class="amount-value" style="margin-left: 8px;">{{ formatYen(riskAssets) }}</span>
               <span class="meta"> ({{ (data?.totals?.assetsYen > 0) ? ((riskAssets / data.totals.assetsYen) * 100).toFixed(1) : 0 }}% / 総資産比)</span>
+            </div>
+            <div>
+              <span class="meta">現金資産:</span>
+              <span class="amount-value" style="margin-left: 8px;">{{ formatYen(cashAssets) }}</span>
+              <span class="meta"> (生活費の{{ monthsOfCash.toFixed(1) }}ヶ月分)</span>
             </div>
             <div>
               <span class="meta">推定年間支出:</span>

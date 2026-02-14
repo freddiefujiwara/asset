@@ -11,6 +11,7 @@ const theme = ref("dark");
 const privacyMode = ref(false);
 const idToken = ref("");
 const googleReady = ref(false);
+const googleScriptError = ref(false);
 const googleButtonRoot = ref(null);
 
 const portfolioStore = usePortfolioStore();
@@ -25,7 +26,7 @@ const hasData = computed(() => Boolean(portfolioStore.data));
 const initialLoading = computed(() => portfolioStore.loading && !hasData.value);
 const canUseApp = computed(() => hasData.value || Boolean(idToken.value));
 const needsLogin = computed(() => !initialLoading.value && !canUseApp.value && authError.value);
-const showLoginGate = computed(() => !initialLoading.value && !canUseApp.value);
+const showLoginGate = computed(() => !initialLoading.value && !idToken.value && (portfolioStore.source !== "live" || !hasData.value));
 
 const applyTheme = (nextTheme) => {
   document.documentElement.setAttribute("data-theme", nextTheme);
@@ -104,7 +105,9 @@ function loadGoogleScript() {
   script.defer = true;
   script.onload = () => {
     googleReady.value = true;
-    renderGoogleButton();
+  };
+  script.onerror = () => {
+    googleScriptError.value = true;
   };
   document.head.appendChild(script);
 }
@@ -192,6 +195,9 @@ watch(
         <p class="meta">許可されたアカウントでサインインしてください。</p>
         <p v-if="authError" class="error">
           認証エラーが発生しました。別アカウントで再ログインしてください。({{ portfolioStore.error }})
+        </p>
+        <p v-if="googleScriptError" class="error">
+          Googleログインスクリプトの読み込みに失敗しました。広告ブロック等を解除して再読み込みしてください。
         </p>
         <div ref="googleButtonRoot" class="google-login-button"></div>
         <p v-if="!hasGoogleClientId" class="error">
