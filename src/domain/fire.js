@@ -417,21 +417,24 @@ function calculateCurrentMonthlyExpense({
   mortgageMonthlyPayment,
   mortgagePayoffDate,
 }) {
-  const expenseWithInflation = baseMonthlyExpense * Math.pow(1 + monthlyInflationRate, monthIndex);
+  const mortgage = mortgageMonthlyPayment || 0;
+  const nonMortgageExpense = Math.max(0, baseMonthlyExpense - mortgage);
+  const inflatedNonMortgage = nonMortgageExpense * Math.pow(1 + monthlyInflationRate, monthIndex);
 
-  if (!mortgageMonthlyPayment || !mortgagePayoffDate) {
-    return expenseWithInflation;
+  if (!mortgage || !mortgagePayoffDate) {
+    return inflatedNonMortgage + mortgage;
   }
 
   const currentDate = new Date(simulationStartDate);
   currentDate.setMonth(currentDate.getMonth() + monthIndex);
   const currentMonthKey = toMonthKey(currentDate);
 
-  if (currentMonthKey >= mortgagePayoffDate) {
-    return Math.max(0, expenseWithInflation - mortgageMonthlyPayment);
+  // Use strictly greater than to ensure the payoff month itself is still paid
+  if (currentMonthKey > mortgagePayoffDate) {
+    return inflatedNonMortgage;
   }
 
-  return expenseWithInflation;
+  return inflatedNonMortgage + mortgage;
 }
 
 /**
@@ -506,6 +509,9 @@ function performFireSimulation(params, { randomReturn = false, recordMonthly = f
     const fireAgeAtMonthM = fireReachedMonth === -1 ? ageAtMonthM : currentAge + fireReachedMonth / 12;
     const curPension = includePension ? calculateMonthlyPension(ageAtMonthM, fireAgeAtMonthM) : 0;
 
+    const monthlyIncomeVal = isFire ? 0 : monthlyIncome;
+    const monthlyExpensesVal = curMonthlyExp + (isFire ? extraWithInf : 0);
+
     if (recordMonthly) {
       monthlyData.push({
         month: m,
@@ -515,9 +521,9 @@ function performFireSimulation(params, { randomReturn = false, recordMonthly = f
         cashAssets: currentCash,
         requiredAssets: reqAssets,
         isFire,
-        income: isFire ? 0 : monthlyIncome,
+        income: monthlyIncomeVal,
         pension: curPension,
-        expenses: curMonthlyExp + (isFire ? extraWithInf : 0),
+        expenses: monthlyExpensesVal,
         investmentGain: 0,
         withdrawal: 0,
       });
@@ -525,9 +531,6 @@ function performFireSimulation(params, { randomReturn = false, recordMonthly = f
 
     if (!recordMonthly && fireReachedMonth !== -1) return { fireReachedMonth };
     if (m === maxMonths || m === totalMonthsUntil100) break;
-
-    const monthlyIncomeVal = isFire ? 0 : monthlyIncome;
-    const monthlyExpensesVal = curMonthlyExp + (isFire ? extraWithInf : 0);
 
     const netFlow = (monthlyIncomeVal + curPension) - monthlyExpensesVal;
     let monthlyWithdrawal = 0;
@@ -560,9 +563,11 @@ function performFireSimulation(params, { randomReturn = false, recordMonthly = f
     }
 
     if (isFire) {
-      // In FIRE, we want the total gross withdrawal (amount taken from assets) to be
-      // at least the withdrawalRate amount.
-      const minGrossWithdrawal = (assets * withdrawalRate) / 12;
+      // User rule: Withdrawal should be at least max(Expenses, 4% Assets)
+      // Note: Expenses in minGrossWithdrawal should also be grossed up if tax is included
+      const grossMonthlyExp = includeTax ? (monthlyExpensesVal / (1 - taxRate)) : monthlyExpensesVal;
+      const minGrossWithdrawal = Math.max(grossMonthlyExp, (assets * withdrawalRate) / 12);
+
       if (shortfall < minGrossWithdrawal) {
         extraDivestment = minGrossWithdrawal - shortfall;
       }

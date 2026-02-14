@@ -669,10 +669,11 @@ describe("fire domain", () => {
         mortgagePayoffDate: "2026-02",
       });
 
-      // m0: before payoff -> expense 90,000, assets +10,000
+      // m0: 2026-01 (Paid) -> income 100k, expense 90k -> assets 10k
       expect(result.table[1].assets).toBe(10000);
-      // m1 update happens after payoff month start -> expense becomes 40,000, assets +60,000
-      expect(result.table[2].assets).toBe(70000);
+      // m1: 2026-02 (Paid - payoff month itself is paid) -> income 100k, expense 90k -> assets 20k
+      expect(result.table[2].assets).toBe(20000);
+      // m2 (if we had it): 2026-03 (Free) -> income 100k, expense 40k -> assets 80k
 
       vi.useRealTimers();
     });
@@ -929,18 +930,15 @@ describe("fire domain", () => {
         ...params,
         currentAge: 40,
         mortgageMonthlyPayment: 100000,
-        mortgagePayoffDate: "2026-07", // 6 months of mortgage in the first year
-        monthlyExpense: 200000, // base expense
+        mortgagePayoffDate: "2026-07", // 7 months (Jan-Jul) of mortgage in the first year
+        monthlyExpense: 200000, // base expense (includes mortgage)
       });
 
       // Total expenses for first year:
-      // Jan-Jun: 200k (incl mortgage if baseExpense includes it?)
-      // Wait, in our logic baseMonthlyExpense is the total expense,
-      // and mortgage is subtracted after payoff.
-      // So first 6 months: 200k
-      // Next 6 months: 200k - 100k = 100k
-      // Total: 6 * 200k + 6 * 100k = 1.2M + 0.6M = 1.8M
-      expect(result[0].expenses).toBe(1800000);
+      // Jan-Jul: 200k (7 months)
+      // Aug-Dec: 200k - 100k = 100k (5 months)
+      // Total: 7 * 200k + 5 * 100k = 1.4M + 0.5M = 1.9M
+      expect(result[0].expenses).toBe(1900000);
 
       vi.useRealTimers();
     });
