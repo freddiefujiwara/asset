@@ -10,11 +10,14 @@ import {
   estimateIncomeSplit,
   simulateFire,
   generateGrowthTable,
+  generateAnnualSimulation,
   estimateMortgageMonthlyPayment,
   calculateMonthlyPension,
 } from "@/domain/fire";
 import FireGrowthChart from "@/components/FireGrowthChart.vue";
 import HistogramChart from "@/components/HistogramChart.vue";
+import FireSimulationTable from "@/components/FireSimulationTable.vue";
+import FireSimulationChart from "@/components/FireSimulationChart.vue";
 
 const { data, loading, error } = usePortfolioData();
 
@@ -143,7 +146,28 @@ const simResult = computed(() => {
 });
 
 const growthData = computed(() => {
-  return generateGrowthTable({
+  const params = {
+    initialAssets: initialAssets.value,
+    riskAssets: riskAssets.value,
+    annualReturnRate: annualReturnRate.value / 100,
+    monthlyExpense: monthlyExpense.value,
+    monthlyIncome: monthlyIncome.value,
+    currentAge: currentAge.value,
+    includeInflation: includeInflation.value,
+    inflationRate: inflationRate.value / 100,
+    includeTax: includeTax.value,
+    taxRate: taxRate.value / 100,
+    withdrawalRate: withdrawalRate.value / 100,
+    mortgageMonthlyPayment: mortgageMonthlyPayment.value,
+    mortgagePayoffDate: mortgagePayoffDate.value || null,
+    postFireExtraExpense: postFireExtraExpense.value,
+    includePension: true,
+  };
+  return generateGrowthTable(params);
+});
+
+const annualSimulationData = computed(() => {
+  return generateAnnualSimulation({
     initialAssets: initialAssets.value,
     riskAssets: riskAssets.value,
     annualReturnRate: annualReturnRate.value / 100,
@@ -472,6 +496,9 @@ const estimatedMonthlyWithdrawal = computed(() => {
     <div class="chart-grid">
       <HistogramChart :data="simResult.trials" :max-months="1200" />
     </div>
+
+    <FireSimulationChart :data="annualSimulationData" />
+    <FireSimulationTable :data="annualSimulationData" />
 
   </section>
 </template>
