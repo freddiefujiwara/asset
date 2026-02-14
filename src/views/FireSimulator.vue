@@ -10,6 +10,7 @@ import {
   generateAnnualSimulation,
   estimateMortgageMonthlyPayment,
   calculateMonthlyPension,
+  FIRE_ALGORITHM_CONSTANTS,
 } from "@/domain/fire";
 import FireSimulationTable from "@/components/FireSimulationTable.vue";
 import FireSimulationChart from "@/components/FireSimulationChart.vue";
@@ -160,6 +161,10 @@ const fireAchievementMonth = computed(() => growthData.value.fireReachedMonth);
 const fireAchievementAge = computed(() => Math.floor(currentAge.value + fireAchievementMonth.value / 12));
 const pensionAnnualAtFire = computed(() => calculateMonthlyPension(60, fireAchievementAge.value) * 12);
 const estimatedMonthlyPensionAt60 = computed(() => calculateMonthlyPension(60, fireAchievementAge.value));
+const copyConditionsDone = ref(false);
+const copyTableDone = ref(false);
+let copyConditionsTimer = null;
+let copyTableTimer = null;
 
 const requiredAssetsAtFire = computed(() => {
   const fireMonth = fireAchievementMonth.value;
@@ -206,6 +211,87 @@ const formatMonths = (m) => {
   const months = m % 12;
   if (years === 0) return `${months}ヶ月`;
   return `${years}年${months}ヶ月`;
+};
+
+const copyText = async (text) => {
+  if (navigator?.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textArea = document.createElement("textarea");
+  textArea.value = text;
+  textArea.setAttribute("readonly", "");
+  textArea.style.position = "absolute";
+  textArea.style.left = "-9999px";
+  document.body.appendChild(textArea);
+  textArea.select();
+  document.execCommand("copy");
+  document.body.removeChild(textArea);
+};
+
+const algorithmExplanation = `本シミュレーションは、期待リターン・インフレ率・年金・ローン等のキャッシュフローに基づき、100歳時点で資産が残る最短リタイア年齢を算出します。必要資産目安は、FIRE達成年齢で退職して100歳まで資産が尽きない最小条件を満たす達成時点の金融資産額です。娘名義資産は初期資産から除外し、FIRE達成後は追加投資と給与・ボーナス収入を停止。取り崩しは、年間支出または資産の取崩率ルールのいずれか大きい額を適用します。`;
+
+const buildConditionsAndAlgorithmJson = () => ({
+  conditions: {
+    currentNetAssetsYen: initialAssets.value,
+    riskAssetsYen: riskAssets.value,
+    cashAssetsYen: cashAssets.value,
+    estimatedAnnualExpenseYen: monthlyExpense.value * 12,
+    estimatedAnnualIncomeYen: monthlyIncome.value * 12,
+    annualInvestmentYen: annualInvestment.value,
+    annualSavingsYen: annualSavings.value,
+    annualBonusYen: annualBonus.value,
+    requiredAssetsAtFireYen: requiredAssetsAtFire.value,
+    fireAchievementMonth: fireAchievementMonth.value,
+    fireAchievementAge: fireAchievementAge.value,
+    mortgagePayoffDate: mortgagePayoffDate.value || null,
+    expectedAnnualReturnRatePercent: annualReturnRate.value,
+    includeInflation: includeInflation.value,
+    inflationRatePercent: inflationRate.value,
+    includeTax: includeTax.value,
+    taxRatePercent: taxRate.value,
+    withdrawalRatePercent: withdrawalRate.value,
+    postFireExtraExpenseMonthlyYen: postFireExtraExpense.value,
+  },
+  pensionEstimates: {
+    householdMonthlyAtUserAge60Yen: estimatedMonthlyPensionAt60.value,
+    householdAnnualAtUserAge60Yen: pensionAnnualAtFire.value,
+    userMonthlyAtAge60Yen: calculateMonthlyPension(60, fireAchievementAge.value),
+    spouseMonthlyAtUserAge62Yen: Math.round(FIRE_ALGORITHM_CONSTANTS.pension.basicFullAnnualYen / 12),
+    spousePensionStartWhenUserAge: FIRE_ALGORITHM_CONSTANTS.pension.spouseUserAgeStart,
+  },
+  algorithmConstants: FIRE_ALGORITHM_CONSTANTS,
+  algorithmExplanation,
+});
+
+const buildAnnualTableJson = () => annualSimulationData.value.map((row) => ({
+  age: row.age,
+  incomeWithPensionYen: row.income + row.pension,
+  expensesYen: row.expenses,
+  investmentGainYen: row.investmentGain,
+  withdrawalYen: row.withdrawal,
+  totalAssetsYen: row.assets,
+  savingsCashYen: row.cashAssets,
+  riskAssetsYen: row.riskAssets,
+}));
+
+const copyConditionsAndAlgorithm = async () => {
+  await copyText(JSON.stringify(buildConditionsAndAlgorithmJson(), null, 2));
+  copyConditionsDone.value = true;
+  clearTimeout(copyConditionsTimer);
+  copyConditionsTimer = setTimeout(() => {
+    copyConditionsDone.value = false;
+  }, 1800);
+};
+
+const copyAnnualTable = async () => {
+  await copyText(JSON.stringify(buildAnnualTableJson(), null, 2));
+  copyTableDone.value = true;
+  clearTimeout(copyTableTimer);
+  copyTableTimer = setTimeout(() => {
+    copyTableDone.value = false;
+  }, 1800);
 };
 
 </script>
@@ -334,6 +420,12 @@ const formatMonths = (m) => {
           <label>FIRE後の社会保険料・税(月額)</label>
           <input v-model.number="postFireExtraExpense" type="number" step="5000" />
         </div>
+      </div>
+
+      <div class="copy-actions">
+        <button class="theme-toggle" type="button" @click="copyConditionsAndAlgorithm">
+          {{ copyConditionsDone ? 'コピー完了！' : '📋 条件とアルゴリズムをコピー' }}
+        </button>
       </div>
 
       <div class="initial-summary">
@@ -476,6 +568,11 @@ const formatMonths = (m) => {
 
     <div class="main-visualization">
       <FireSimulationChart :data="annualSimulationData" :annotations="chartAnnotations" />
+      <div class="copy-actions table-copy-action">
+        <button class="theme-toggle" type="button" @click="copyAnnualTable">
+          {{ copyTableDone ? 'コピー完了！' : '📋 年齢別収支推移表をコピー' }}
+        </button>
+      </div>
       <FireSimulationTable :data="annualSimulationData" />
     </div>
 
@@ -590,5 +687,16 @@ const formatMonths = (m) => {
   display: flex;
   flex-direction: column;
   gap: 24px;
+}
+
+.copy-actions {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.table-copy-action {
+  margin-top: 0;
+  margin-bottom: -10px;
 }
 </style>

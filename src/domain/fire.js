@@ -10,6 +10,19 @@ const PENSION_USER_DATA_AGE = 44; // Age at which premium data was provided
 const PENSION_USER_KOSEN_ACCRUED_AT_44 = 892252; // Accrued Employees' Pension based on 14.9M premiums
 const PENSION_USER_KOSEN_FUTURE_FACTOR = 42000; // Estimated future accrual per year worked
 
+export const FIRE_ALGORITHM_CONSTANTS = {
+  pension: {
+    userStartAge: PENSION_USER_START_AGE,
+    spouseUserAgeStart: PENSION_SPOUSE_USER_AGE_START,
+    basicFullAnnualYen: PENSION_BASIC_FULL,
+    basicReduction: PENSION_BASIC_REDUCTION,
+    earlyReduction: PENSION_EARLY_REDUCTION,
+    userDataAge: PENSION_USER_DATA_AGE,
+    userKoseiAccruedAt44AnnualYen: PENSION_USER_KOSEN_ACCRUED_AT_44,
+    userKoseiFutureFactorAnnualYenPerYear: PENSION_USER_KOSEN_FUTURE_FACTOR,
+  },
+};
+
 /**
  * Calculate pension monthly amount for the given age and FIRE age.
  * @param {number} age - Current age in simulation
