@@ -4,6 +4,7 @@ import { formatYen } from "@/domain/format";
 
 const props = defineProps({
   data: { type: Array, required: true },
+  annotations: { type: Array, default: () => [] },
 });
 
 const chartContainerRef = ref(null);
@@ -33,6 +34,18 @@ const yScaleAssets = (val) => {
 };
 
 const xScale = (i) => (i * innerWidth) / Math.max(props.data.length - 1, 1);
+
+const annotationPoints = computed(() => {
+  return props.annotations.map(ann => {
+    const index = props.data.findIndex(d => d.age === ann.age);
+    if (index === -1) return null;
+    return {
+      x: xScale(index),
+      label: ann.label,
+      age: ann.age
+    };
+  }).filter(Boolean);
+});
 
 const bars = computed(() => {
   const step = innerWidth / Math.max(props.data.length - 1, 1);
@@ -167,6 +180,16 @@ const hideTooltip = () => {
           <!-- Asset Line -->
           <path :d="assetPath" fill="none" stroke="#3b82f6" stroke-width="3" />
 
+          <!-- Annotations (Vertical Lines) -->
+          <g v-for="ann in annotationPoints" :key="ann.label + ann.age">
+            <line :x1="ann.x" y1="0" :x2="ann.x" :y2="innerHeight" stroke="#8b5cf6" stroke-dasharray="4" stroke-width="1.5" />
+            <text :x="ann.x" y="-10" text-anchor="middle" font-size="10" fill="#8b5cf6" font-weight="bold">
+              {{ ann.label }}
+            </text>
+            <line :x1="ann.x" y1="0" :x2="ann.x" :y2="innerHeight" stroke="transparent" stroke-width="10" style="cursor: help;"
+              @mouseenter="showTooltip($event, { age: ann.age, label: ann.label, isEvent: true })" @mouseleave="hideTooltip" />
+          </g>
+
           <!-- Axes -->
           <line x1="0" :y1="innerHeight" :x2="innerWidth" :y2="innerHeight" stroke="var(--text)" />
           <line x1="0" y1="0" x2="0" :y2="innerHeight" stroke="var(--text)" />
@@ -185,7 +208,10 @@ const hideTooltip = () => {
         <div style="font-weight: bold; border-bottom: 1px solid var(--border); margin-bottom: 4px; padding-bottom: 2px;">
           {{ activeTooltip.age }}歳
         </div>
-        <div style="display: flex; justify-content: space-between; gap: 12px;">
+        <div v-if="activeTooltip.isEvent" style="color: #8b5cf6; font-weight: bold;">
+          {{ activeTooltip.label }}
+        </div>
+        <div v-else style="display: flex; justify-content: space-between; gap: 12px;">
           <span>{{ activeTooltip.label }}:</span>
           <span class="amount-value">{{ formatYen(activeTooltip.value) }}</span>
         </div>

@@ -79,4 +79,36 @@ describe("FireSimulationChart.vue", () => {
     // Values are roughly in "万" units
     expect(labels[0].text()).toContain("万");
   });
+
+  it("renders annotations and shows event tooltip", async () => {
+    const annotations = [{ age: 65, label: "リタイア" }];
+    const wrapper = mount(FireSimulationChart, {
+      props: { data: sampleData, annotations },
+    });
+
+    // Check for annotation text
+    expect(wrapper.text()).toContain("リタイア");
+
+    // Find the transparent hover line
+    const lines = wrapper.findAll("line");
+    const hoverLines = lines.filter((l) => l.attributes("stroke") === "transparent");
+    expect(hoverLines.length).toBe(1);
+
+    // Hover over annotation
+    await hoverLines[0].trigger("mouseenter");
+    expect(wrapper.find(".tooltip").exists()).toBe(true);
+    expect(wrapper.find(".tooltip").text()).toContain("リタイア");
+    expect(wrapper.find(".tooltip").text()).toContain("65歳");
+    await hoverLines[0].trigger("mouseleave");
+    expect(wrapper.find(".tooltip").exists()).toBe(false);
+  });
+
+  it("handles annotations with ages not in data", () => {
+    const annotations = [{ age: 99, label: "Invalid" }];
+    const wrapper = mount(FireSimulationChart, {
+      props: { data: sampleData, annotations },
+    });
+    // Text "Invalid" should not be present because index is -1
+    expect(wrapper.text()).not.toContain("Invalid");
+  });
 });

@@ -6,6 +6,7 @@ const props = defineProps({
   maxMonths: { type: Number, default: 1200 },
   width: { type: Number, default: 800 },
   height: { type: Number, default: 300 },
+  baseAge: { type: Number, default: 0 },
 });
 
 const margin = { top: 20, right: 30, bottom: 50, left: 60 };
@@ -61,7 +62,7 @@ const barWidth = computed(() => (innerWidth / bins.value.length) * 0.9);
               opacity="0.8"
               rx="2"
             >
-              <title>{{ Math.round(bin.start/12) }}〜{{ Math.round(bin.end/12) }}年: {{ bin.count }}回</title>
+              <title>{{ Math.round(props.baseAge + bin.start/12) }}〜{{ Math.round(props.baseAge + bin.end/12) }}歳: {{ bin.count }}回</title>
             </rect>
           </g>
 
@@ -78,12 +79,12 @@ const barWidth = computed(() => (innerWidth / bins.value.length) * 0.9);
               font-size="10"
               fill="var(--muted)"
             >
-              {{ Math.round(bin.start / 12) }}y
+              {{ Math.round(props.baseAge + bin.start / 12) }}歳
             </text>
           </g>
 
           <text :x="innerWidth / 2" :y="innerHeight + 40" text-anchor="middle" font-size="12" fill="var(--muted)">
-            達成までの年数
+            達成時の年齢
           </text>
         </g>
       </svg>
