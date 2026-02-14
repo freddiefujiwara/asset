@@ -19,6 +19,15 @@ export function calculateRiskAssets(portfolio) {
     .reduce((sum, item) => sum + item.amountYen, 0);
 }
 
+/**
+ * Calculate cash assets (Total Assets - Risk Assets).
+ */
+export function calculateCashAssets(portfolio) {
+  const riskAssets = calculateRiskAssets(portfolio);
+  const totalAssets = portfolio?.totals?.assetsYen || 0;
+  return totalAssets - riskAssets;
+}
+
 function getPastFiveMonths(now) {
   const months = [];
   for (let i = 1; i <= 5; i++) {
