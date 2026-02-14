@@ -479,6 +479,7 @@ function simulateTrial({
 
     const extraWithInflation = postFireExtraExpense * Math.pow(1 + monthlyInflationRate, m);
 
+    // Check if FIRE is reached at the beginning of this month
     const requiredAssets = calculateRequiredAssets({
       monthlyExpense: currentMonthlyExpense + extraWithInflation,
       monthlyReturn: monthlyReturnMean,
@@ -611,9 +612,9 @@ export function generateGrowthTable(params) {
     mortgagePayoffDate = null,
     postFireExtraExpense = 0,
     includePension = false,
+    monthlyInvestment = 0,
   } = params;
 
-  const riskAssetRatio = initialAssets > 0 ? riskAssets / initialAssets : 0;
   const monthlyReturnMean = Math.pow(1 + annualReturnRate, 1 / 12) - 1;
   const monthlyInflationRate = Math.pow(1 + (includeInflation ? inflationRate : 0), 1 / 12) - 1;
 
@@ -621,7 +622,8 @@ export function generateGrowthTable(params) {
   const actualMaxMonths = Math.min(maxMonths, totalMonthsUntil100);
 
   const table = [];
-  let assets = initialAssets;
+  let currentRisk = riskAssets;
+  let currentCash = initialAssets - riskAssets;
   let fireReachedMonth = -1;
   const simulationStartDate = new Date();
 
@@ -639,6 +641,7 @@ export function generateGrowthTable(params) {
 
     const extraWithInflation = postFireExtraExpense * Math.pow(1 + monthlyInflationRate, m);
 
+    const assets = currentCash + currentRisk;
     const requiredAssets = calculateRequiredAssets({
       monthlyExpense: currentMonthlyExpense + extraWithInflation,
       monthlyReturn: monthlyReturnMean,
@@ -665,36 +668,39 @@ export function generateGrowthTable(params) {
 
     if (m === actualMaxMonths) break;
 
-    const riskPart = assets * riskAssetRatio;
-    const safePart = assets - riskPart;
-
     const fireReachedAge = fireReachedMonth === -1 ? ageAtMonthM : currentAge + fireReachedMonth / 12;
     const currentMonthlyPension = includePension ? calculateMonthlyPension(ageAtMonthM, fireReachedAge) : 0;
 
-    let currentIncome = monthlyIncome;
-    let currentWithdrawal;
+    // Growth
+    currentRisk *= (1 + monthlyReturnMean);
 
     if (isFire) {
-      // Once FIRE is reached, stop investment and perform withdrawal (annually / 12)
-      // or withdraw monthly expense, whichever is higher to ensure living.
-      currentIncome = 0;
       let grossExpense = currentMonthlyExpense + extraWithInflation;
       if (includeTax) {
         grossExpense /= 1 - taxRate;
       }
       const amountFromWithdrawalRate = (assets * withdrawalRate) / 12;
-      currentWithdrawal = Math.max(grossExpense, amountFromWithdrawalRate);
+      const totalNeeded = Math.max(grossExpense, amountFromWithdrawalRate);
+
+      const toWithdraw = Math.max(0, totalNeeded - currentMonthlyPension);
+      currentRisk -= toWithdraw;
+      const netFromWithdrawal = includeTax ? toWithdraw * (1 - taxRate) : toWithdraw;
+      currentCash += currentMonthlyPension + netFromWithdrawal - (currentMonthlyExpense + extraWithInflation);
     } else {
-      currentWithdrawal = currentMonthlyExpense;
+      currentCash += monthlyIncome + currentMonthlyPension - currentMonthlyExpense;
+      currentCash -= monthlyInvestment;
+      currentRisk += monthlyInvestment;
+
+      if (currentCash < 0 && includeTax) {
+        const shortfall = Math.abs(currentCash);
+        const taxImpact = (shortfall / (1 - taxRate)) - shortfall;
+        currentRisk -= taxImpact;
+      }
     }
 
-    // monthlyIncome already contains ongoing cashflow assumptions.
-    // Do not add monthlyInvestment separately to avoid double-counting.
-    assets = riskPart * (1 + monthlyReturnMean) + safePart + currentIncome + currentMonthlyPension;
-    assets -= currentWithdrawal;
-
-    if (assets < 0) {
-      assets = 0;
+    if (currentCash + currentRisk < 0) {
+      currentCash = 0;
+      currentRisk = 0;
     }
   }
 
@@ -724,9 +730,9 @@ export function generateAnnualSimulation(params) {
     mortgagePayoffDate = null,
     postFireExtraExpense = 0,
     includePension = false,
+    monthlyInvestment = 0,
   } = params;
 
-  const riskAssetRatio = initialAssets > 0 ? riskAssets / initialAssets : 0;
   const monthlyReturnMean = Math.pow(1 + annualReturnRate, 1 / 12) - 1;
   const monthlyInflationRate = Math.pow(1 + (includeInflation ? inflationRate : 0), 1 / 12) - 1;
 
@@ -734,7 +740,8 @@ export function generateAnnualSimulation(params) {
   const simulationStartDate = new Date();
 
   const annualData = [];
-  let assets = initialAssets;
+  let currentRisk = riskAssets;
+  let currentCash = initialAssets - riskAssets; // Net cash (Cash - Debt)
   let fireReachedMonth = -1;
 
   let currentYearData = {
@@ -744,6 +751,7 @@ export function generateAnnualSimulation(params) {
     expenses: 0,
     withdrawal: 0,
     assets: 0,
+    investmentGain: 0,
   };
 
   for (let m = 0; m <= totalMonthsUntil100; m++) {
@@ -752,9 +760,9 @@ export function generateAnnualSimulation(params) {
 
     // If we transition to a new year, save the previous year's data
     if (currentAgeInt > currentYearData.age) {
-      currentYearData.assets = Math.round(assets);
-      currentYearData.riskAssets = Math.round(assets * riskAssetRatio);
-      currentYearData.cashAssets = Math.round(assets - currentYearData.riskAssets);
+      currentYearData.assets = Math.round(currentCash + currentRisk);
+      currentYearData.riskAssets = Math.round(currentRisk);
+      currentYearData.cashAssets = Math.round(currentCash);
       annualData.push(currentYearData);
 
       currentYearData = {
@@ -764,6 +772,7 @@ export function generateAnnualSimulation(params) {
         expenses: 0,
         withdrawal: 0,
         assets: 0,
+        investmentGain: 0,
       };
     }
 
@@ -781,6 +790,7 @@ export function generateAnnualSimulation(params) {
 
     const extraWithInflation = postFireExtraExpense * Math.pow(1 + monthlyInflationRate, m);
 
+    const assets = currentCash + currentRisk;
     const requiredAssets = calculateRequiredAssets({
       monthlyExpense: currentMonthlyExpense + extraWithInflation,
       monthlyReturn: monthlyReturnMean,
@@ -801,59 +811,71 @@ export function generateAnnualSimulation(params) {
     const currentMonthlyPension = includePension ? calculateMonthlyPension(ageAtMonthM, fireReachedAge) : 0;
 
     let currentIncome = isFire ? 0 : monthlyIncome;
-    let monthlyExpenses = currentMonthlyExpense + extraWithInflation;
+    let monthlyExpenses = currentMonthlyExpense + (isFire ? extraWithInflation : 0);
     let monthlyWithdrawal = 0;
 
+    // Accumulate annual values
+    currentYearData.income += currentIncome;
+    currentYearData.pension += currentMonthlyPension;
+    currentYearData.expenses += monthlyExpenses;
+
+    // Asset growth and Cash flow logic
+    const gain = currentRisk * monthlyReturnMean;
+    currentRisk += gain;
+    currentYearData.investmentGain += gain;
+
     if (isFire) {
+      const totalAssets = currentCash + currentRisk;
       let grossExpense = monthlyExpenses;
       if (includeTax) {
         grossExpense /= 1 - taxRate;
       }
-      const amountFromWithdrawalRate = (assets * withdrawalRate) / 12;
-      monthlyWithdrawal = Math.max(grossExpense, amountFromWithdrawalRate) - currentMonthlyPension;
-      monthlyWithdrawal = Math.max(0, monthlyWithdrawal);
+      const withdrawalFromRate = (totalAssets * withdrawalRate) / 12;
+      const totalNeeded = Math.max(grossExpense, withdrawalFromRate);
+
+      // Withdraw from risk assets to cover gap between totalNeeded and pension
+      const toWithdraw = Math.max(0, totalNeeded - currentMonthlyPension);
+      currentRisk -= toWithdraw;
+
+      // Cash flow: pension in, expenses out, plus net from withdrawal
+      const netFromWithdrawal = includeTax ? toWithdraw * (1 - taxRate) : toWithdraw;
+      currentCash += currentMonthlyPension + netFromWithdrawal - monthlyExpenses;
+      monthlyWithdrawal = toWithdraw;
     } else {
+      // Accumulation phase
       const netCashflow = currentIncome + currentMonthlyPension - monthlyExpenses;
+      currentCash += netCashflow;
       if (netCashflow < 0) {
         monthlyWithdrawal = Math.abs(netCashflow);
         if (includeTax) {
           monthlyWithdrawal /= 1 - taxRate;
         }
       }
-    }
 
-    // Accumulate annual values
-    currentYearData.income += currentIncome;
-    currentYearData.pension += currentMonthlyPension;
-    currentYearData.expenses += monthlyExpenses;
-    currentYearData.withdrawal += monthlyWithdrawal;
+      // Investment
+      currentCash -= monthlyInvestment;
+      currentRisk += monthlyInvestment;
 
-    // Asset growth logic
-    const riskPart = assets * riskAssetRatio;
-    const safePart = assets - riskPart;
-
-    if (isFire) {
-      assets = riskPart * (1 + monthlyReturnMean) + safePart + currentMonthlyPension - Math.max(monthlyExpenses / (includeTax ? 1 - taxRate : 1), (assets * withdrawalRate) / 12);
-    } else {
-      assets = riskPart * (1 + monthlyReturnMean) + safePart + currentIncome + currentMonthlyPension - monthlyExpenses;
-      // Note: simple asset update. If expenses > income, it naturally reduces assets.
-      // But we should consider tax if withdrawing from assets.
-      const net = currentIncome + currentMonthlyPension - monthlyExpenses;
-      if (net < 0 && includeTax) {
-        // Correct for tax on the shortfall
-        const shortfall = Math.abs(net);
+      // Tax impact if cash is negative (shortfall covered by selling risk assets)
+      if (currentCash < 0 && includeTax) {
+        const shortfall = Math.abs(currentCash);
         const taxImpact = (shortfall / (1 - taxRate)) - shortfall;
-        assets -= taxImpact;
+        currentRisk -= taxImpact;
       }
     }
 
-    if (assets < 0) assets = 0;
+    currentYearData.withdrawal += monthlyWithdrawal;
+
+    if (currentCash + currentRisk < 0) {
+      currentCash = 0;
+      currentRisk = 0;
+    }
   }
 
   // Final push for the last year (usually age 100)
-  currentYearData.assets = Math.round(assets);
-  currentYearData.riskAssets = Math.round(assets * riskAssetRatio);
-  currentYearData.cashAssets = Math.round(assets - currentYearData.riskAssets);
+  currentYearData.assets = Math.round(currentCash + currentRisk);
+  currentYearData.riskAssets = Math.round(currentRisk);
+  currentYearData.cashAssets = Math.round(currentCash);
   annualData.push(currentYearData);
 
   // Round values
@@ -862,6 +884,7 @@ export function generateAnnualSimulation(params) {
     d.pension = Math.round(d.pension);
     d.expenses = Math.round(d.expenses);
     d.withdrawal = Math.round(d.withdrawal);
+    d.investmentGain = Math.round(d.investmentGain);
   });
 
   return annualData;

@@ -158,6 +158,7 @@ const growthData = computed(() => {
     mortgagePayoffDate: mortgagePayoffDate.value || null,
     postFireExtraExpense: postFireExtraExpense.value,
     includePension: true,
+    monthlyInvestment: monthlyInvestment.value,
   };
   return generateGrowthTable(params);
 });
@@ -179,6 +180,7 @@ const annualSimulationData = computed(() => {
     mortgagePayoffDate: mortgagePayoffDate.value || null,
     postFireExtraExpense: postFireExtraExpense.value,
     includePension: true,
+    monthlyInvestment: monthlyInvestment.value,
   });
 });
 
