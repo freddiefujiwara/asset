@@ -390,7 +390,7 @@ const achievementProbability = computed(() => {
       </article>
       <article class="card">
         <h2>月額の予定支出額</h2>
-        <p>{{ formatYen(monthlyExpense) }}</p>
+        <p class="amount-value">{{ formatYen(monthlyExpense) }}</p>
         <p class="meta">{{ useAutoExpense ? '過去5ヶ月の平均実績に基づく' : 'ユーザーによる手入力設定' }}</p>
       </article>
     </div>
