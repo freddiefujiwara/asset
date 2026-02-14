@@ -453,13 +453,16 @@ td {
 
 :root[data-private="on"] .amount-value,
 :root[data-private="on"] text.amount-value,
-:root[data-private="on"] .cash-flow-y-axis-label,
-:root[data-private="on"] .fire-y-axis-label,
 :root[data-private="on"] .fire-form-grid input:not(.is-public),
 :root[data-private="on"] .fire-form-grid select:not(.is-public),
 :root[data-private="on"] .privacy-mask {
   filter: blur(5px);
   user-select: none;
+}
+
+:root[data-private="on"] .cash-flow-y-axis-label,
+:root[data-private="on"] .fire-y-axis-label {
+  display: none;
 }
 
 
