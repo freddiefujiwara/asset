@@ -1,5 +1,6 @@
 <script setup>
-import { ref } from "vue";
+import { ref, computed } from "vue";
+import { useUiStore } from "@/stores/ui";
 
 const props = defineProps({
   label: {
@@ -14,7 +15,14 @@ const props = defineProps({
     type: [String, Function],
     required: true,
   },
+  disabledOnPrivacy: {
+    type: Boolean,
+    default: false,
+  },
 });
+
+const uiStore = useUiStore();
+const isDisabled = computed(() => props.disabledOnPrivacy && uiStore.privacyMode);
 
 const done = ref(false);
 let timer = null;
@@ -37,6 +45,7 @@ const copyText = async (text) => {
 };
 
 const handleClick = async () => {
+  if (isDisabled.value) return;
   try {
     const text = typeof props.copyValue === "function" ? await props.copyValue() : props.copyValue;
     await copyText(text);
@@ -53,7 +62,21 @@ const handleClick = async () => {
 </script>
 
 <template>
-  <button class="theme-toggle" type="button" @click="handleClick">
+  <button
+    class="theme-toggle"
+    :class="{ 'is-disabled': isDisabled }"
+    type="button"
+    @click="handleClick"
+    :disabled="isDisabled"
+    :title="isDisabled ? 'コピーするにはモザイクを解除してください' : ''"
+  >
     {{ done ? successLabel : label }}
   </button>
 </template>
+
+<style scoped>
+.is-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+</style>

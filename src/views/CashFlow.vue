@@ -209,12 +209,14 @@ const resetFilters = () => {
       <CopyButton
         label="📋 過去5ヶ月分のサマリをコピー"
         :copy-value="getPast5MonthSummaryJson"
+        disabled-on-privacy
       />
       <CopyButton
         v-for="month in copyTargetMonths"
         :key="month"
         :label="`📋 ${month.replace('-', '')}分をコピー`"
         :copy-value="() => getMonthlyMfcfJson(month)"
+        disabled-on-privacy
       />
     </div>
 
