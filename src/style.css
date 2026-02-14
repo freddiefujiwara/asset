@@ -452,13 +452,13 @@ td {
 
 
 :root[data-private="on"] .amount-value {
-  filter: blur(0.34rem);
+  background-color: #000 !important;
+  color: #000 !important;
   user-select: none;
 }
 
 :root[data-private="on"] text.amount-value {
-  filter: blur(0.34rem);
-  -webkit-filter: blur(0.34rem);
+  fill: #000 !important;
 }
 
 :root[data-private="on"] .cash-flow-y-axis-label,

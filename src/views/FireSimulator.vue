@@ -248,7 +248,7 @@ const estimatedMonthlyWithdrawal = computed(() => {
         </div>
         <div class="filter-item">
           <label>取り崩し率 (%)</label>
-          <input v-model.number="withdrawalRate" type="number" step="0.1" />
+          <input v-model.number="withdrawalRate" type="number" step="0.1" class="is-public" />
         </div>
         <div class="filter-item expense-item">
           <div class="label-row">
@@ -334,7 +334,7 @@ const estimatedMonthlyWithdrawal = computed(() => {
           <label>インフレ考慮</label>
           <div style="display: flex; gap: 8px; align-items: center;">
             <input type="checkbox" v-model="includeInflation" />
-            <input v-if="includeInflation" v-model.number="inflationRate" type="number" step="0.1" style="width: 60px;" />
+            <input v-if="includeInflation" v-model.number="inflationRate" type="number" step="0.1" style="width: 60px;" class="is-public" />
             <span v-if="includeInflation">%</span>
           </div>
         </div>
@@ -342,7 +342,7 @@ const estimatedMonthlyWithdrawal = computed(() => {
           <label>税金考慮</label>
           <div style="display: flex; gap: 8px; align-items: center;">
             <input type="checkbox" v-model="includeTax" />
-            <input v-if="includeTax" v-model.number="taxRate" type="number" step="0.1" style="width: 80px;" />
+            <input v-if="includeTax" v-model.number="taxRate" type="number" step="0.1" style="width: 80px;" class="is-public" />
             <span v-if="includeTax">%</span>
           </div>
         </div>

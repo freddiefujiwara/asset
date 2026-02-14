@@ -552,6 +552,7 @@ describe("fire domain", () => {
       const result = generateGrowthTable({
         ...params,
         initialAssets,
+        riskAssets: initialAssets, // Ensure we take from risk to trigger tax
         monthlyExpense,
         includeTax: true,
         taxRate,
@@ -610,6 +611,20 @@ describe("fire domain", () => {
         monthlyExpense: 1000000,
       });
       expect(result.table[1].assets).toBe(0);
+      expect(result.table[1].isFire).toBe(false);
+    });
+
+    it("handles extreme negative flow with current assets", () => {
+       const result = generateGrowthTable({
+         ...params,
+         initialAssets: 100,
+         riskAssets: 100,
+         monthlyIncome: 0,
+         monthlyExpense: 1000000,
+         includeTax: true,
+         taxRate: 0.2
+       });
+       expect(result.table[1].assets).toBe(0);
     });
 
     it("caps investment in growth table by available cash", () => {
