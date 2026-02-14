@@ -35,7 +35,7 @@ const includeInflation = ref(false);
 const inflationRate = ref(2);
 const includeTax = ref(false);
 const taxRate = ref(20.315);
-const postFireExtraExpense = ref(50000);
+const postFireExtraExpense = ref(100000);
 const withdrawalRate = ref(4);
 const iterations = ref(1000);
 const includeBonus = ref(true);
@@ -386,6 +386,7 @@ const estimatedMonthlyWithdrawal = computed(() => {
               <li>住宅ローンの完済月以降は、月間支出からローン返済額を自動的に差し引いてシミュレーションを継続します。</li>
               <li>達成時期の90%信頼区間: {{ formatMonths(stats.p5) }} 〜 {{ formatMonths(stats.p95) }} (不確実性を考慮した予測)</li>
               <li>100歳までの達成率: <span :class="achievementProbability > 80 ? 'is-positive' : 'is-negative' " style="font-weight: bold;">{{ achievementProbability.toFixed(1) }}%</span> ({{ iterations }}回の試行結果に基づく)</li>
+              <li>FIRE後の追加支出（デフォルト10万円）は、固定資産税（月1万円）、国民健康保険、国民年金、および資産取り崩し時の所得税・住民税の支払いを想定した妥当な目安値です。</li>
             </ul>
           </div>
         </details>
