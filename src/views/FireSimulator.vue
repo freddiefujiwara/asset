@@ -35,6 +35,7 @@ const includeInflation = ref(false);
 const inflationRate = ref(2);
 const includeTax = ref(false);
 const taxRate = ref(20.315);
+const postFireExtraExpense = ref(60000);
 const withdrawalRate = ref(4);
 const iterations = ref(1000);
 const includeBonus = ref(true);
@@ -118,6 +119,7 @@ const simResult = computed(() => {
     withdrawalRate: withdrawalRate.value / 100,
     mortgageMonthlyPayment: mortgageMonthlyPayment.value,
     mortgagePayoffDate: mortgagePayoffDate.value || null,
+    postFireExtraExpense: postFireExtraExpense.value,
     iterations: iterations.value,
   });
 });
@@ -137,6 +139,7 @@ const growthData = computed(() => {
     withdrawalRate: withdrawalRate.value / 100,
     mortgageMonthlyPayment: mortgageMonthlyPayment.value,
     mortgagePayoffDate: mortgagePayoffDate.value || null,
+    postFireExtraExpense: postFireExtraExpense.value,
   });
 });
 
@@ -160,6 +163,18 @@ const formatMonths = (m) => {
 const achievementProbability = computed(() => {
     const reached = simResult.value.trials.filter(m => m < 1200).length;
     return (reached / iterations.value) * 100;
+});
+
+const estimatedMonthlyWithdrawal = computed(() => {
+  const basePlusExtra = monthlyExpense.value + postFireExtraExpense.value;
+  const grossExpense = includeTax.value
+    ? basePlusExtra / (1 - taxRate.value / 100)
+    : basePlusExtra;
+
+  const initialRequiredAssets = Math.round(growthData.value.table[0]?.requiredAssets ?? 0);
+  const withdrawalFromRate = (initialRequiredAssets * (withdrawalRate.value / 100)) / 12;
+
+  return Math.max(grossExpense, withdrawalFromRate);
 });
 </script>
 
@@ -282,6 +297,10 @@ const achievementProbability = computed(() => {
             <span v-if="includeTax">%</span>
           </div>
         </div>
+        <div class="filter-item">
+          <label>FIRE後の社会保険料・税(月額)</label>
+          <input v-model.number="postFireExtraExpense" type="number" step="5000" class="is-public" />
+        </div>
       </div>
 
       <div class="initial-summary">
@@ -346,6 +365,10 @@ const achievementProbability = computed(() => {
               <span class="meta">税率:</span>
               <span style="margin-left: 8px;">{{ taxRate }}%</span>
             </div>
+            <div>
+              <span class="meta">FIRE後追加支出:</span>
+              <span class="amount-value" style="margin-left: 8px;">{{ formatYen(postFireExtraExpense) }}</span>
+            </div>
           </div>
         </details>
       </div>
@@ -363,9 +386,8 @@ const achievementProbability = computed(() => {
               <li>住宅ローンの完済月以降は、月間支出からローン返済額を自動的に差し引いてシミュレーションを継続します。</li>
               <li>達成時期の90%信頼区間: {{ formatMonths(stats.p5) }} 〜 {{ formatMonths(stats.p95) }} (不確実性を考慮した予測)</li>
               <li>100歳までの達成率: <span :class="achievementProbability > 80 ? 'is-positive' : 'is-negative' " style="font-weight: bold;">{{ achievementProbability.toFixed(1) }}%</span> ({{ iterations }}回の試行結果に基づく)</li>
-              <li style="margin-top: 8px; list-style: none; font-weight: bold; color: var(--text);">【達成期間の算出根拠について】</li>
-              <li>大きな資産不足があっても短期間でFIRE達成と判定されるのは、現在の高い純貯蓄ペース（収入−支出）と期待リターンによる複利効果を将来にわたって投影しているためです。</li>
-              <li>シミュレーションでは、毎月の純キャッシュフロー（収入−支出）と運用成長を積み上げ、資産成長が必要資産額（将来支出の現在価値合計）を上回るタイミングを「達成」と定義しています。</li>
+              <li>FIRE後の追加支出（デフォルト6万円）は、国民年金（夫婦2名分: 約3.5万円）、国民健康保険（均等割7割軽減想定: 約1.5万円）、固定資産税（月1万円）を合算した目安値です。</li>
+              <li>※ 注意：リタイア1年目は前年の所得に基づき社会保険料・住民税が高額になる「1年目の罠」があるため、別途数十万円単位の予備費確保を推奨します。</li>
             </ul>
           </div>
         </details>
@@ -389,9 +411,11 @@ const achievementProbability = computed(() => {
         <p class="meta">あと <span class="amount-value">{{ formatYen(Math.max(0, Math.round(growthData.table[0]?.requiredAssets ?? 0) - initialAssets)) }}</span> 不足</p>
       </article>
       <article class="card">
-        <h2>月額の予定支出額</h2>
-        <p class="amount-value">{{ formatYen(monthlyExpense) }}</p>
-        <p class="meta">{{ useAutoExpense ? '過去5ヶ月の平均実績に基づく' : 'ユーザーによる手入力設定' }}</p>
+        <h2>月額の想定取り崩し額</h2>
+        <p class="amount-value">{{ formatYen(estimatedMonthlyWithdrawal) }}</p>
+        <p class="meta">
+          {{ useAutoExpense ? '実績' : '手入力' }}に税金・取崩率を考慮
+        </p>
       </article>
     </div>
 
