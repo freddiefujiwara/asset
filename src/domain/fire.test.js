@@ -401,6 +401,24 @@ describe("fire domain", () => {
       expect(result.table[1].requiredAssets).toBeGreaterThan(result.table[0].requiredAssets);
     });
 
+    it("grosses up withdrawal by taxRate when includeTax is true post-FIRE", () => {
+      const initialAssets = 100000000;
+      const monthlyExpense = 100000;
+      const taxRate = 0.2; // 20%
+      const result = generateGrowthTable({
+        ...params,
+        initialAssets,
+        monthlyExpense,
+        includeTax: true,
+        taxRate,
+        annualReturnRate: 0,
+        withdrawalRate: 0,
+      });
+      // Post-FIRE withdrawal should be 100,000 / (1 - 0.2) = 125,000
+      expect(result.fireReachedMonth).toBe(0);
+      expect(result.table[1].assets).toBe(initialAssets - 125000);
+    });
+
     it("sets assets to 0 if they go negative", () => {
       const result = generateGrowthTable({
         ...params,

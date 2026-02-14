@@ -330,8 +330,16 @@ function simulateTrial({
     // monthlyIncome already includes all regular/bonus cashflow assumptions,
     // and expense is deducted below. Do not add monthlyInvestment separately,
     // otherwise investment capital is double-counted.
-    assets = grownRiskAssets + grownSafeAssets + monthlyIncome;
-    assets -= currentMonthlyExpense;
+    const netCashflow = monthlyIncome - currentMonthlyExpense;
+    if (netCashflow >= 0) {
+      assets = grownRiskAssets + grownSafeAssets + netCashflow;
+    } else {
+      let shortfall = -netCashflow;
+      if (includeTax) {
+        shortfall /= 1 - taxRate;
+      }
+      assets = grownRiskAssets + grownSafeAssets - shortfall;
+    }
 
     if (assets < 0) return maxMonths;
   }
@@ -481,8 +489,12 @@ export function generateGrowthTable(params) {
       // Once FIRE is reached, stop investment and perform withdrawal (annually / 12)
       // or withdraw monthly expense, whichever is higher to ensure living.
       currentIncome = 0;
-      const amountFromWithdrawalRate = assets * withdrawalRate / 12;
-      currentWithdrawal = Math.max(currentMonthlyExpense, amountFromWithdrawalRate);
+      let grossExpense = currentMonthlyExpense;
+      if (includeTax) {
+        grossExpense /= 1 - taxRate;
+      }
+      const amountFromWithdrawalRate = (assets * withdrawalRate) / 12;
+      currentWithdrawal = Math.max(grossExpense, amountFromWithdrawalRate);
     } else {
       currentWithdrawal = currentMonthlyExpense;
     }

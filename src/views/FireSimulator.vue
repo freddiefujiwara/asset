@@ -161,6 +161,17 @@ const achievementProbability = computed(() => {
     const reached = simResult.value.trials.filter(m => m < 1200).length;
     return (reached / iterations.value) * 100;
 });
+
+const estimatedMonthlyWithdrawal = computed(() => {
+  const grossExpense = includeTax.value
+    ? monthlyExpense.value / (1 - taxRate.value / 100)
+    : monthlyExpense.value;
+
+  const initialRequiredAssets = Math.round(growthData.value.table[0]?.requiredAssets ?? 0);
+  const withdrawalFromRate = (initialRequiredAssets * (withdrawalRate.value / 100)) / 12;
+
+  return Math.max(grossExpense, withdrawalFromRate);
+});
 </script>
 
 <template>
@@ -389,9 +400,11 @@ const achievementProbability = computed(() => {
         <p class="meta">あと <span class="amount-value">{{ formatYen(Math.max(0, Math.round(growthData.table[0]?.requiredAssets ?? 0) - initialAssets)) }}</span> 不足</p>
       </article>
       <article class="card">
-        <h2>月額の予定支出額</h2>
-        <p class="amount-value">{{ formatYen(monthlyExpense) }}</p>
-        <p class="meta">{{ useAutoExpense ? '過去5ヶ月の平均実績に基づく' : 'ユーザーによる手入力設定' }}</p>
+        <h2>月額の想定取り崩し額</h2>
+        <p class="amount-value">{{ formatYen(estimatedMonthlyWithdrawal) }}</p>
+        <p class="meta">
+          {{ useAutoExpense ? '実績' : '手入力' }}に税金・取崩率を考慮
+        </p>
       </article>
     </div>
 
