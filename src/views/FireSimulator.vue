@@ -52,8 +52,6 @@ const riskAssets = computed(() => {
   const baseRiskAssets = data.value ? calculateRiskAssets(data.value) : 0;
   return Math.max(0, baseRiskAssets - excludedAssets.value.riskAssetsYen);
 });
-const initialAssets = computed(() => data.value?.totals?.netWorthYen ?? 0);
-const riskAssets = computed(() => (data.value ? calculateRiskAssets(data.value) : 0));
 const cashAssets = computed(() => (data.value ? calculateCashAssets(data.value) : 0));
 const monthsOfCash = computed(() => (monthlyExpense.value > 0 ? cashAssets.value / monthlyExpense.value : 0));
 const expenseResult = computed(() =>
