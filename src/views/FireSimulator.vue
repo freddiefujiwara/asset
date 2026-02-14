@@ -155,6 +155,7 @@ const runSimulation = () => {
       postFireExtraExpense: postFireExtraExpense.value,
       iterations: iterations.value,
       includePension: true,
+      monthlyInvestment: monthlyInvestment.value,
     });
   }, 300);
 };
@@ -231,8 +232,9 @@ const annualSimulationData = computed(() => {
 
 const stats = computed(() => simResult.value.stats);
 
-const medianFireAge = computed(() => Math.floor(currentAge.value + stats.value.median / 12));
-const medianPensionAnnual = computed(() => calculateMonthlyPension(60, medianFireAge.value) * 12);
+const fireAchievementMonth = computed(() => growthData.value.fireReachedMonth);
+const fireAchievementAge = computed(() => Math.floor(currentAge.value + fireAchievementMonth.value / 12));
+const pensionAnnualAtFire = computed(() => calculateMonthlyPension(60, fireAchievementAge.value) * 12);
 
 const mortgagePayoffAge = computed(() => {
   if (!mortgagePayoffDate.value) return null;
@@ -248,8 +250,8 @@ const mortgagePayoffAge = computed(() => {
 
 const chartAnnotations = computed(() => {
   const list = [];
-  if (stats.value.median > 0 && stats.value.median < 1200) {
-    list.push({ age: medianFireAge.value, label: "FIRE達成" });
+  if (fireAchievementMonth.value > 0 && fireAchievementMonth.value < 1200) {
+    list.push({ age: fireAchievementAge.value, label: "FIRE達成" });
   }
   list.push({ age: 60, label: "年金開始(本人)" });
   list.push({ age: 62, label: "年金開始(妻)" });
@@ -510,15 +512,15 @@ const estimatedMonthlyWithdrawal = computed(() => {
               <li>FIRE達成後は追加投資を停止し、定期収入（給与・ボーナス等）もゼロになると仮定しています。</li>
               <li>FIRE達成後は、年間支出または資産の{{ withdrawalRate }}%（設定値）のいずれか大きい額を引き出すと仮定しています。</li>
               <li style="margin-top: 8px; list-style: none; font-weight: bold; color: var(--text);">■ 年金受給の見込みについて</li>
-              <li>本シミュレーションでは、ご本人が{{ medianFireAge }}歳でFIREし、60歳から年金を繰上げ受給する以下のシナリオを想定しています。</li>
+              <li>本シミュレーションでは、ご本人が{{ fireAchievementAge }}歳でFIREし、60歳から年金を繰上げ受給する以下のシナリオを想定しています。</li>
               <ul style="margin: 0; padding-left: 20px;">
                 <li>受給開始: 60歳（2039年〜）</li>
-              <li>世帯受給額（概算）: <strong class="amount-value">年額 {{ formatYen(medianPensionAnnual) }}</strong>（<span class="amount-value">月額 {{ formatYen(Math.round(medianPensionAnnual / 12)) }}</span>）</li>
+              <li>世帯受給額（概算）: <strong class="amount-value">年額 {{ formatYen(pensionAnnualAtFire) }}</strong>（<span class="amount-value">月額 {{ formatYen(Math.round(pensionAnnualAtFire / 12)) }}</span>）</li>
                 <li>算定根拠:
                   <ul style="margin: 0; padding-left: 20px;">
                   <li>ねんきん特別便のデータ（累計納付額 <span class="amount-value">約1,496万円</span>）に基づき、現在までの加入実績を反映。</li>
                     <li>20代前半の未納期間（4年間）による基礎年金の減額を反映。</li>
-                    <li>{{ medianFireAge }}歳リタイア(シミュレーション結果による)に伴う厚生年金加入期間の停止を考慮。</li>
+                    <li>{{ fireAchievementAge }}歳リタイア(シミュレーション結果による)に伴う厚生年金加入期間の停止を考慮。</li>
                     <li>60歳繰上げ受給による受給額24%減額を適用。</li>
                   </ul>
                 </li>
@@ -549,13 +551,13 @@ const estimatedMonthlyWithdrawal = computed(() => {
         <span>計算中...</span>
       </div>
       <article class="card">
-        <h2>FIRE達成まで (中央値)</h2>
-        <p class="is-positive">{{ formatMonths(stats.median) }}</p>
-        <p class="meta">達成予定: {{ fireDate(stats.median) }}</p>
+        <h2>FIRE達成まで</h2>
+        <p class="is-positive">{{ formatMonths(fireAchievementMonth) }}</p>
+        <p class="meta">達成予定: {{ fireDate(fireAchievementMonth) }}</p>
       </article>
       <article class="card">
         <h2>FIRE達成年齢</h2>
-        <p class="is-positive">{{ Math.floor(currentAge + stats.median / 12) }}歳</p>
+        <p class="is-positive">{{ fireAchievementAge }}歳</p>
         <p class="meta">現在 {{ currentAge }}歳</p>
       </article>
       <article class="card">

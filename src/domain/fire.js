@@ -592,22 +592,18 @@ function findSurvivalMonth(params, returnsArray = null) {
   const { currentAge = 40, maxMonths = 1200 } = params;
   const totalMonthsLimit = Math.min(maxMonths, (100 - currentAge) * 12);
 
-  let low = 0;
-  let high = totalMonthsLimit;
   let result = -1;
 
-  while (low <= high) {
-    const mid = Math.floor((low + high) / 12) * 12; // Test yearly steps as requested
-    const res = _runCoreSimulation(params, { fireMonth: mid, returnsArray });
+  // 1. Linear search for the first year that survives until age 100
+  for (let m = 0; m <= totalMonthsLimit; m += 12) {
+    const res = _runCoreSimulation(params, { fireMonth: m, returnsArray });
     if (res.survived) {
-      result = mid;
-      high = mid - 12;
-    } else {
-      low = mid + 12;
+      result = m;
+      break;
     }
   }
 
-  // Refine monthly if result was found
+  // 2. Refine monthly if a successful year was found
   if (result !== -1) {
     let monthlyLow = Math.max(0, result - 11);
     let monthlyHigh = result;
