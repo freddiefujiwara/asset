@@ -100,6 +100,7 @@ function selectOwner(ownerId) {
         <CopyButton
           label="📋 資産状況をコピー"
           :copy-value="getMappedAssetStatusJson"
+          disabled-on-privacy
         />
       </div>
       <div class="owner-tabs" role="tablist" aria-label="表示対象の切り替え">

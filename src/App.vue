@@ -2,23 +2,23 @@
 import { RouterLink, RouterView } from "vue-router";
 import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { usePortfolioStore } from "@/stores/portfolio";
+import { useUiStore } from "@/stores/ui";
 
 const THEME_STORAGE_KEY = "asset-theme";
-const PRIVACY_STORAGE_KEY = "asset-privacy";
 const ID_TOKEN_STORAGE_KEY = "asset-google-id-token";
 
 const theme = ref("dark");
-const privacyMode = ref(false);
 const idToken = ref("");
 const googleReady = ref(false);
 const googleScriptError = ref(false);
 const googleButtonRoot = ref(null);
 
 const portfolioStore = usePortfolioStore();
+const uiStore = useUiStore();
 
 const isDark = computed(() => theme.value === "dark");
 const themeLabel = computed(() => (isDark.value ? "ライト" : "ダーク"));
-const privacyLabel = computed(() => (privacyMode.value ? "金額表示" : "金額モザイク"));
+const privacyLabel = computed(() => (uiStore.privacyMode ? "金額表示" : "金額モザイク"));
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
 const hasGoogleClientId = computed(() => Boolean(googleClientId));
 const authError = computed(() => portfolioStore.error.startsWith("AUTH "));
@@ -32,16 +32,12 @@ const applyTheme = (nextTheme) => {
   document.documentElement.setAttribute("data-theme", nextTheme);
 };
 
-const applyPrivacy = (enabled) => {
-  document.documentElement.setAttribute("data-private", enabled ? "on" : "off");
-};
-
 const toggleTheme = () => {
   theme.value = isDark.value ? "light" : "dark";
 };
 
 const togglePrivacy = () => {
-  privacyMode.value = !privacyMode.value;
+  uiStore.togglePrivacy();
 };
 
 function readSavedToken() {
@@ -118,11 +114,6 @@ onMounted(() => {
     theme.value = savedTheme;
   }
 
-  const savedPrivacy = localStorage.getItem(PRIVACY_STORAGE_KEY);
-  if (savedPrivacy === "on") {
-    privacyMode.value = true;
-  }
-
   readSavedToken();
   loadGoogleScript();
   if (!portfolioStore.data && !portfolioStore.error) {
@@ -130,17 +121,12 @@ onMounted(() => {
   }
 
   applyTheme(theme.value);
-  applyPrivacy(privacyMode.value);
+  document.documentElement.setAttribute("data-private", uiStore.privacyMode ? "on" : "off");
 });
 
 watch(theme, (nextTheme) => {
   localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
   applyTheme(nextTheme);
-});
-
-watch(privacyMode, (enabled) => {
-  localStorage.setItem(PRIVACY_STORAGE_KEY, enabled ? "on" : "off");
-  applyPrivacy(enabled);
 });
 
 watch(

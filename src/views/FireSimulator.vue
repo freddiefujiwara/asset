@@ -289,8 +289,8 @@ const copyAnnualTable = () => JSON.stringify(buildAnnualTableJson(), null, 2);
         <div class="filter-item expense-item">
           <div class="label-row">
             <label>生活費 (月額)</label>
-            <label class="auto-toggle">
-              <input type="checkbox" v-model="useAutoExpense" /> 自動算出
+            <label class="auto-toggle is-public">
+              <input type="checkbox" v-model="useAutoExpense" class="is-public" /> 自動算出
             </label>
           </div>
           <input v-model.number="manualMonthlyExpense" type="number" step="10000" :disabled="useAutoExpense" />
@@ -312,8 +312,8 @@ const copyAnnualTable = () => JSON.stringify(buildAnnualTableJson(), null, 2);
         <div class="filter-item expense-item">
           <div class="label-row">
             <label>定期収入 (月額)</label>
-            <label class="auto-toggle">
-              <input type="checkbox" v-model="useAutoIncome" /> 自動算出
+            <label class="auto-toggle is-public">
+              <input type="checkbox" v-model="useAutoIncome" class="is-public" /> 自動算出
             </label>
           </div>
           <input v-model.number="manualRegularMonthlyIncome" type="number" step="10000" :disabled="useAutoIncome" />
@@ -333,11 +333,11 @@ const copyAnnualTable = () => JSON.stringify(buildAnnualTableJson(), null, 2);
           <div class="label-row">
             <label>ボーナス (年額)</label>
             <div class="toggle-group">
-              <label class="auto-toggle">
-                <input type="checkbox" v-model="useAutoBonus" /> 自動算出
+              <label class="auto-toggle is-public">
+                <input type="checkbox" v-model="useAutoBonus" class="is-public" /> 自動算出
               </label>
-              <label class="auto-toggle">
-                <input type="checkbox" v-model="includeBonus" /> ボーナスを考慮
+              <label class="auto-toggle is-public">
+                <input type="checkbox" v-model="includeBonus" class="is-public" /> ボーナスを考慮
               </label>
             </div>
           </div>
@@ -367,19 +367,19 @@ const copyAnnualTable = () => JSON.stringify(buildAnnualTableJson(), null, 2);
           </select>
         </div>
         <div class="filter-item">
-          <label>インフレ考慮</label>
+          <label class="is-public">インフレ考慮</label>
           <div style="display: flex; gap: 8px; align-items: center;">
-            <input type="checkbox" v-model="includeInflation" />
+            <input type="checkbox" v-model="includeInflation" class="is-public" />
             <input v-if="includeInflation" v-model.number="inflationRate" type="number" step="0.1" style="width: 60px;" class="is-public" />
-            <span v-if="includeInflation">%</span>
+            <span v-if="includeInflation" class="is-public">%</span>
           </div>
         </div>
         <div class="filter-item">
-          <label>税金考慮</label>
+          <label class="is-public">税金考慮</label>
           <div style="display: flex; gap: 8px; align-items: center;">
-            <input type="checkbox" v-model="includeTax" />
+            <input type="checkbox" v-model="includeTax" class="is-public" />
             <input v-if="includeTax" v-model.number="taxRate" type="number" step="0.1" style="width: 80px;" class="is-public" />
-            <span v-if="includeTax">%</span>
+            <span v-if="includeTax" class="is-public">%</span>
           </div>
         </div>
         <div class="filter-item">
@@ -392,6 +392,7 @@ const copyAnnualTable = () => JSON.stringify(buildAnnualTableJson(), null, 2);
         <CopyButton
           label="📋 条件とアルゴリズムをコピー"
           :copy-value="copyConditionsAndAlgorithm"
+          disabled-on-privacy
         />
       </div>
 
@@ -511,6 +512,7 @@ const copyAnnualTable = () => JSON.stringify(buildAnnualTableJson(), null, 2);
         <CopyButton
           label="📋 年齢別収支推移表をコピー"
           :copy-value="copyAnnualTable"
+          disabled-on-privacy
         />
       </div>
       <FireSimulationTable :data="annualSimulationData" />
