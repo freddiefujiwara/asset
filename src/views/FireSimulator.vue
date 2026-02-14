@@ -76,6 +76,7 @@ const useAutoExpense = ref(true);
 const manualRegularMonthlyIncome = ref(0);
 const manualAnnualBonus = ref(0);
 const useAutoIncome = ref(true);
+const useAutoBonus = ref(true);
 const mortgageMonthlyPayment = ref(0);
 const mortgagePayoffDate = ref("2042-07");
 
@@ -95,8 +96,10 @@ const monthlyExpense = computed(() => (useAutoExpense.value ? autoMonthlyExpense
 const regularMonthlyIncome = computed(() =>
   useAutoIncome.value ? autoRegularMonthlyIncome.value : manualRegularMonthlyIncome.value,
 );
-const annualBonus = computed(() => (useAutoIncome.value ? autoAnnualBonus.value : manualAnnualBonus.value));
-const monthlyIncome = computed(() => regularMonthlyIncome.value + (includeBonus.value ? annualBonus.value / 12 : 0));
+const annualBonus = computed(() =>
+  includeBonus.value ? (useAutoBonus.value ? autoAnnualBonus.value : manualAnnualBonus.value) : 0,
+);
+const monthlyIncome = computed(() => regularMonthlyIncome.value + annualBonus.value / 12);
 const annualInvestment = computed(() => monthlyInvestment.value * 12);
 const annualSavings = computed(() => Math.max(0, (monthlyIncome.value - monthlyExpense.value - monthlyInvestment.value) * 12));
 
@@ -106,6 +109,8 @@ watchEffect(() => {
   }
   if (useAutoIncome.value) {
     manualRegularMonthlyIncome.value = autoRegularMonthlyIncome.value;
+  }
+  if (useAutoBonus.value) {
     manualAnnualBonus.value = autoAnnualBonus.value;
   }
   if (autoMortgageMonthlyPayment.value > 0 && mortgageMonthlyPayment.value === 0) {
@@ -263,12 +268,17 @@ const estimatedMonthlyWithdrawal = computed(() => {
         <div class="filter-item expense-item">
           <div class="label-row">
             <label>ボーナス (年額)</label>
-            <label class="auto-toggle">
-              <input type="checkbox" v-model="includeBonus" /> ボーナスを考慮
-            </label>
+            <div class="toggle-group">
+              <label class="auto-toggle">
+                <input type="checkbox" v-model="useAutoBonus" /> 自動算出
+              </label>
+              <label class="auto-toggle">
+                <input type="checkbox" v-model="includeBonus" /> ボーナスを考慮
+              </label>
+            </div>
           </div>
-          <input v-model.number="manualAnnualBonus" type="number" step="10000" :disabled="useAutoIncome || !includeBonus" />
-          <div v-if="useAutoIncome && autoIncomeSplit.monthCount > 0" class="expense-breakdown">
+          <input v-model.number="manualAnnualBonus" type="number" step="10000" :disabled="useAutoBonus || !includeBonus" />
+          <div v-if="useAutoBonus && autoIncomeSplit.monthCount > 0" class="expense-breakdown">
             <details>
               <summary>算出内訳 ({{ autoIncomeSplit.monthCount }}ヶ月平均)</summary>
               <div class="breakdown-content">
@@ -473,6 +483,11 @@ const estimatedMonthlyWithdrawal = computed(() => {
 .label-row {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+}
+.toggle-group {
+  display: flex;
+  gap: 8px;
   align-items: center;
 }
 .auto-toggle {
