@@ -139,7 +139,7 @@ export function estimateIncomeSplit(cashFlow) {
   });
 
   const regularMonthly = Math.round(totalRegularIncome / divisor);
-  const bonusAnnual = Math.round(totalBonusIncome * (12 / divisor));
+  const bonusAnnual = Math.round(totalBonusIncome * (12 / divisor) * 1.5);
 
   return {
     regularMonthly,

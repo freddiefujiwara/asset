@@ -176,8 +176,8 @@ describe("fire domain", () => {
 
       const result = estimateIncomeSplit(cashFlow);
       expect(result.regularMonthly).toBe(300000);
-      expect(result.bonusAnnual).toBe(1200000); // 500,000 annualized: 500,000 * 12 / 5 = 1,200,000
-      expect(result.monthlyTotal).toBe(400000);
+      expect(result.bonusAnnual).toBe(1800000); // 500,000 annualized with 1.5x: 500,000 * (12 / 5) * 1.5 = 1,800,000
+      expect(result.monthlyTotal).toBe(450000);
     });
 
     it("handles edge cases for coverage in income split", () => {
