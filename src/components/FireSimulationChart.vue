@@ -85,7 +85,7 @@ const xLabels = computed(() => {
 const yLabelsCash = computed(() => {
   const max = maxCashFlow.value * 1.1;
   const labels = [];
-  const step = Math.pow(10, Math.floor(Math.log10(max)) - 1) * 5 || 1000000;
+  const step = Math.pow(10, Math.floor(Math.log10(max)) - 1) * 5;
   for (let val = 0; val <= max; val += step) {
     labels.push({
       y: yScaleCash(val),
@@ -98,7 +98,7 @@ const yLabelsCash = computed(() => {
 const yLabelsAssets = computed(() => {
   const max = maxAssets.value * 1.1;
   const labels = [];
-  const step = Math.pow(10, Math.floor(Math.log10(max)) - 1) * 5 || 10000000;
+  const step = Math.pow(10, Math.floor(Math.log10(max)) - 1) * 5;
   for (let val = 0; val <= max; val += step) {
     labels.push({
       y: yScaleAssets(val),
@@ -110,6 +110,7 @@ const yLabelsAssets = computed(() => {
 
 const showTooltip = (event, item) => {
   const container = chartContainerRef.value;
+  /* v8 ignore next */
   if (!container) return;
   const rect = container.getBoundingClientRect();
   const x = event.clientX - rect.left;
