@@ -5,6 +5,7 @@ import HoldingTable from "@/components/HoldingTable.vue";
 import CopyButton from "@/components/CopyButton.vue";
 import AssetCategoryCard from "@/components/AssetCategoryCard.vue";
 import { formatSignedYen, formatYen } from "@/domain/format";
+import { toNumber } from "@/domain/parse";
 import { balanceSheetLayout } from "@/domain/dashboard";
 import PieChart from "@/components/PieChart.vue";
 import { formatSignedPercent, signedClass } from "@/domain/signed";
@@ -31,7 +32,7 @@ function selectOwner(ownerId) {
   });
 }
 
-const filteredHoldings = computed(() => filterHoldingsByOwner(data.value?.holdings, selectedOwner.value));
+const filteredHoldings = computed(() => filterHoldingsByOwner(data.value?.holdings, selectedOwner.value) || EMPTY_HOLDINGS);
 const categoryCards = computed(() => summarizeByCategory(filteredHoldings.value));
 
 const assetsByClass = computed(() => {
@@ -45,13 +46,34 @@ const assetsByClass = computed(() => {
 });
 
 const liabilitiesByCategory = computed(() => {
-  const liabilities = categoryCards.value.filter((c) => c.isLiability);
-  const total = liabilities.reduce((sum, c) => sum + c.amountYen, 0);
-  return liabilities.map((c) => ({
-    category: c.title,
-    amountYen: c.amountYen,
-    percentage: total > 0 ? Number(((c.amountYen / total) * 100).toFixed(1)) : 0,
-  }));
+  const details = filteredHoldings.value.liabilitiesDetail || [];
+  const groups = {
+    "住宅ローン": 0,
+    "クレジットカード利用残高": 0,
+    "その他負債": 0,
+  };
+
+  details.forEach((row) => {
+    const type = String(row?.["種類"] || "");
+    const amount = toNumber(row?.["残高"]);
+    if (type.includes("住宅ローン")) {
+      groups["住宅ローン"] += amount;
+    } else if (type.includes("クレジットカード")) {
+      groups["クレジットカード利用残高"] += amount;
+    } else {
+      groups["その他負債"] += amount;
+    }
+  });
+
+  const total = Object.values(groups).reduce((sum, v) => sum + v, 0);
+
+  return Object.entries(groups)
+    .filter(([_, amount]) => amount > 0)
+    .map(([category, amount]) => ({
+      category,
+      amountYen: amount,
+      percentage: total > 0 ? Number(((amount / total) * 100).toFixed(1)) : 0,
+    }));
 });
 
 const totals = computed(() => {
@@ -74,7 +96,7 @@ const dailyMoveClass = computed(() => signedClass(dailyMoveTotal.value));
 const totalProfitYen = computed(() => summary.value.totalProfitYen);
 const totalProfitClass = computed(() => signedClass(totalProfitYen.value));
 const totalProfitRatePct = computed(() => summary.value.totalProfitRatePct);
-const stockTiles = computed(() => buildStockTiles(filteredHoldings.value.stocks));
+const stockTiles = computed(() => buildStockTiles(filteredHoldings.value?.stocks || []));
 
 const KEY_MAP = {
   breakdown: "asset_breakdown",
@@ -277,7 +299,7 @@ const liabilityPie = computed(() =>
         <tbody>
           <tr v-for="item in liabilitiesByCategory" :key="item.category">
             <td>{{ item.category }}</td>
-            <td><span class="amount-value">{{ formatYen(item.amountYen) }}</span></td>
+            <td><span class="amount-value is-negative">-{{ formatYen(item.amountYen) }}</span></td>
             <td>{{ item.percentage }}</td>
           </tr>
         </tbody>
