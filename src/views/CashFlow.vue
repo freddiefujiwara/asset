@@ -2,6 +2,7 @@
 import { computed, ref } from "vue";
 import { usePortfolioData } from "@/composables/usePortfolioData";
 import { formatYen } from "@/domain/format";
+import CopyButton from "@/components/CopyButton.vue";
 import {
   filterCashFlow,
   getKPIs,
@@ -76,8 +77,6 @@ const handleSort = ({ key, order }) => {
   sortOrder.value = order;
 };
 
-const copyStatus = ref("");
-
 const getSplitResponse = () => {
   if (!rawResponse.value || typeof rawResponse.value !== "object") {
     return null;
@@ -111,37 +110,13 @@ const copyText = async (text) => {
   document.body.removeChild(textArea);
 };
 
-const copyMonthlyMfcfResponse = async (month) => {
+const getMonthlyMfcfJson = (month) => {
   const split = getSplitResponse();
-  if (!split) {
-    copyStatus.value = "コピー対象のレスポンスがありません";
-    return;
-  }
+  if (!split) return "[]";
 
   const mfcfRows = Array.isArray(split.mfcf) ? split.mfcf : [];
   const targetRows = mfcfRows.filter((item) => item?.date?.startsWith(month));
-
-  try {
-    await copyText(JSON.stringify(targetRows, null, 2));
-    copyStatus.value = `${month.replace("-", "")}分のキャッシュフローをコピーしました`;
-  } catch {
-    copyStatus.value = "コピーに失敗しました";
-  }
-};
-
-const copyNonMfcfResponse = async () => {
-  const split = getSplitResponse();
-  if (!split) {
-    copyStatus.value = "コピー対象のレスポンスがありません";
-    return;
-  }
-
-  try {
-    await copyText(JSON.stringify(split.others, null, 2));
-    copyStatus.value = "資産状況をコピーしました";
-  } catch {
-    copyStatus.value = "コピーに失敗しました";
-  }
+  return JSON.stringify(targetRows, null, 2);
 };
 
 const resetFilters = () => {
@@ -226,19 +201,12 @@ const resetFilters = () => {
     </div>
 
     <div class="table-wrap api-actions">
-      <button
+      <CopyButton
         v-for="month in copyTargetMonths"
         :key="month"
-        class="theme-toggle"
-        type="button"
-        @click="copyMonthlyMfcfResponse(month)"
-      >
-        {{ month.replace('-', '') }}分をコピー
-      </button>
-      <button class="theme-toggle" type="button" @click="copyNonMfcfResponse">
-        資産状況をコピー
-      </button>
-      <p v-if="copyStatus" class="meta">{{ copyStatus }}</p>
+        :label="`📋 ${month.replace('-', '')}分をコピー`"
+        :copy-value="() => getMonthlyMfcfJson(month)"
+      />
     </div>
 
     <CashFlowTable

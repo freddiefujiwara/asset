@@ -1,5 +1,6 @@
 import { getUniqueMonths } from "./cashFlow";
 import { assetAmountYen, detectAssetOwner } from "./family";
+import { formatYen } from "./format";
 
 const PENSION_USER_START_AGE = 60;
 const PENSION_SPOUSE_USER_AGE_START = 62; // Spouse (1976) age 65 when User (1979) is 62
@@ -101,6 +102,89 @@ export function calculateExcludedOwnerAssets(portfolio, excludedOwnerId = "daugh
 }
 
 /**
+ * Calculate detailed asset breakdown for the daughter.
+ */
+export function calculateDaughterAssetsBreakdown(portfolio) {
+  const breakdown = {
+    cash: 0,
+    stocks: 0,
+    funds: 0,
+    pensions: 0,
+    points: 0,
+    liabilities: 0,
+  };
+
+  if (!portfolio?.holdings) return breakdown;
+
+  const map = {
+    cashLike: "cash",
+    stocks: "stocks",
+    funds: "funds",
+    pensions: "pensions",
+    points: "points",
+  };
+
+  Object.entries(map).forEach(([key, bKey]) => {
+    const rows = portfolio.holdings[key] || [];
+    rows.forEach((row) => {
+      if (detectAssetOwner(row).id === "daughter") {
+        breakdown[bKey] += assetAmountYen(row);
+      }
+    });
+  });
+
+  const liabRows = portfolio.holdings.liabilitiesDetail || [];
+  liabRows.forEach((row) => {
+    if (detectAssetOwner(row).id === "daughter") {
+      breakdown.liabilities += assetAmountYen(row);
+    }
+  });
+
+  return breakdown;
+}
+
+/**
+ * Generate algorithm explanation segments for UI and export.
+ */
+export function generateAlgorithmExplanationSegments(params) {
+  const {
+    daughterBreakdown,
+    fireAchievementAge,
+    pensionAnnualAtFire,
+    withdrawalRatePct,
+    postFireExtraExpenseMonthly,
+  } = params;
+
+  const daughterDetailStr = `現金:${formatYen(daughterBreakdown.cash)}, 株式:${formatYen(daughterBreakdown.stocks)}, 投資信託:${formatYen(daughterBreakdown.funds)}, 年金:${formatYen(daughterBreakdown.pensions)}, ポイント:${formatYen(daughterBreakdown.points)}, 負債:${formatYen(daughterBreakdown.liabilities)}`;
+
+  return [
+    { type: "text", value: "本シミュレーションは、設定された期待リターン・インフレ率・年金・ローン等のキャッシュフローに基づき、100歳時点で資産が残る最短リタイア年齢を算出しています。\n・必要資産目安は「FIRE達成年齢で退職して100歳まで資産が尽きない最小条件」を満たす達成時点の金融資産額と同じ定義です。\n・娘名義の資産（" },
+    { type: "amount", value: daughterDetailStr },
+    { type: "text", value: "）は初期資産から除外してシミュレーションしています。\n・投資優先順位ルール: 生活防衛資金として現金を維持するため、毎月の投資額は「前月までの貯金残高 + 当月の収支剰余金」を上限として自動調整されます（貯金がマイナスにならないよう制限されます）。\n・FIRE達成後は追加投資を停止し、定期収入（給与・ボーナス等）もゼロになると仮定しています。\n・FIRE達成後は、年間支出または資産の" },
+    { type: "text", value: String(withdrawalRatePct) },
+    { type: "text", value: "%（設定値）のいずれか大きい額を引き出すと仮定しています。\n\n■ 年金受給の見込みについて\n本シミュレーションでは、ご本人が" },
+    { type: "text", value: String(fireAchievementAge) },
+    { type: "text", value: "歳でFIREし、60歳から年金を繰上げ受給する以下のシナリオを想定しています。\n・受給開始: 60歳（2039年〜）\n・世帯受給額（概算）: 年額 " },
+    { type: "amount", value: formatYen(pensionAnnualAtFire) },
+    { type: "text", value: "（月額 " },
+    { type: "amount", value: formatYen(Math.round(pensionAnnualAtFire / 12)) },
+    { type: "text", value: "）\n・算定根拠:\n  - ねんきん特別便のデータ（累計納付額 " },
+    { type: "amount", value: "約1,496万円" },
+    { type: "text", value: "）に基づき、現在までの加入実績を反映。\n  - 20代前半の未納期間（4年間）による基礎年金の減額を反映。\n  - " },
+    { type: "text", value: String(fireAchievementAge) },
+    { type: "text", value: "歳リタイア(シミュレーション結果による)に伴う厚生年金加入期間の停止を考慮。\n  - 60歳繰上げ受給による受給額24%減額を適用。\n・配偶者加算: 奥様（1976年生）が65歳に達した時点から、奥様自身の基礎年金が世帯収入に加算されるものとして計算。\n\n住宅ローンの完済月以降は、月間支出からローン返済額を自動的に差し引いてシミュレーションを継続します。\n\n■ 各項目の算出定義\n・収入 (年金込): 定期収入（給与等） + 年金受給額の合算です。\n・支出: (基本生活費 - 住宅ローン) × インフレ調整 + 住宅ローン(固定) + FIRE後追加支出（FIRE達成月より加算）\n・運用益: 当年中の運用リターン合計。月次複利で計算されます。\n・取り崩し額: 生活費の不足分、または「資産 × 取崩率」のいずれか大きい額を引き出します（税金考慮時はグロスアップ）。\n・貯金額 (現金): 前年末残高 + 当年収支(収入 - 支出) - 当年投資額 + リスク資産からの補填（純額）\n・リスク資産額: 前年末残高 + 投資額 + 運用益 - 取崩額(グロス)\n\nFIRE後の追加支出（デフォルト" },
+    { type: "amount", value: formatYen(postFireExtraExpenseMonthly) },
+    { type: "text", value: "）は、国民年金（夫婦2名分: " },
+    { type: "amount", value: "約3.5万円" },
+    { type: "text", value: "）、国民健康保険（均等割7割軽減想定: " },
+    { type: "amount", value: "約1.5万円" },
+    { type: "text", value: "）、固定資産税（" },
+    { type: "amount", value: "月1万円" },
+    { type: "text", value: "）を合算した目安値です。\n※ 注意：リタイア1年目は前年の所得に基づき社会保険料・住民税が高額になる「1年目の罠」があるため、別途数十万円単位の予備費確保を推奨します。" },
+  ];
+}
+
+/**
  * Sum assets and liabilities for specific owners (Self and Spouse).
  * This ensures strict isolation for FIRE simulation.
  */
@@ -167,13 +251,28 @@ export function calculateCashAssets(portfolio) {
   return totalAssets - riskAssets;
 }
 
-function getPastFiveMonths(now) {
+const FIVE_MONTH_LOOKBACK_COUNT = 5;
+
+function getPastMonths(now, count) {
   const months = [];
-  for (let i = 1; i <= 5; i++) {
+  for (let i = 1; i <= count; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
   }
   return months;
+}
+
+function processLookbackCashFlow(cashFlow, callback) {
+  const now = new Date();
+  const targetMonths = getPastMonths(now, FIVE_MONTH_LOOKBACK_COUNT);
+  const monthSet = new Set(targetMonths);
+
+  cashFlow.forEach((item) => {
+    if (item.isTransfer) return;
+    const month = item.date?.substring(0, 7) || "";
+    if (!monthSet.has(month)) return;
+    callback(item);
+  });
 }
 
 /**
@@ -182,22 +281,13 @@ function getPastFiveMonths(now) {
  * Also excludes "Cash" and "Card" related categories as requested.
  */
 export function estimateMonthlyExpenses(cashFlow) {
-  const now = new Date();
-  const targetMonths = getPastFiveMonths(now);
-  const monthSet = new Set(targetMonths);
-  const divisor = 5;
-
+  const divisor = FIVE_MONTH_LOOKBACK_COUNT;
   const breakdownMap = {};
   let totalNormalExpense = 0;
   let totalSpecialExpense = 0;
 
-  cashFlow.forEach((item) => {
-    if (item.isTransfer || item.amount >= 0) return;
-
-    const month = item.date?.substring(0, 7) || "";
-    if (!monthSet.has(month)) {
-      return;
-    }
+  processLookbackCashFlow(cashFlow, (item) => {
+    if (item.amount >= 0) return;
 
     const absAmount = Math.abs(item.amount);
     const category = item.category || "未分類";
@@ -207,7 +297,6 @@ export function estimateMonthlyExpenses(cashFlow) {
       return;
     }
 
-    // Exclude Cash/Card categories as requested
     if (category.startsWith("現金") || category.startsWith("カード")) {
       return;
     }
@@ -224,11 +313,8 @@ export function estimateMonthlyExpenses(cashFlow) {
     }))
     .sort((a, b) => b.amount - a.amount);
 
-  const averageNormal = Math.round(totalNormalExpense / divisor);
-  const finalTotal = averageNormal;
-
   return {
-    total: finalTotal,
+    total: Math.round(totalNormalExpense / divisor),
     breakdown,
     averageSpecial: Math.round(totalSpecialExpense / divisor),
     monthCount: divisor,
@@ -239,19 +325,11 @@ export function estimateMonthlyExpenses(cashFlow) {
  * Estimate monthly average income from cash flow (previous 5 months, excluding current month).
  */
 export function estimateMonthlyIncome(cashFlow) {
-  const now = new Date();
-  const targetMonths = getPastFiveMonths(now);
-  const monthSet = new Set(targetMonths);
-  const divisor = 5;
-
+  const divisor = FIVE_MONTH_LOOKBACK_COUNT;
   let totalIncome = 0;
 
-  cashFlow.forEach((item) => {
-    if (item.isTransfer || item.amount <= 0) return;
-
-    const month = item.date?.substring(0, 7) || "";
-    if (!monthSet.has(month)) return;
-
+  processLookbackCashFlow(cashFlow, (item) => {
+    if (item.amount <= 0) return;
     totalIncome += item.amount;
   });
 
@@ -264,21 +342,14 @@ export function estimateMonthlyIncome(cashFlow) {
  * - bonusAnnual: total annualized bonus estimated from the target window
  */
 export function estimateIncomeSplit(cashFlow) {
-  const now = new Date();
-  const targetMonths = getPastFiveMonths(now);
-  const monthSet = new Set(targetMonths);
-  const divisor = 5;
-
+  const divisor = FIVE_MONTH_LOOKBACK_COUNT;
   let totalRegularIncome = 0;
   let totalBonusIncome = 0;
   const regularBreakdownMap = {};
   const bonusBreakdownMap = {};
 
-  cashFlow.forEach((item) => {
-    if (item.isTransfer || item.amount <= 0) return;
-
-    const month = item.date?.substring(0, 7) || "";
-    if (!monthSet.has(month)) return;
+  processLookbackCashFlow(cashFlow, (item) => {
+    if (item.amount <= 0) return;
 
     const category = item.category || "未分類";
     if (category === "収入/給与") {
@@ -289,6 +360,7 @@ export function estimateIncomeSplit(cashFlow) {
       bonusBreakdownMap[category] = (bonusBreakdownMap[category] || 0) + item.amount;
     }
   });
+
   const regularMonthly = Math.round(totalRegularIncome / divisor);
   const bonusAnnual = Math.round(totalBonusIncome * (12 / divisor));
 
@@ -320,19 +392,11 @@ export function estimateIncomeSplit(cashFlow) {
  * Estimate mortgage monthly payment from category "住宅/ローン返済".
  */
 export function estimateMortgageMonthlyPayment(cashFlow) {
-  const now = new Date();
-  const targetMonths = getPastFiveMonths(now);
-  const monthSet = new Set(targetMonths);
-  const divisor = 5;
-
+  const divisor = FIVE_MONTH_LOOKBACK_COUNT;
   let totalMortgage = 0;
 
-  cashFlow.forEach((item) => {
-    if (item.isTransfer || item.amount >= 0) return;
-
-    const month = item.date?.substring(0, 7) || "";
-    if (!monthSet.has(month)) return;
-
+  processLookbackCashFlow(cashFlow, (item) => {
+    if (item.amount >= 0) return;
     if ((item.category || "").startsWith("住宅/ローン返済")) {
       totalMortgage += Math.abs(item.amount);
     }
@@ -422,6 +486,33 @@ function calculateCurrentMonthlyExpense({
 }
 
 /**
+ * Normalizes and validates simulation parameters.
+ */
+export function normalizeFireParams(params) {
+  if (!params) return normalizeFireParams({});
+  const monthlyExpense = params.monthlyExpense ?? (params.monthlyExpenses ? params.monthlyExpenses / 12 : 0);
+  return {
+    initialAssets: Number(params.initialAssets ?? 0),
+    riskAssets: Number(params.riskAssets ?? 0),
+    annualReturnRate: Number(params.annualReturnRate ?? 0),
+    monthlyExpense: Number(monthlyExpense),
+    monthlyIncome: Number(params.monthlyIncome ?? 0),
+    currentAge: Number(params.currentAge || 40),
+    includeInflation: Boolean(params.includeInflation),
+    inflationRate: Number(params.inflationRate ?? 0.02),
+    includeTax: Boolean(params.includeTax),
+    taxRate: Number(params.taxRate ?? 0.20315),
+    withdrawalRate: Number(params.withdrawalRate ?? 0.04),
+    mortgageMonthlyPayment: Number(params.mortgageMonthlyPayment ?? 0),
+    mortgagePayoffDate: params.mortgagePayoffDate || null,
+    postFireExtraExpense: Number(params.postFireExtraExpense ?? 0),
+    includePension: Boolean(params.includePension),
+    monthlyInvestment: Number(params.monthlyInvestment ?? 0),
+    maxMonths: Number(params.maxMonths ?? 1200),
+  };
+}
+
+/**
  * Internal simulation engine.
  */
 function _runCoreSimulation(params, { recordMonthly = false, fireMonth = -1, returnsArray = null } = {}) {
@@ -430,23 +521,22 @@ function _runCoreSimulation(params, { recordMonthly = false, fireMonth = -1, ret
     riskAssets,
     annualReturnRate,
     monthlyExpense,
-    monthlyExpenses,
-    monthlyIncome = 0,
-    currentAge = 40,
-    maxMonths = 1200,
-    includeInflation = false,
-    inflationRate = 0.02,
-    includeTax = false,
-    taxRate = 0.20315,
-    withdrawalRate = 0.04,
-    mortgageMonthlyPayment = 0,
-    mortgagePayoffDate = null,
-    postFireExtraExpense = 0,
-    includePension = false,
-    monthlyInvestment = 0,
+    monthlyIncome,
+    currentAge,
+    maxMonths,
+    includeInflation,
+    inflationRate,
+    includeTax,
+    taxRate,
+    withdrawalRate,
+    mortgageMonthlyPayment,
+    mortgagePayoffDate,
+    postFireExtraExpense,
+    includePension,
+    monthlyInvestment,
   } = params;
 
-  const monthlyExp = monthlyExpense ?? (monthlyExpenses ? monthlyExpenses / 12 : 0);
+  const monthlyExp = monthlyExpense;
   const monthlyReturnMean = Math.pow(1 + annualReturnRate, 1 / 12) - 1;
   const monthlyInflationRate = Math.pow(1 + (includeInflation ? inflationRate : 0), 1 / 12) - 1;
   const totalMonthsUntil100 = (100 - currentAge) * 12;
@@ -585,7 +675,7 @@ function _runCoreSimulation(params, { recordMonthly = false, fireMonth = -1, ret
  * Find the earliest retirement month that survives until age 100.
  */
 function findSurvivalMonth(params, returnsArray = null) {
-  const { currentAge = 40, maxMonths = 1200 } = params;
+  const { currentAge, maxMonths } = params;
   const totalMonthsLimit = Math.min(maxMonths, (100 - currentAge) * 12);
 
   let result = -1;
@@ -621,12 +711,13 @@ function findSurvivalMonth(params, returnsArray = null) {
 /**
  * Core simulation engine. Finds survival month if not forced.
  */
-function performFireSimulation(params, options = {}) {
+export function performFireSimulation(inputParams, options = {}) {
+  const params = normalizeFireParams(inputParams);
   const { forceFireMonth = null, returnsArray = null, recordMonthly = false } = options;
 
   let targetReturns = returnsArray;
   if (!targetReturns) {
-    const { currentAge = 40, annualReturnRate = 0 } = params;
+    const { currentAge, annualReturnRate } = params;
     const totalMonthsUntil100 = (100 - currentAge) * 12;
     const monthlyReturnMean = Math.pow(1 + annualReturnRate, 1 / 12) - 1;
 

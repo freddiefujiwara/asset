@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import HoldingTable from "@/components/HoldingTable.vue";
+import CopyButton from "@/components/CopyButton.vue";
 import AssetCategoryCard from "@/components/AssetCategoryCard.vue";
 import { formatSignedYen, formatYen } from "@/domain/format";
 import { formatSignedPercent, signedClass } from "@/domain/signed";
@@ -12,7 +13,43 @@ import { useInitialHashRestore } from "@/composables/useInitialHashRestore";
 
 const route = useRoute();
 const router = useRouter();
-const { data, loading, error } = usePortfolioData();
+const { data, loading, error, rawResponse } = usePortfolioData();
+
+const KEY_MAP = {
+  breakdown: "asset_breakdown",
+  "breakdown-liability": "liability_breakdown",
+  "total-liability": "total_liability",
+  details__portfolio_det_depo__t0: "cash_and_deposit_details",
+  details__portfolio_det_eq__t0: "stock_details",
+  details__portfolio_det_mf__t0: "investment_trust_details",
+  details__portfolio_det_pns__t0: "pension_details",
+  details__portfolio_det_po__t0: "point_details",
+  "details__liability_det__t0-liability": "liability_details",
+};
+
+const getMappedAssetStatusJson = () => {
+  if (!rawResponse.value || typeof rawResponse.value !== "object") {
+    return "{}";
+  }
+
+  const root = rawResponse.value;
+  const target = root?.data && typeof root.data === "object" ? root.data : root;
+
+  if (!target || typeof target !== "object") {
+    return "{}";
+  }
+
+  // eslint-disable-next-line no-unused-vars
+  const { mfcf, ...others } = target;
+
+  const mappedOthers = {};
+  Object.keys(others).forEach((key) => {
+    const newKey = KEY_MAP[key] || key;
+    mappedOthers[newKey] = others[key];
+  });
+
+  return JSON.stringify(mappedOthers, null, 2);
+};
 
 useInitialHashRestore({
   route,
@@ -58,7 +95,13 @@ function selectOwner(ownerId) {
     <p v-if="error" class="error">{{ error }}</p>
 
     <section class="table-wrap">
-      <h2 class="section-title">資産管理（保有資産・家族別統合）</h2>
+      <div class="header-with-action">
+        <h2 class="section-title">資産管理（保有資産・家族別統合）</h2>
+        <CopyButton
+          label="📋 資産状況をコピー"
+          :copy-value="getMappedAssetStatusJson"
+        />
+      </div>
       <div class="owner-tabs" role="tablist" aria-label="表示対象の切り替え">
         <button
           v-for="owner in OWNER_FILTERS"
@@ -140,3 +183,15 @@ function selectOwner(ownerId) {
     </section>
   </section>
 </template>
+
+<style scoped>
+.header-with-action {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.header-with-action .section-title {
+  margin-bottom: 0;
+}
+</style>
