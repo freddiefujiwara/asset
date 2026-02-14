@@ -891,18 +891,19 @@ describe("fire domain", () => {
         riskAssets: 5000000,
         annualReturnRate: 0.1, // 10%
         monthlyInvestment: 100000, // 1.2M / year
-        monthlyIncome: 200000,
+        monthlyIncome: 300000,
         monthlyExpense: 200000,
       });
 
       const year0 = result[0];
       const year1 = result[1];
       // Monthly return = (1.1)^(1/12) - 1 ≈ 0.007974
-      // Month 1: gain = 5M * 0.007974 = 39870. Risk = 5M + 39870 + 100k = 5,139,870. Cash = 5M - 100k = 4.9M.
-      // ...
-      expect(year0.investmentGain).toBeGreaterThan(5000000 * 0.1); // Due to monthly investment increasing base
+      // Surplus is 100k, investment is 100k. Cash stays at 5M.
+      // Month 1: gain = (5M + 100k) * 0.007974 = 40667. Risk = 5,140,667.
+      // Sum of gains over 12 months will be > 500,000.
+      expect(year0.investmentGain).toBeGreaterThan(500000);
       expect(year1.riskAssets).toBeGreaterThan(5000000 + 1200000);
-      expect(year1.cashAssets).toBeLessThan(5000000);
+      expect(year1.cashAssets).toBe(5000000); // 5M - 0 (surplus used for investment)
     });
 
     it("handles mid-year mortgage payoff", () => {
@@ -947,12 +948,14 @@ describe("fire domain", () => {
       const result = generateAnnualSimulation({
         ...params,
         initialAssets: 100000000,
+        riskAssets: 100000000, // Withdraw from risk assets to see tax gross-up
+        monthlyIncome: 0,
         monthlyExpense: 100000,
         includeTax: true,
         taxRate: 0.2,
         withdrawalRate: 0,
       });
-      // 100k / 0.8 = 125k. Annual: 1.5M
+      // Shortfall 100k -> Gross up 125k. Annual: 125k * 12 = 1.5M
       expect(result[0].withdrawal).toBe(1500000);
     });
 
@@ -973,6 +976,30 @@ describe("fire domain", () => {
         monthlyExpense: 1000000,
       });
       expect(result[1].assets).toBe(0);
+    });
+
+    it("handles surplus during FIRE (no investment)", () => {
+      const result = generateAnnualSimulation({
+        ...params,
+        initialAssets: 1000000000, // huge assets to force FIRE immediately
+        riskAssets: 900000000,
+        monthlyIncome: 1000000,
+        monthlyExpense: 100000,
+        monthlyInvestment: 500000,
+        currentAge: 70, // Pension will be active
+        withdrawalRate: 0,
+        includePension: true,
+        includeTax: false,
+        includeInflation: false,
+      });
+      // Year 0 (FIRE reached)
+      const year0 = result[0];
+      // Income will be 0 because FIRE reached.
+      // Pension at 70 is approx 181k.
+      // Expenses are 100k.
+      // Net flow = 181k - 100k = 81k.
+      // Savings = 81k * 12 = 972k.
+      expect(year0.savings).toBeGreaterThan(0);
     });
   });
 });

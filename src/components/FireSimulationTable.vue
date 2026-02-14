@@ -25,16 +25,16 @@ defineProps({
         </thead>
         <tbody>
           <tr v-for="row in data" :key="row.age">
-            <td class="age-cell">{{ row.age }}歳</td>
-            <td class="amount-value text-right">{{ formatYen(row.income + row.pension) }}</td>
-            <td class="amount-value text-right">{{ formatYen(row.expenses) }}</td>
-            <td class="amount-value text-right is-positive">{{ formatYen(row.investmentGain) }}</td>
-            <td class="amount-value text-right" :class="{ 'is-negative': row.withdrawal > 0 }">
+            <td class="age-cell" title="年齢">{{ row.age }}歳</td>
+            <td class="amount-value text-right" title="月間給与 + (年間ボーナス / 12) + 公的年金">{{ formatYen(row.income + row.pension) }}</td>
+            <td class="amount-value text-right" title="基本生活費 + (FIRE後追加支出 ※FIRE後のみ) - 住宅ローン削減分(完済後)">{{ formatYen(row.expenses) }}</td>
+            <td class="amount-value text-right is-positive" title="リスク資産残高 × 期待リターン">{{ formatYen(row.investmentGain) }}</td>
+            <td class="amount-value text-right" :class="{ 'is-negative': row.withdrawal > 0 }" title="Max(支出, 資産 × 取り崩し率) - 収入 - 年金 (※FIRE後)">
               {{ formatYen(row.withdrawal) }}
             </td>
-            <td class="amount-value text-right" style="font-weight: bold;">{{ formatYen(row.assets) }}</td>
-            <td class="amount-value text-right" :class="{ 'is-negative': row.cashAssets < 0 }">{{ formatYen(row.cashAssets) }}</td>
-            <td class="amount-value text-right">{{ formatYen(row.riskAssets) }}</td>
+            <td class="amount-value text-right" style="font-weight: bold;" title="金融資産(合計) = 貯金額 + リスク資産額">{{ formatYen(row.assets) }}</td>
+            <td class="amount-value text-right" :class="{ 'is-negative': row.cashAssets < 0 }" title="前年末貯金 + 当年貯金可能額(収入-支出) - 当年投資額">{{ formatYen(row.cashAssets) }}</td>
+            <td class="amount-value text-right" title="前年リスク資産 + 当年投資額 + 当年運用益">{{ formatYen(row.riskAssets) }}</td>
           </tr>
         </tbody>
       </table>

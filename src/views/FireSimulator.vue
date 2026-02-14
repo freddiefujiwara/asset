@@ -50,7 +50,7 @@ const firePortfolio = computed(() =>
     ? calculateFirePortfolio(data.value)
     : { totalAssetsYen: 0, riskAssetsYen: 0, cashAssetsYen: 0, liabilitiesYen: 0, netWorthYen: 0 },
 );
-const initialAssets = computed(() => firePortfolio.value.netWorthYen);
+const initialAssets = computed(() => firePortfolio.value.totalAssetsYen);
 const riskAssets = computed(() => firePortfolio.value.riskAssetsYen);
 const cashAssets = computed(() => firePortfolio.value.cashAssetsYen);
 const monthsOfCash = computed(() => (monthlyExpense.value > 0 ? cashAssets.value / monthlyExpense.value : 0));
@@ -248,7 +248,7 @@ const estimatedMonthlyWithdrawal = computed(() => {
         </div>
         <div class="filter-item">
           <label>取り崩し率 (%)</label>
-          <input v-model.number="withdrawalRate" type="number" step="0.1" class="is-public" />
+          <input v-model.number="withdrawalRate" type="number" step="0.1" />
         </div>
         <div class="filter-item expense-item">
           <div class="label-row">
@@ -324,7 +324,7 @@ const estimatedMonthlyWithdrawal = computed(() => {
         </div>
         <div class="filter-item">
           <label>ローン完済年月</label>
-          <select v-model="mortgagePayoffDate" class="is-public date-select">
+          <select v-model="mortgagePayoffDate" class="date-select">
             <option v-for="opt in mortgageOptions" :key="opt.val" :value="opt.val">
               {{ opt.label }}
             </option>
@@ -333,16 +333,16 @@ const estimatedMonthlyWithdrawal = computed(() => {
         <div class="filter-item">
           <label>インフレ考慮</label>
           <div style="display: flex; gap: 8px; align-items: center;">
-            <input type="checkbox" v-model="includeInflation" class="is-public" />
-            <input v-if="includeInflation" v-model.number="inflationRate" type="number" step="0.1" style="width: 60px;" class="is-public" />
+            <input type="checkbox" v-model="includeInflation" />
+            <input v-if="includeInflation" v-model.number="inflationRate" type="number" step="0.1" style="width: 60px;" />
             <span v-if="includeInflation">%</span>
           </div>
         </div>
         <div class="filter-item">
           <label>税金考慮</label>
           <div style="display: flex; gap: 8px; align-items: center;">
-            <input type="checkbox" v-model="includeTax" class="is-public" />
-            <input v-if="includeTax" v-model.number="taxRate" type="number" step="0.1" style="width: 80px;" class="is-public" />
+            <input type="checkbox" v-model="includeTax" />
+            <input v-if="includeTax" v-model.number="taxRate" type="number" step="0.1" style="width: 80px;" />
             <span v-if="includeTax">%</span>
           </div>
         </div>
