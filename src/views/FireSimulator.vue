@@ -423,6 +423,7 @@ const estimatedMonthlyWithdrawal = computed(() => {
                 <li>世帯受給額（概算）: <strong>年額 {{ formatYen(medianPensionAnnual) }}</strong>（月額 {{ formatYen(Math.round(medianPensionAnnual / 12)) }}）</li>
                 <li>算定根拠:
                   <ul style="margin: 0; padding-left: 20px;">
+                    <li>ねんきん特別便のデータ（累計納付額 約1,496万円）に基づき、現在までの加入実績を反映。</li>
                     <li>20代前半の未納期間（4年間）による基礎年金の減額を反映。</li>
                     <li>{{ medianFireAge }}歳リタイア(シミュレーション結果による)に伴う厚生年金加入期間の停止を考慮。</li>
                     <li>60歳繰上げ受給による受給額24%減額を適用。</li>

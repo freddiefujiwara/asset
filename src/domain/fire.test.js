@@ -582,24 +582,30 @@ describe("fire domain", () => {
       expect(calculateMonthlyPension(59.9, 50)).toBe(0);
     });
 
-    it("returns approx 116,666 (1.4M / 12) at age 60 if FIRE at 50", () => {
-      // User: (780k * 0.9 * 0.76) + (26 * 33,326) = 533,520 + 866,476 = 1,399,996
-      // Monthly: 1,399,996 / 12 = 116,666.33
-      expect(calculateMonthlyPension(60, 50)).toBe(116666);
+    it("returns approx 116,929 (1.4M / 12) at age 60 if FIRE at 50", () => {
+      // User Basic (60): 780k * 0.9 * 0.76 = 533,520
+      // User Kosei (65): 892,252 (accrued at 44) + (50 - 44) * 42,000 = 892,252 + 252,000 = 1,144,252
+      // User Kosei (60): 1,144,252 * 0.76 = 869,632
+      // Total (60): 533,520 + 869,632 = 1,403,152
+      // Monthly: 1,403,152 / 12 = 116,929
+      expect(calculateMonthlyPension(60, 50)).toBe(116929);
     });
 
     it("adds spouse pension (approx 65,000) at user age 62", () => {
-      // User part: 116,666
+      // User part: 116,929
       // Spouse part: 780,000 / 12 = 65,000
-      // Total: 116,666 + 65,000 = 181,666
-      expect(calculateMonthlyPension(62, 50)).toBe(181666);
+      // Total: 116,929 + 65,000 = 181,929
+      expect(calculateMonthlyPension(62, 50)).toBe(181929);
     });
 
     it("adjusts user pension based on FIRE age", () => {
-      // FIRE at 40 (16 years participation: 40-24)
-      // User pension: 533,520 + 16 * 33,326 = 533,520 + 533,216 = 1,066,736
-      // Monthly: 1,066,736 / 12 = 88,894.66 -> 88,895
-      expect(calculateMonthlyPension(60, 40)).toBe(88895);
+      // FIRE at 40 (Participation stops before age 44 data point)
+      // User Basic (60): 533,520
+      // User Kosei (65): 892,252 (capped at accrued amount so far)
+      // User Kosei (60): 892,252 * 0.76 = 678,112
+      // Total (60): 533,520 + 678,112 = 1,211,632
+      // Monthly: 1,211,632 / 12 = 100,969
+      expect(calculateMonthlyPension(60, 40)).toBe(100969);
     });
 
     it("caps participation at age 60", () => {
@@ -630,7 +636,7 @@ describe("fire domain", () => {
       // Start at age 60, already FIRE'd
       const initialAssets = 100000000;
       const monthlyExpense = 200000;
-      const pension = calculateMonthlyPension(60, 60); // approx 116,666
+      const pension = calculateMonthlyPension(60, 60);
 
       const result = generateGrowthTable({
         initialAssets,
