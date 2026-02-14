@@ -2,8 +2,7 @@ import { createApp } from "vue";
 import { createPinia } from "pinia";
 import { createRouter, createWebHistory } from "vue-router";
 import App from "./App.vue";
-import Dashboard from "./views/Dashboard.vue";
-import Holdings from "./views/Holdings.vue";
+import BalanceSheet from "./views/BalanceSheet.vue";
 import CashFlow from "./views/CashFlow.vue";
 import FireSimulator from "./views/FireSimulator.vue";
 import "./style.css";
@@ -12,10 +11,8 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     { path: "/", redirect: "/balance-sheet" },
-    { path: "/balance-sheet", component: Dashboard },
-    { path: "/dashboard", redirect: "/balance-sheet" },
-    { path: "/holdings", component: Holdings },
-    { path: "/family-assets", redirect: "/holdings?owner=all" },
+    { path: "/balance-sheet", component: BalanceSheet },
+    { path: "/holdings", redirect: "/balance-sheet" },
     { path: "/cash-flow", component: CashFlow },
     { path: "/fire", component: FireSimulator },
   ],

@@ -5,15 +5,98 @@ import HoldingTable from "@/components/HoldingTable.vue";
 import CopyButton from "@/components/CopyButton.vue";
 import AssetCategoryCard from "@/components/AssetCategoryCard.vue";
 import { formatSignedYen, formatYen } from "@/domain/format";
+import { toNumber } from "@/domain/parse";
+import { balanceSheetLayout } from "@/domain/dashboard";
+import PieChart from "@/components/PieChart.vue";
 import { formatSignedPercent, signedClass } from "@/domain/signed";
-import { EMPTY_HOLDINGS, HOLDING_TABLE_CONFIGS, stockFundSummary, stockTiles as buildStockTiles } from "@/domain/holdings";
-import { filterHoldingsByOwner, OWNER_FILTERS, summarizeByCategory } from "@/domain/assetOwners";
 import { usePortfolioData } from "@/composables/usePortfolioData";
+import { filterHoldingsByOwner, OWNER_FILTERS, summarizeByCategory } from "@/domain/assetOwners";
+import { EMPTY_HOLDINGS, HOLDING_TABLE_CONFIGS, stockFundSummary, stockTiles as buildStockTiles } from "@/domain/holdings";
 import { useInitialHashRestore } from "@/composables/useInitialHashRestore";
 
 const route = useRoute();
 const router = useRouter();
 const { data, loading, error, rawResponse } = usePortfolioData();
+
+const selectedOwner = computed(() => {
+  const ownerFromQuery = String(route.query.owner ?? "all").toLowerCase();
+  return OWNER_FILTERS.some((owner) => owner.id === ownerFromQuery) ? ownerFromQuery : "all";
+});
+
+function selectOwner(ownerId) {
+  router.replace({
+    query: {
+      ...route.query,
+      owner: ownerId,
+    },
+  });
+}
+
+const filteredHoldings = computed(() => filterHoldingsByOwner(data.value?.holdings, selectedOwner.value) || EMPTY_HOLDINGS);
+const categoryCards = computed(() => summarizeByCategory(filteredHoldings.value));
+
+const assetsByClass = computed(() => {
+  const assets = categoryCards.value.filter((c) => !c.isLiability);
+  const total = assets.reduce((sum, c) => sum + c.amountYen, 0);
+  return assets.map((c) => ({
+    name: c.title,
+    amountYen: c.amountYen,
+    percentage: total > 0 ? Number(((c.amountYen / total) * 100).toFixed(1)) : 0,
+  }));
+});
+
+const liabilitiesByCategory = computed(() => {
+  const details = filteredHoldings.value.liabilitiesDetail || [];
+  const groups = {
+    "住宅ローン": 0,
+    "クレジットカード利用残高": 0,
+    "その他負債": 0,
+  };
+
+  details.forEach((row) => {
+    const type = String(row?.["種類"] || "");
+    const amount = toNumber(row?.["残高"]);
+    if (type.includes("住宅ローン")) {
+      groups["住宅ローン"] += amount;
+    } else if (type.includes("クレジットカード")) {
+      groups["クレジットカード利用残高"] += amount;
+    } else {
+      groups["その他負債"] += amount;
+    }
+  });
+
+  const total = Object.values(groups).reduce((sum, v) => sum + v, 0);
+
+  return Object.entries(groups)
+    .filter(([_, amount]) => amount > 0)
+    .map(([category, amount]) => ({
+      category,
+      amountYen: amount,
+      percentage: total > 0 ? Number(((amount / total) * 100).toFixed(1)) : 0,
+    }));
+});
+
+const totals = computed(() => {
+  const assetsYen = assetsByClass.value.reduce((sum, c) => sum + c.amountYen, 0);
+  const liabilitiesYen = liabilitiesByCategory.value.reduce((sum, c) => sum + c.amountYen, 0);
+  return {
+    assetsYen,
+    liabilitiesYen,
+    netWorthYen: assetsYen - liabilitiesYen,
+  };
+});
+
+const balanceLayout = computed(() => balanceSheetLayout(totals.value));
+
+const summary = computed(() => stockFundSummary(filteredHoldings.value));
+const stocksAndFundsTotal = computed(() => summary.value.totalYen);
+const dailyMoves = computed(() => summary.value.dailyMoves);
+const dailyMoveTotal = computed(() => summary.value.dailyMoveTotal);
+const dailyMoveClass = computed(() => signedClass(dailyMoveTotal.value));
+const totalProfitYen = computed(() => summary.value.totalProfitYen);
+const totalProfitClass = computed(() => signedClass(totalProfitYen.value));
+const totalProfitRatePct = computed(() => summary.value.totalProfitRatePct);
+const stockTiles = computed(() => buildStockTiles(filteredHoldings.value?.stocks || []));
 
 const KEY_MAP = {
   breakdown: "asset_breakdown",
@@ -58,39 +141,25 @@ useInitialHashRestore({
   isReady: computed(() => Boolean(data.value)),
 });
 
-const selectedOwner = computed(() => {
-  const ownerFromQuery = String(route.query.owner ?? "all").toLowerCase();
-  return OWNER_FILTERS.some((owner) => owner.id === ownerFromQuery) ? ownerFromQuery : "all";
-});
-
-const holdings = computed(() => data.value?.holdings ?? EMPTY_HOLDINGS);
-const filteredHoldings = computed(() => filterHoldingsByOwner(holdings.value, selectedOwner.value));
-
-const summary = computed(() => stockFundSummary(filteredHoldings.value));
-const stocksAndFundsTotal = computed(() => summary.value.totalYen);
-const dailyMoves = computed(() => summary.value.dailyMoves);
-const dailyMoveTotal = computed(() => summary.value.dailyMoveTotal);
-const dailyMoveClass = computed(() => signedClass(dailyMoveTotal.value));
-const totalProfitYen = computed(() => summary.value.totalProfitYen);
-const totalProfitClass = computed(() => signedClass(totalProfitYen.value));
-const totalProfitRatePct = computed(() => summary.value.totalProfitRatePct);
-const stockTiles = computed(() => buildStockTiles(filteredHoldings.value.stocks));
-const categoryCards = computed(() => summarizeByCategory(filteredHoldings.value));
-
 const configs = HOLDING_TABLE_CONFIGS;
 
-function selectOwner(ownerId) {
-  router.replace({
-    query: {
-      ...route.query,
-      owner: ownerId,
-    },
-  });
-}
+const assetPie = computed(() =>
+  assetsByClass.value.map((item) => ({
+    label: item.name,
+    value: item.amountYen,
+  })),
+);
+
+const liabilityPie = computed(() =>
+  liabilitiesByCategory.value.map((item) => ({
+    label: item.category,
+    value: item.amountYen,
+  })),
+);
 </script>
 
 <template>
-  <section id="holdings-top">
+  <section id="balance-sheet-top">
     <p v-if="loading">読み込み中...</p>
     <p v-if="error" class="error">{{ error }}</p>
 
@@ -146,11 +215,39 @@ function selectOwner(ownerId) {
       />
     </section>
 
+    <section class="table-wrap balance-sheet">
+      <h2 class="section-title">バランスシート</h2>
+      <div class="balance-map" role="img" aria-label="左が資産、右上が負債、右下が純資産のバランスシート図">
+        <article
+          class="balance-item balance-assets"
+          :style="{ width: `${balanceLayout.assetsWidthPct}%` }"
+        >
+          <h3>総資産</h3>
+          <p class="amount-value">{{ formatYen(totals.assetsYen) }}</p>
+        </article>
+        <section class="balance-right" :style="{ width: `${balanceLayout.rightWidthPct}%` }">
+          <article class="balance-item balance-liabilities" :style="{ height: `${balanceLayout.liabilitiesHeightPct}%` }">
+            <h3>総負債</h3>
+            <p class="amount-value">{{ formatYen(totals.liabilitiesYen) }}</p>
+          </article>
+          <article class="balance-item balance-net-worth" :style="{ height: `${balanceLayout.netWorthHeightPct}%` }">
+            <h3>純資産</h3>
+            <p class="amount-value">{{ formatYen(totals.netWorthYen) }}</p>
+          </article>
+        </section>
+      </div>
+    </section>
+
+    <div class="chart-grid">
+      <PieChart title="資産内訳（円グラフ）" :data="assetPie" />
+      <PieChart title="負債内訳（円グラフ）" :data="liabilityPie" />
+    </div>
+
     <nav class="section-jump" aria-label="保有資産の小カテゴリ">
       <a v-for="config in configs" :key="`jump-${config.key}`" :href="`#section-${config.key}`">{{ config.title }}</a>
     </nav>
 
-    <section v-for="config in configs" :id="`section-${config.key}`" :key="config.key" class="section-block">
+    <section v-for="config in configs.filter(c => !c.isLiability)" :id="`section-${config.key}`" :key="config.key" class="section-block">
       <section v-if="config.key === 'stocks' && stockTiles.length" class="table-wrap">
         <h3 class="section-title">保有銘柄（評価額）</h3>
         <div class="stock-tile-grid">
@@ -186,7 +283,17 @@ function selectOwner(ownerId) {
         :columns="config.columns"
         :is-liability="config.isLiability"
       />
-      <p class="back-top-wrap"><a href="#holdings-top">↑ トップへ戻る</a></p>
+      <p class="back-top-wrap"><a href="#balance-sheet-top">↑ トップへ戻る</a></p>
+    </section>
+
+    <section v-for="config in configs.filter(c => c.isLiability)" :id="`section-${config.key}`" :key="config.key" class="section-block">
+      <HoldingTable
+        :title="config.title"
+        :rows="filteredHoldings[config.key]"
+        :columns="config.columns"
+        :is-liability="config.isLiability"
+      />
+      <p class="back-top-wrap"><a href="#balance-sheet-top">↑ トップへ戻る</a></p>
     </section>
   </section>
 </template>
