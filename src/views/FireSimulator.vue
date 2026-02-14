@@ -10,6 +10,7 @@ import {
   generateAnnualSimulation,
   estimateMortgageMonthlyPayment,
   calculateMonthlyPension,
+  FIRE_ALGORITHM_CONSTANTS,
 } from "@/domain/fire";
 import FireSimulationTable from "@/components/FireSimulationTable.vue";
 import FireSimulationChart from "@/components/FireSimulationChart.vue";
@@ -159,6 +160,18 @@ const annualSimulationData = computed(() => {
 const fireAchievementMonth = computed(() => growthData.value.fireReachedMonth);
 const fireAchievementAge = computed(() => Math.floor(currentAge.value + fireAchievementMonth.value / 12));
 const pensionAnnualAtFire = computed(() => calculateMonthlyPension(60, fireAchievementAge.value) * 12);
+const estimatedMonthlyPensionAt60 = computed(() => calculateMonthlyPension(60, fireAchievementAge.value));
+const copyConditionsDone = ref(false);
+const copyTableDone = ref(false);
+let copyConditionsTimer = null;
+let copyTableTimer = null;
+
+const requiredAssetsAtFire = computed(() => {
+  const fireMonth = fireAchievementMonth.value;
+  if (fireMonth < 0 || fireMonth >= 1200) return 0;
+  const firePoint = growthData.value.table.find((row) => row.month === fireMonth);
+  return Math.round(firePoint?.assets ?? 0);
+});
 
 const mortgagePayoffAge = computed(() => {
   if (!mortgagePayoffDate.value) return null;
@@ -200,17 +213,87 @@ const formatMonths = (m) => {
   return `${years}年${months}ヶ月`;
 };
 
-const estimatedMonthlyWithdrawal = computed(() => {
-  const basePlusExtra = monthlyExpense.value + postFireExtraExpense.value;
-  const grossExpense = includeTax.value
-    ? basePlusExtra / (1 - taxRate.value / 100)
-    : basePlusExtra;
+const copyText = async (text) => {
+  if (navigator?.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
 
-  const initialRequiredAssets = Math.round(growthData.value.table[0]?.requiredAssets ?? 0);
-  const withdrawalFromRate = (initialRequiredAssets * (withdrawalRate.value / 100)) / 12;
+  const textArea = document.createElement("textarea");
+  textArea.value = text;
+  textArea.setAttribute("readonly", "");
+  textArea.style.position = "absolute";
+  textArea.style.left = "-9999px";
+  document.body.appendChild(textArea);
+  textArea.select();
+  document.execCommand("copy");
+  document.body.removeChild(textArea);
+};
 
-  return Math.max(grossExpense, withdrawalFromRate);
+const algorithmExplanation = `本シミュレーションは、期待リターン・インフレ率・年金・ローン等のキャッシュフローに基づき、100歳時点で資産が残る最短リタイア年齢を算出します。必要資産目安は、FIRE達成年齢で退職して100歳まで資産が尽きない最小条件を満たす達成時点の金融資産額です。娘名義資産は初期資産から除外し、FIRE達成後は追加投資と給与・ボーナス収入を停止。取り崩しは、年間支出または資産の取崩率ルールのいずれか大きい額を適用します。`;
+
+const buildConditionsAndAlgorithmJson = () => ({
+  conditions: {
+    currentNetAssetsYen: initialAssets.value,
+    riskAssetsYen: riskAssets.value,
+    cashAssetsYen: cashAssets.value,
+    estimatedAnnualExpenseYen: monthlyExpense.value * 12,
+    estimatedAnnualIncomeYen: monthlyIncome.value * 12,
+    annualInvestmentYen: annualInvestment.value,
+    annualSavingsYen: annualSavings.value,
+    annualBonusYen: annualBonus.value,
+    requiredAssetsAtFireYen: requiredAssetsAtFire.value,
+    fireAchievementMonth: fireAchievementMonth.value,
+    fireAchievementAge: fireAchievementAge.value,
+    mortgagePayoffDate: mortgagePayoffDate.value || null,
+    expectedAnnualReturnRatePercent: annualReturnRate.value,
+    includeInflation: includeInflation.value,
+    inflationRatePercent: inflationRate.value,
+    includeTax: includeTax.value,
+    taxRatePercent: taxRate.value,
+    withdrawalRatePercent: withdrawalRate.value,
+    postFireExtraExpenseMonthlyYen: postFireExtraExpense.value,
+  },
+  pensionEstimates: {
+    householdMonthlyAtUserAge60Yen: estimatedMonthlyPensionAt60.value,
+    householdAnnualAtUserAge60Yen: pensionAnnualAtFire.value,
+    userMonthlyAtAge60Yen: calculateMonthlyPension(60, fireAchievementAge.value),
+    spouseMonthlyAtUserAge62Yen: Math.round(FIRE_ALGORITHM_CONSTANTS.pension.basicFullAnnualYen / 12),
+    spousePensionStartWhenUserAge: FIRE_ALGORITHM_CONSTANTS.pension.spouseUserAgeStart,
+  },
+  algorithmConstants: FIRE_ALGORITHM_CONSTANTS,
+  algorithmExplanation,
 });
+
+const buildAnnualTableJson = () => annualSimulationData.value.map((row) => ({
+  age: row.age,
+  incomeWithPensionYen: row.income + row.pension,
+  expensesYen: row.expenses,
+  investmentGainYen: row.investmentGain,
+  withdrawalYen: row.withdrawal,
+  totalAssetsYen: row.assets,
+  savingsCashYen: row.cashAssets,
+  riskAssetsYen: row.riskAssets,
+}));
+
+const copyConditionsAndAlgorithm = async () => {
+  await copyText(JSON.stringify(buildConditionsAndAlgorithmJson(), null, 2));
+  copyConditionsDone.value = true;
+  clearTimeout(copyConditionsTimer);
+  copyConditionsTimer = setTimeout(() => {
+    copyConditionsDone.value = false;
+  }, 1800);
+};
+
+const copyAnnualTable = async () => {
+  await copyText(JSON.stringify(buildAnnualTableJson(), null, 2));
+  copyTableDone.value = true;
+  clearTimeout(copyTableTimer);
+  copyTableTimer = setTimeout(() => {
+    copyTableDone.value = false;
+  }, 1800);
+};
+
 </script>
 
 <template>
@@ -339,6 +422,12 @@ const estimatedMonthlyWithdrawal = computed(() => {
         </div>
       </div>
 
+      <div class="copy-actions">
+        <button class="theme-toggle" type="button" @click="copyConditionsAndAlgorithm">
+          {{ copyConditionsDone ? 'コピー完了！' : '📋 条件とアルゴリズムをコピー' }}
+        </button>
+      </div>
+
       <div class="initial-summary">
         <details>
           <summary>条件の確認</summary>
@@ -379,8 +468,8 @@ const estimatedMonthlyWithdrawal = computed(() => {
             </div>
             <div>
               <span class="meta">必要資産目安:</span>
-              <span class="amount-value" style="margin-left: 8px;">{{ formatYen(Math.round(growthData.table[0]?.requiredAssets ?? 0)) }}</span>
-              <span class="meta"> (100歳寿命)</span>
+              <span class="amount-value" style="margin-left: 8px;">{{ formatYen(requiredAssetsAtFire) }}</span>
+              <span class="meta"> ({{ fireAchievementAge }}歳時点・100歳寿命)</span>
             </div>
             <div>
               <span class="meta">ローン完済年月:</span>
@@ -416,7 +505,7 @@ const estimatedMonthlyWithdrawal = computed(() => {
           <div class="algorithm-details" style="font-size: 0.8rem; color: var(--muted); margin-top: 10px; line-height: 1.6;">
             <ul style="margin: 0; padding-left: 20px;">
               <li>本シミュレーションは、設定された期待リターン・インフレ率・年金・ローン等のキャッシュフローに基づき、100歳時点で資産が残る最短リタイア年齢を算出しています。</li>
-              <li>100歳寿命までの必要資産額を、将来の支出額から現在価値（PV）に割り戻して算出しています。</li>
+              <li>必要資産目安は「FIRE達成年齢で退職して100歳まで資産が尽きない最小条件」を満たす達成時点の金融資産額と同じ定義です。</li>
               <li>娘名義の資産（現金・株式・投資信託・年金・ポイント）は初期資産から除外してシミュレーションしています。</li>
               <li style="color: var(--primary); font-weight: bold;">投資優先順位ルール: 生活防衛資金として現金を維持するため、毎月の投資額は「前月までの貯金残高 + 当月の収支剰余金」を上限として自動調整されます（貯金がマイナスにならないよう制限されます）。</li>
               <li>FIRE達成後は追加投資を停止し、定期収入（給与・ボーナス等）もゼロになると仮定しています。</li>
@@ -467,20 +556,23 @@ const estimatedMonthlyWithdrawal = computed(() => {
       </article>
       <article class="card">
         <h2>FIRE達成に必要な資産</h2>
-        <p class="is-positive amount-value">{{ formatYen(Math.round(growthData.table[0]?.requiredAssets ?? 0)) }}</p>
-        <p class="meta">あと <span class="amount-value">{{ formatYen(Math.max(0, Math.round(growthData.table[0]?.requiredAssets ?? 0) - initialAssets)) }}</span> 不足</p>
+        <p class="is-positive amount-value">{{ formatYen(requiredAssetsAtFire) }}</p>
+        <p class="meta">推移表の{{ fireAchievementAge }}歳時点の金融資産合計と同期</p>
       </article>
       <article class="card">
-        <h2>月額の想定取り崩し額</h2>
-        <p class="amount-value">{{ formatYen(estimatedMonthlyWithdrawal) }}</p>
-        <p class="meta">
-          {{ useAutoExpense ? '実績' : '手入力' }}に税金・取崩率を考慮
-        </p>
+        <h2>60歳時点の毎月の年金受給額（見込み）</h2>
+        <p class="amount-value">{{ formatYen(estimatedMonthlyPensionAt60) }}</p>
+        <p class="meta">{{ fireAchievementAge }}歳でFIREした場合の概算</p>
       </article>
     </div>
 
     <div class="main-visualization">
       <FireSimulationChart :data="annualSimulationData" :annotations="chartAnnotations" />
+      <div class="copy-actions table-copy-action">
+        <button class="theme-toggle" type="button" @click="copyAnnualTable">
+          {{ copyTableDone ? 'コピー完了！' : '📋 年齢別収支推移表をコピー' }}
+        </button>
+      </div>
       <FireSimulationTable :data="annualSimulationData" />
     </div>
 
@@ -595,5 +687,16 @@ const estimatedMonthlyWithdrawal = computed(() => {
   display: flex;
   flex-direction: column;
   gap: 24px;
+}
+
+.copy-actions {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.table-copy-action {
+  margin-top: 0;
+  margin-bottom: -10px;
 }
 </style>
