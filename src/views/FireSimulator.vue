@@ -11,6 +11,7 @@ import {
   simulateFire,
   generateGrowthTable,
   estimateMortgageMonthlyPayment,
+  calculateMonthlyPension,
 } from "@/domain/fire";
 import FireGrowthChart from "@/components/FireGrowthChart.vue";
 import HistogramChart from "@/components/HistogramChart.vue";
@@ -162,6 +163,9 @@ const growthData = computed(() => {
 });
 
 const stats = computed(() => simResult.value.stats);
+
+const medianFireAge = computed(() => Math.floor(currentAge.value + stats.value.median / 12));
+const medianPensionAnnual = computed(() => calculateMonthlyPension(60, medianFireAge.value) * 12);
 
 const fireDate = (months) => {
   if (months >= 1200) return "未達成 (100年以上)";
@@ -413,14 +417,14 @@ const estimatedMonthlyWithdrawal = computed(() => {
               <li>FIRE達成後は追加投資を停止し、定期収入（給与・ボーナス等）もゼロになると仮定しています。</li>
               <li>FIRE達成後は、年間支出または資産の{{ withdrawalRate }}%（設定値）のいずれか大きい額を引き出すと仮定しています。</li>
               <li style="margin-top: 8px; list-style: none; font-weight: bold; color: var(--text);">■ 年金受給の見込みについて</li>
-              <li>本シミュレーションでは、ご本人が50歳でFIREし、60歳から年金を繰上げ受給する以下のシナリオを想定しています。</li>
+              <li>本シミュレーションでは、ご本人が{{ medianFireAge }}歳でFIREし、60歳から年金を繰上げ受給する以下のシナリオを想定しています。</li>
               <ul style="margin: 0; padding-left: 20px;">
                 <li>受給開始: 60歳（2039年〜）</li>
-                <li>世帯受給額（概算）: <strong>年額 約130万〜150万円</strong>（月額 約11万〜12.5万円）</li>
+                <li>世帯受給額（概算）: <strong>年額 {{ formatYen(medianPensionAnnual) }}</strong>（月額 {{ formatYen(Math.round(medianPensionAnnual / 12)) }}）</li>
                 <li>算定根拠:
                   <ul style="margin: 0; padding-left: 20px;">
                     <li>20代前半の未納期間（4年間）による基礎年金の減額を反映。</li>
-                    <li>{{ Math.floor(currentAge + stats.median / 12) }}歳リタイア(シミュレーション結果による)に伴う厚生年金加入期間の停止を考慮。</li>
+                    <li>{{ medianFireAge }}歳リタイア(シミュレーション結果による)に伴う厚生年金加入期間の停止を考慮。</li>
                     <li>60歳繰上げ受給による受給額24%減額を適用。</li>
                   </ul>
                 </li>
