@@ -612,6 +612,22 @@ describe("fire domain", () => {
       expect(result.table[1].assets).toBe(0);
     });
 
+    it("caps investment in growth table by available cash", () => {
+      const result = generateGrowthTable({
+        initialAssets: 1000,
+        riskAssets: 0,
+        monthlyIncome: 0,
+        monthlyExpense: 0,
+        monthlyInvestment: 5000, // Exceeds 1000
+        annualReturnRate: 0,
+        maxMonths: 1
+      });
+      // Month 0: assets 1000.
+      // Month 1 transition: available 1000. investment capped at 1000.
+      // Month 1: cash 0, risk 1000. Total assets 1000.
+      expect(result.table[1].assets).toBe(1000);
+    });
+
     it("handles initialAssets 0 in ratio calculation", () => {
         const result = generateGrowthTable({
             ...params,
@@ -790,6 +806,24 @@ describe("fire domain", () => {
       expect(result[result.length - 1].age).toBe(100);
     });
 
+    it("caps investment by available cash and keeps cashAssets non-negative", () => {
+      const result = generateAnnualSimulation({
+        initialAssets: 1000000,
+        riskAssets: 0,
+        monthlyIncome: 100000,
+        monthlyExpense: 100000,
+        monthlyInvestment: 500000, // Exceeds monthly surplus (0), so it should draw from 1M initial cash
+        annualReturnRate: 0,
+        currentAge: 40
+      });
+
+      // After 1 month: cash = 1M + 0 - 500k = 500k.
+      // After 2 months: cash = 0.
+      // After 3 months: investment should be capped at 0 because cash is 0 and surplus is 0.
+      expect(result[0].cashAssets).toBeGreaterThanOrEqual(0);
+      expect(result[0].riskAssets).toBeLessThanOrEqual(1000000); // capped at initial + available
+    });
+
     it("aggregates monthly income and expenses into annual values", () => {
       const result = generateAnnualSimulation({
         ...params,
@@ -839,14 +873,15 @@ describe("fire domain", () => {
         riskAssets: 8000000, // 80%
         annualReturnRate: 0,
       });
-      const year0 = result[0];
-      // Year 0 is after 12 months.
+      const year1 = result[1];
+      // Year 0 (start) assets: 10M
+      // Year 1 (start of next year) assets: after 12 months.
       // Monthly: Income 300k, Expense 200k -> Cash +100k.
       // After 12 months: Cash = 2M + 1.2M = 3.2M. Risk = 8M.
       // Total = 11.2M. Risk ratio = 8 / 11.2 = 0.714
-      expect(year0.riskAssets).toBe(8000000);
-      expect(year0.assets).toBe(11200000);
-      expect(year0.riskAssets / year0.assets).toBeCloseTo(0.714, 2);
+      expect(year1.riskAssets).toBe(8000000);
+      expect(year1.assets).toBe(11200000);
+      expect(year1.riskAssets / year1.assets).toBeCloseTo(0.714, 2);
     });
 
     it("calculates investment gain and handles monthly investment", () => {
@@ -861,12 +896,13 @@ describe("fire domain", () => {
       });
 
       const year0 = result[0];
+      const year1 = result[1];
       // Monthly return = (1.1)^(1/12) - 1 ≈ 0.007974
       // Month 1: gain = 5M * 0.007974 = 39870. Risk = 5M + 39870 + 100k = 5,139,870. Cash = 5M - 100k = 4.9M.
       // ...
       expect(year0.investmentGain).toBeGreaterThan(5000000 * 0.1); // Due to monthly investment increasing base
-      expect(year0.riskAssets).toBeGreaterThan(5000000 + 1200000);
-      expect(year0.cashAssets).toBeLessThan(5000000);
+      expect(year1.riskAssets).toBeGreaterThan(5000000 + 1200000);
+      expect(year1.cashAssets).toBeLessThan(5000000);
     });
 
     it("handles mid-year mortgage payoff", () => {

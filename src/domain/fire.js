@@ -687,14 +687,20 @@ export function generateGrowthTable(params) {
       const netFromWithdrawal = includeTax ? toWithdraw * (1 - taxRate) : toWithdraw;
       currentCash += currentMonthlyPension + netFromWithdrawal - (currentMonthlyExpense + extraWithInflation);
     } else {
-      currentCash += monthlyIncome + currentMonthlyPension - currentMonthlyExpense;
-      currentCash -= monthlyInvestment;
-      currentRisk += monthlyInvestment;
+      const surplus = monthlyIncome + currentMonthlyPension - currentMonthlyExpense;
+      const available = currentCash + surplus;
+      const actualInvestment = Math.max(0, Math.min(monthlyInvestment, available));
 
-      if (currentCash < 0 && includeTax) {
-        const shortfall = Math.abs(currentCash);
-        const taxImpact = (shortfall / (1 - taxRate)) - shortfall;
-        currentRisk -= taxImpact;
+      currentCash = available - actualInvestment;
+      currentRisk += actualInvestment;
+
+      if (currentCash < 0) {
+        let shortfall = Math.abs(currentCash);
+        if (includeTax) {
+          shortfall /= (1 - taxRate);
+        }
+        currentRisk -= shortfall;
+        currentCash = 0;
       }
     }
 
@@ -750,7 +756,9 @@ export function generateAnnualSimulation(params) {
     pension: 0,
     expenses: 0,
     withdrawal: 0,
-    assets: 0,
+    assets: Math.round(currentCash + currentRisk),
+    riskAssets: Math.round(currentRisk),
+    cashAssets: Math.round(currentCash),
     investmentGain: 0,
   };
 
@@ -760,9 +768,6 @@ export function generateAnnualSimulation(params) {
 
     // If we transition to a new year, save the previous year's data
     if (currentAgeInt > currentYearData.age) {
-      currentYearData.assets = Math.round(currentCash + currentRisk);
-      currentYearData.riskAssets = Math.round(currentRisk);
-      currentYearData.cashAssets = Math.round(currentCash);
       annualData.push(currentYearData);
 
       currentYearData = {
@@ -771,7 +776,9 @@ export function generateAnnualSimulation(params) {
         pension: 0,
         expenses: 0,
         withdrawal: 0,
-        assets: 0,
+        assets: Math.round(currentCash + currentRisk),
+        riskAssets: Math.round(currentRisk),
+        cashAssets: Math.round(currentCash),
         investmentGain: 0,
       };
     }
@@ -844,23 +851,19 @@ export function generateAnnualSimulation(params) {
     } else {
       // Accumulation phase
       const netCashflow = currentIncome + currentMonthlyPension - monthlyExpenses;
-      currentCash += netCashflow;
-      if (netCashflow < 0) {
-        monthlyWithdrawal = Math.abs(netCashflow);
+      const available = currentCash + netCashflow;
+      const actualInvestment = Math.max(0, Math.min(monthlyInvestment, available));
+
+      currentCash = available - actualInvestment;
+      currentRisk += actualInvestment;
+
+      if (currentCash < 0) {
+        monthlyWithdrawal = Math.abs(currentCash);
         if (includeTax) {
-          monthlyWithdrawal /= 1 - taxRate;
+          monthlyWithdrawal /= (1 - taxRate);
         }
-      }
-
-      // Investment
-      currentCash -= monthlyInvestment;
-      currentRisk += monthlyInvestment;
-
-      // Tax impact if cash is negative (shortfall covered by selling risk assets)
-      if (currentCash < 0 && includeTax) {
-        const shortfall = Math.abs(currentCash);
-        const taxImpact = (shortfall / (1 - taxRate)) - shortfall;
-        currentRisk -= taxImpact;
+        currentRisk -= monthlyWithdrawal;
+        currentCash = 0;
       }
     }
 
@@ -872,10 +875,7 @@ export function generateAnnualSimulation(params) {
     }
   }
 
-  // Final push for the last year (usually age 100)
-  currentYearData.assets = Math.round(currentCash + currentRisk);
-  currentYearData.riskAssets = Math.round(currentRisk);
-  currentYearData.cashAssets = Math.round(currentCash);
+  // Final push for the last year (age 100)
   annualData.push(currentYearData);
 
   // Round values
