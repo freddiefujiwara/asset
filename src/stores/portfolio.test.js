@@ -270,4 +270,13 @@ describe("portfolio store", () => {
     }
   });
 
+  it("sets source to 'mock' and populates data when fetch fails without idToken", async () => {
+    globalThis.localStorage.getItem.mockReturnValue("");
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("API unreachable")));
+    const store = usePortfolioStore();
+    await store.fetchPortfolio();
+    expect(store.source).toBe("mock");
+    expect(store.data).not.toBeNull();
+  });
+
 });
