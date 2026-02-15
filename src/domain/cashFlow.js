@@ -1,6 +1,28 @@
 const UNCATEGORIZED = "未分類";
 const CATEGORY_DELIMITER = "/";
 
+const CONFIG = {
+  FIXED: [
+    "住宅/ローン返済",
+    "住宅/管理費",
+    "水道・光熱費",
+    "教養・教育/学費",
+    "保険/",
+    "通信費/",
+  ],
+  EXCLUDE: ["カード引き落とし", "ATM引き出し", "電子マネー", "使途不明金"],
+};
+
+/**
+ * カテゴリ文字列から分類を返す (fixed | variable | exclude)
+ * @param {string} category
+ */
+export const getExpenseType = (category) => {
+  if (CONFIG.EXCLUDE.some((k) => category.includes(k))) return "exclude";
+  if (CONFIG.FIXED.some((k) => category.includes(k))) return "fixed";
+  return "variable"; // それ以外はすべて変動費
+};
+
 function getCategoryLabel(item) {
   return item.category || UNCATEGORIZED;
 }
@@ -17,7 +39,7 @@ function getMonthKey(item) {
 
 export function filterCashFlow(
   cashFlow,
-  { month, category, largeCategory, smallCategory, includeTransfers, search } = {},
+  { month, category, largeCategory, smallCategory, includeTransfers, search, type } = {},
 ) {
   const normalizedSearch = search?.toLowerCase();
 
@@ -25,6 +47,10 @@ export function filterCashFlow(
     const categoryLabel = getCategoryLabel(item);
 
     if (month && !item.date?.startsWith(month)) {
+      return false;
+    }
+
+    if (type && getExpenseType(categoryLabel) !== type) {
       return false;
     }
 
@@ -129,7 +155,7 @@ export function aggregateByMonth(cashFlow, { includeNet = true } = {}) {
 }
 
 
-export function getSixMonthAverages(monthlyData, months = 6) {
+export function getRecentAverages(monthlyData, months = 6) {
   if (!monthlyData.length) {
     return { income: 0, expense: 0, net: 0, count: 0 };
   }

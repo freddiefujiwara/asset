@@ -4,12 +4,13 @@ import {
   getKPIs,
   aggregateByMonth,
   aggregateByCategory,
-  getSixMonthAverages,
+  getRecentAverages,
   getUniqueMonths,
   getUniqueCategories,
   getUniqueLargeCategories,
   getUniqueSmallCategories,
   sortCashFlow,
+  getExpenseType,
 } from "./cashFlow";
 
 
@@ -26,9 +27,44 @@ const mockCashFlow = [
 ];
 
 describe("cashFlow domain", () => {
+  describe("getExpenseType", () => {
+    it("classifies fixed expenses", () => {
+      expect(getExpenseType("住宅/ローン返済")).toBe("fixed");
+      expect(getExpenseType("住宅/管理費")).toBe("fixed");
+      expect(getExpenseType("水道・光熱費")).toBe("fixed");
+      expect(getExpenseType("教養・教育/学費")).toBe("fixed");
+      expect(getExpenseType("保険/生命保険")).toBe("fixed");
+      expect(getExpenseType("通信費/携帯電話")).toBe("fixed");
+    });
+
+    it("classifies excluded expenses", () => {
+      expect(getExpenseType("カード引き落とし")).toBe("exclude");
+      expect(getExpenseType("ATM引き出し")).toBe("exclude");
+      expect(getExpenseType("電子マネー")).toBe("exclude");
+      expect(getExpenseType("使途不明金")).toBe("exclude");
+    });
+
+    it("classifies everything else as variable", () => {
+      expect(getExpenseType("食費/食料品")).toBe("variable");
+      expect(getExpenseType("趣味・娯楽")).toBe("variable");
+      expect(getExpenseType("未分類")).toBe("variable");
+    });
+  });
+
   describe("filterCashFlow", () => {
     it("returns all when no filters provided", () => {
       expect(filterCashFlow(mockCashFlow)).toHaveLength(5);
+    });
+
+    it("filters by type", () => {
+      const mixed = [
+        { category: "住宅/ローン返済", amount: -100000, name: "Loan" }, // fixed
+        { category: "食費", amount: -500, name: "Food" }, // variable
+        { category: "ATM引き出し", amount: -10000, name: "ATM" }, // exclude
+      ];
+      expect(filterCashFlow(mixed, { type: "fixed" })).toHaveLength(1);
+      expect(filterCashFlow(mixed, { type: "variable" })).toHaveLength(1);
+      expect(filterCashFlow(mixed, { type: "exclude" })).toHaveLength(1);
     });
 
     it("filters by largeCategory", () => {
@@ -170,7 +206,7 @@ describe("cashFlow domain", () => {
     });
   });
 
-  describe("getSixMonthAverages", () => {
+  describe("getRecentAverages", () => {
     it("returns averages for up to latest 6 months", () => {
       const monthly = [
         { month: "2025-09", income: 100, expense: 10, net: 90 },
@@ -182,7 +218,7 @@ describe("cashFlow domain", () => {
         { month: "2026-03", income: 700, expense: 70, net: 630 },
       ];
 
-      expect(getSixMonthAverages(monthly)).toEqual({
+      expect(getRecentAverages(monthly)).toEqual({
         income: 450,
         expense: 45,
         net: 405,
@@ -191,7 +227,7 @@ describe("cashFlow domain", () => {
     });
 
     it("returns zeros for empty input", () => {
-      expect(getSixMonthAverages([])).toEqual({ income: 0, expense: 0, net: 0, count: 0 });
+      expect(getRecentAverages([])).toEqual({ income: 0, expense: 0, net: 0, count: 0 });
     });
   });
 

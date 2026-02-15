@@ -12,7 +12,8 @@ import {
   getUniqueLargeCategories,
   getUniqueSmallCategories,
   sortCashFlow,
-  getSixMonthAverages,
+  getRecentAverages,
+  getExpenseType,
 } from "@/domain/cashFlow";
 import { getPast5MonthSummary } from "@/domain/fire";
 import CashFlowBarChart from "@/components/CashFlowBarChart.vue";
@@ -22,6 +23,7 @@ import PieChart from "@/components/PieChart.vue";
 const { data, loading, error, rawResponse } = usePortfolioData();
 
 const monthFilter = ref("");
+const typeFilter = ref("");
 const largeCategoryFilter = ref("");
 const smallCategoryFilter = ref("");
 const searchFilter = ref("");
@@ -35,6 +37,7 @@ const cashFlowRaw = computed(() => data.value?.cashFlow ?? []);
 const filteredCashFlow = computed(() => {
   const filtered = filterCashFlow(cashFlowRaw.value, {
     month: monthFilter.value,
+    type: typeFilter.value,
     largeCategory: largeCategoryFilter.value,
     smallCategory: smallCategoryFilter.value,
     search: searchFilter.value,
@@ -46,6 +49,7 @@ const filteredCashFlow = computed(() => {
 const hasActiveFilters = computed(() =>
   Boolean(
     monthFilter.value
+    || typeFilter.value
     || largeCategoryFilter.value
     || smallCategoryFilter.value
     || searchFilter.value,
@@ -61,10 +65,37 @@ const monthlyData = computed(() =>
 );
 const categoryPieData = computed(() => aggregateByCategory(filteredCashFlow.value, { averageMonths: 5, excludeCurrentMonth: true }));
 
-const showSixMonthAverage = computed(() => !monthFilter.value);
-const sixMonthAverages = computed(() =>
-  showSixMonthAverage.value ? getSixMonthAverages(monthlyData.value) : null,
-);
+const typePieData = computed(() => {
+  const types = {
+    fixed: { label: "固定費", value: 0, color: "#38bdf8" },
+    variable: { label: "変動費", value: 0, color: "#f59e0b" },
+    exclude: { label: "除外", value: 0, color: "#94a3b8" },
+  };
+
+  filteredCashFlow.value.forEach((item) => {
+    if (!item.isTransfer && item.amount < 0) {
+      const type = getExpenseType(item.category || "");
+      if (types[type]) {
+        types[type].value += Math.abs(item.amount);
+      }
+    }
+  });
+
+  return Object.values(types).filter((t) => t.value > 0);
+});
+
+const showPastAverage = computed(() => !monthFilter.value);
+const pastAverages = computed(() => {
+  if (!showPastAverage.value) {
+    return null;
+  }
+
+  const now = new Date();
+  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+  const historicalData = monthlyData.value.filter((d) => d.month !== currentMonthKey);
+  return getRecentAverages(historicalData, 5);
+});
 
 const uniqueMonths = computed(() => getUniqueMonths(cashFlowRaw.value));
 const copyTargetMonths = computed(() => uniqueMonths.value.slice(0, 6));
@@ -126,6 +157,7 @@ const getPast5MonthSummaryJson = () => {
 
 const resetFilters = () => {
   monthFilter.value = "";
+  typeFilter.value = "";
   largeCategoryFilter.value = "";
   smallCategoryFilter.value = "";
   searchFilter.value = "";
@@ -146,6 +178,15 @@ const resetFilters = () => {
           <select v-model="monthFilter">
             <option value="">すべて</option>
             <option v-for="m in uniqueMonths" :key="m" :value="m">{{ m }}</option>
+          </select>
+        </div>
+        <div class="filter-item">
+          <label>種別</label>
+          <select v-model="typeFilter">
+            <option value="">すべて</option>
+            <option value="fixed">固定費</option>
+            <option value="variable">変動費</option>
+            <option value="exclude">除外</option>
           </select>
         </div>
         <div class="filter-item">
@@ -199,10 +240,11 @@ const resetFilters = () => {
       </article>
     </div>
 
-    <CashFlowBarChart :data="monthlyData" :show-net="!hasActiveFilters" :averages="sixMonthAverages" />
+    <CashFlowBarChart :data="monthlyData" :show-net="!hasActiveFilters" :averages="pastAverages" />
 
     <div class="chart-grid">
       <PieChart title="カテゴリ別支出内訳" :data="categoryPieData" :value-formatter="formatYen" />
+      <PieChart title="支出3分類" :data="typePieData" :value-formatter="formatYen" />
     </div>
 
     <div class="table-wrap api-actions">
@@ -276,6 +318,23 @@ const resetFilters = () => {
   align-items: center;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.chart-grid {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.chart-grid > * {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 768px) {
+  .chart-grid {
+    flex-direction: column;
+  }
 }
 
 @media (max-width: 700px) {
