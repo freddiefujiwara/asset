@@ -14,6 +14,7 @@ import {
   sortCashFlow,
   getRecentAverages,
   getExpenseType,
+  aggregateByType,
 } from "@/domain/cashFlow";
 import { getPast5MonthSummary } from "@/domain/fire";
 import CashFlowBarChart from "@/components/CashFlowBarChart.vue";
@@ -66,6 +67,10 @@ const monthlyData = computed(() =>
 const categoryPieData = computed(() => aggregateByCategory(filteredCashFlow.value, { averageMonths: 5, excludeCurrentMonth: true }));
 
 const typePieData = computed(() => {
+  if (!monthFilter.value) {
+    return aggregateByType(filteredCashFlow.value, { averageMonths: 5, excludeCurrentMonth: true });
+  }
+
   const types = {
     fixed: { label: "固定費", value: 0, color: "#38bdf8" },
     variable: { label: "変動費", value: 0, color: "#f59e0b" },

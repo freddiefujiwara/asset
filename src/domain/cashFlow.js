@@ -9,8 +9,13 @@ const CONFIG = {
     "教養・教育/学費",
     "保険/",
     "通信費/",
+    "健康・医療/",
+    "食費/食費",
+    "食費/食料品",
+    "日用品/",
+    "衣服・美容/美容院・理髪",
   ],
-  EXCLUDE: ["カード引き落とし", "ATM引き出し", "電子マネー", "使途不明金"],
+  EXCLUDE: ["カード引き落とし", "ATM引き出し", "電子マネー", "使途不明金", "収入/"],
 };
 
 /**
@@ -179,28 +184,30 @@ export function getRecentAverages(monthlyData, months = 6) {
   };
 }
 
+function getTargetRowsForAverage(cashFlow, averageMonths, excludeCurrentMonth) {
+  if (averageMonths <= 0) {
+    return cashFlow;
+  }
+
+  const expenseRows = cashFlow.filter((item) => !item.isTransfer && item.amount < 0);
+  const now = new Date();
+  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+  const recentMonths = Array.from(new Set(expenseRows.map((item) => getMonthKey(item)).filter(Boolean)))
+    .filter((month) => !(excludeCurrentMonth && month === currentMonthKey))
+    .sort((a, b) => a.localeCompare(b))
+    .slice(-averageMonths);
+
+  if (!recentMonths.length) {
+    return [];
+  }
+
+  const monthSet = new Set(recentMonths);
+  return expenseRows.filter((item) => monthSet.has(getMonthKey(item)));
+}
+
 export function aggregateByCategory(cashFlow, { averageMonths = 0, excludeCurrentMonth = false } = {}) {
-  const targetCashFlow = (() => {
-    if (averageMonths <= 0) {
-      return cashFlow;
-    }
-
-    const expenseRows = cashFlow.filter((item) => !item.isTransfer && item.amount < 0);
-    const now = new Date();
-    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-
-    const recentMonths = Array.from(new Set(expenseRows.map((item) => getMonthKey(item)).filter(Boolean)))
-      .filter((month) => !(excludeCurrentMonth && month === currentMonthKey))
-      .sort((a, b) => a.localeCompare(b))
-      .slice(-averageMonths);
-
-    if (!recentMonths.length) {
-      return [];
-    }
-
-    const monthSet = new Set(recentMonths);
-    return expenseRows.filter((item) => monthSet.has(getMonthKey(item)));
-  })();
+  const targetCashFlow = getTargetRowsForAverage(cashFlow, averageMonths, excludeCurrentMonth);
 
   const categories = {};
   targetCashFlow.forEach((item) => {
@@ -224,6 +231,39 @@ export function aggregateByCategory(cashFlow, { averageMonths = 0, excludeCurren
   }
 
   return items.sort((a, b) => b.value - a.value);
+}
+
+export function aggregateByType(cashFlow, { averageMonths = 0, excludeCurrentMonth = false } = {}) {
+  const targetCashFlow = getTargetRowsForAverage(cashFlow, averageMonths, excludeCurrentMonth);
+
+  const types = {
+    fixed: { label: "固定費", value: 0, color: "#38bdf8" },
+    variable: { label: "変動費", value: 0, color: "#f59e0b" },
+    exclude: { label: "除外", value: 0, color: "#94a3b8" },
+  };
+
+  targetCashFlow.forEach((item) => {
+    if (item.isTransfer || item.amount >= 0) {
+      return;
+    }
+    const categoryLabel = getCategoryLabel(item);
+    const type = getExpenseType(categoryLabel);
+    if (types[type]) {
+      types[type].value += Math.abs(item.amount);
+    }
+  });
+
+  const items = Object.values(types).filter((t) => t.value > 0);
+  if (averageMonths > 0) {
+    const availableMonths = new Set(targetCashFlow.map((item) => getMonthKey(item)).filter(Boolean)).size;
+    if (availableMonths > 0) {
+      items.forEach((item) => {
+        item.value /= availableMonths;
+      });
+    }
+  }
+
+  return items;
 }
 
 export function getUniqueMonths(cashFlow) {

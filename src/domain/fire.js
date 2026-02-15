@@ -1,4 +1,4 @@
-import { getUniqueMonths } from "./cashFlow";
+import { getUniqueMonths, getExpenseType } from "./cashFlow";
 import { assetAmountYen, detectAssetOwner } from "./family";
 import { formatYen } from "./format";
 
@@ -285,6 +285,8 @@ export function estimateMonthlyExpenses(cashFlow) {
   const breakdownMap = {};
   let totalNormalExpense = 0;
   let totalSpecialExpense = 0;
+  let totalFixedExpense = 0;
+  let totalVariableExpense = 0;
 
   processLookbackCashFlow(cashFlow, (item) => {
     if (item.amount >= 0) return;
@@ -299,6 +301,13 @@ export function estimateMonthlyExpenses(cashFlow) {
 
     if (category.startsWith("現金") || category.startsWith("カード")) {
       return;
+    }
+
+    const type = getExpenseType(category);
+    if (type === "fixed") {
+      totalFixedExpense += absAmount;
+    } else if (type === "variable") {
+      totalVariableExpense += absAmount;
     }
 
     totalNormalExpense += absAmount;
@@ -317,6 +326,8 @@ export function estimateMonthlyExpenses(cashFlow) {
     total: Math.round(totalNormalExpense / divisor),
     breakdown,
     averageSpecial: Math.round(totalSpecialExpense / divisor),
+    averageFixed: Math.round(totalFixedExpense / divisor),
+    averageVariable: Math.round(totalVariableExpense / divisor),
     monthCount: divisor,
   };
 }
@@ -409,6 +420,8 @@ export function getPast5MonthSummary(cashFlow) {
       average: income.bonusAnnual,
       breakdown: income.bonusBreakdown,
     },
+    avgFixedMonthly: expenses.averageFixed,
+    avgVariableMonthly: expenses.averageVariable,
     monthCount: expenses.monthCount,
   };
 }
