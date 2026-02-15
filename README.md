@@ -439,8 +439,8 @@ Space: **O(n)** output + recursion stack.
 
 Owner is inferred from text suffix patterns inside any string field of a row:
 
-- contains `@chipop` -> wife
-- contains `@aojiru.pudding` -> daughter
+- contains `@sample-spouse` -> wife (sample data)
+- contains `@sample-child` -> daughter (sample data)
 - else -> me
 
 Used by:
