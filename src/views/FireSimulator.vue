@@ -50,6 +50,8 @@ const past5MonthSummary = computed(() =>
         monthlyLivingExpenses: { average: 0, breakdown: [], averageSpecial: 0 },
         monthlyRegularIncome: { average: 0, breakdown: [] },
         annualBonus: { average: 0, breakdown: [] },
+        avgFixedMonthly: 0,
+        avgVariableMonthly: 0,
         monthCount: 0,
       },
 );
@@ -298,6 +300,15 @@ const copyAnnualTable = () => JSON.stringify(buildAnnualTableJson(), null, 2);
             <details>
               <summary>算出内訳 ({{ past5MonthSummary.monthCount }}ヶ月平均)</summary>
               <div class="breakdown-content">
+                <div class="breakdown-row total-row">
+                  <span class="cat-name">固定費 (合計)</span>
+                  <span class="cat-amount amount-value">{{ formatYen(past5MonthSummary.avgFixedMonthly) }}</span>
+                </div>
+                <div class="breakdown-row total-row">
+                  <span class="cat-name">変動費 (合計)</span>
+                  <span class="cat-amount amount-value">{{ formatYen(past5MonthSummary.avgVariableMonthly) }}</span>
+                </div>
+                <hr class="breakdown-divider" />
                 <div v-for="item in past5MonthSummary.monthlyLivingExpenses.breakdown" :key="item.name" class="breakdown-row">
                   <span class="cat-name">{{ item.name }}</span>
                   <span class="cat-amount amount-value">{{ formatYen(item.amount) }}</span>
@@ -417,6 +428,11 @@ const copyAnnualTable = () => JSON.stringify(buildAnnualTableJson(), null, 2);
             <div>
               <span class="meta">推定年間支出:</span>
               <span class="amount-value" style="margin-left: 8px;">{{ formatYen(monthlyExpense * 12) }}</span>
+              <div v-if="useAutoExpense" style="font-size: 0.7rem; margin-top: 4px;">
+                <span class="meta">内訳(月平均): </span>
+                <span class="amount-value">固定{{ formatYen(past5MonthSummary.avgFixedMonthly) }}</span> /
+                <span class="amount-value">変動{{ formatYen(past5MonthSummary.avgVariableMonthly) }}</span>
+              </div>
             </div>
             <div>
               <span class="meta">推定年間収入:</span>
@@ -608,6 +624,16 @@ const copyAnnualTable = () => JSON.stringify(buildAnnualTableJson(), null, 2);
   justify-content: space-between;
   border-bottom: 1px dashed var(--border);
   padding-bottom: 2px;
+}
+.total-row {
+  font-weight: bold;
+  color: var(--primary);
+  border-bottom: 1px solid var(--border);
+}
+.breakdown-divider {
+  margin: 4px 0;
+  border: none;
+  border-top: 1px solid var(--border);
 }
 .special-info {
   margin-top: 4px;

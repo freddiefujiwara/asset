@@ -433,17 +433,20 @@ describe("fire domain", () => {
 
     it("aggregates expenses and income into a combined summary object", () => {
       const cashFlow = [
-        { date: "2026-02-01", amount: -1000, isTransfer: false, category: "Food" },
+        { date: "2026-02-01", amount: -1000, isTransfer: false, category: "食費/外食" }, // variable
+        { date: "2026-02-01", amount: -500, isTransfer: false, category: "住宅/ローン返済" }, // fixed
         { date: "2026-02-01", amount: 300000, isTransfer: false, category: "収入/給与" },
         { date: "2026-01-01", amount: 100000, isTransfer: false, category: "収入/賞与" },
       ];
 
       const result = getPast5MonthSummary(cashFlow);
-      expect(result.monthlyLivingExpenses.average).toBe(200); // 1000 / 5
+      expect(result.monthlyLivingExpenses.average).toBe(300); // 1500 / 5
+      expect(result.avgFixedMonthly).toBe(100); // 500 / 5
+      expect(result.avgVariableMonthly).toBe(200); // 1000 / 5
       expect(result.monthlyRegularIncome.average).toBe(60000); // 300,000 / 5
       expect(result.annualBonus.average).toBe(240000); // 100,000 * (12 / 5)
       expect(result.monthCount).toBe(5);
-      expect(result.monthlyLivingExpenses.breakdown).toHaveLength(1);
+      expect(result.monthlyLivingExpenses.breakdown).toHaveLength(2);
       expect(result.monthlyLivingExpenses.averageSpecial).toBe(0);
     });
 
