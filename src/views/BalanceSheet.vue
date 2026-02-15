@@ -156,6 +156,15 @@ const liabilityPie = computed(() =>
     value: item.amountYen,
   })),
 );
+
+const copyToken = () => {
+  const token = localStorage.getItem("asset-google-id-token");
+  if (!token) {
+    window.alert("トークンが localStorage に見つかりません。");
+    throw new Error("Token not found");
+  }
+  return token;
+};
 </script>
 
 <template>
@@ -295,6 +304,14 @@ const liabilityPie = computed(() =>
       />
       <p class="back-top-wrap"><a href="#balance-sheet-top">↑ トップへ戻る</a></p>
     </section>
+
+    <section class="footer-actions">
+      <CopyButton
+        label="📋 トークンIDをコピー"
+        :copy-value="copyToken"
+        disabled-on-privacy
+      />
+    </section>
   </section>
 </template>
 
@@ -307,5 +324,13 @@ const liabilityPie = computed(() =>
 }
 .header-with-action .section-title {
   margin-bottom: 0;
+}
+
+.footer-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
 }
 </style>
