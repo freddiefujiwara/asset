@@ -62,9 +62,13 @@ function handleGoogleCredential(response) {
   if (!credential) {
     return;
   }
-  localStorage.setItem(ID_TOKEN_STORAGE_KEY, credential);
+
+  // 1. メモリ(ref)とストレージを即時更新
   idToken.value = credential;
-  portfolioStore.fetchPortfolio();
+  localStorage.setItem(ID_TOKEN_STORAGE_KEY, credential);
+
+  // 2. ストアに直接トークンを渡してフェッチ開始（これが重要！）
+  portfolioStore.fetchPortfolio(credential);
 }
 
 function renderGoogleButton() {
@@ -116,6 +120,8 @@ onMounted(() => {
 
   readSavedToken();
   loadGoogleScript();
+
+  // 初回読み込み時は localStorage のトークンを使って自動フェッチ
   if (!portfolioStore.data && !portfolioStore.error) {
     portfolioStore.fetchPortfolio();
   }
