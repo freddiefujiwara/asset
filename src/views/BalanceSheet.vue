@@ -307,8 +307,9 @@ const copyToken = () => {
 
     <section class="footer-actions">
       <CopyButton
-        label="トークンIDをコピー"
+        label="📋 トークンIDをコピー"
         :copy-value="copyToken"
+        disabled-on-privacy
       />
     </section>
   </section>
