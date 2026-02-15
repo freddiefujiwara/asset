@@ -12,7 +12,7 @@ import {
   getUniqueLargeCategories,
   getUniqueSmallCategories,
   sortCashFlow,
-  getSixMonthAverages,
+  getRecentAverages,
   getExpenseType,
 } from "@/domain/cashFlow";
 import { getPast5MonthSummary } from "@/domain/fire";
@@ -84,10 +84,18 @@ const typePieData = computed(() => {
   return Object.values(types).filter((t) => t.value > 0);
 });
 
-const showSixMonthAverage = computed(() => !monthFilter.value);
-const sixMonthAverages = computed(() =>
-  showSixMonthAverage.value ? getSixMonthAverages(monthlyData.value) : null,
-);
+const showPastAverage = computed(() => !monthFilter.value);
+const pastAverages = computed(() => {
+  if (!showPastAverage.value) {
+    return null;
+  }
+
+  const now = new Date();
+  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+  const historicalData = monthlyData.value.filter((d) => d.month !== currentMonthKey);
+  return getRecentAverages(historicalData, 5);
+});
 
 const uniqueMonths = computed(() => getUniqueMonths(cashFlowRaw.value));
 const copyTargetMonths = computed(() => uniqueMonths.value.slice(0, 6));
@@ -232,7 +240,7 @@ const resetFilters = () => {
       </article>
     </div>
 
-    <CashFlowBarChart :data="monthlyData" :show-net="!hasActiveFilters" :averages="sixMonthAverages" />
+    <CashFlowBarChart :data="monthlyData" :show-net="!hasActiveFilters" :averages="pastAverages" />
 
     <div class="chart-grid">
       <PieChart title="カテゴリ別支出内訳" :data="categoryPieData" :value-formatter="formatYen" />
@@ -310,6 +318,23 @@ const resetFilters = () => {
   align-items: center;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.chart-grid {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.chart-grid > * {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 768px) {
+  .chart-grid {
+    flex-direction: column;
+  }
 }
 
 @media (max-width: 700px) {

@@ -4,7 +4,7 @@ import {
   getKPIs,
   aggregateByMonth,
   aggregateByCategory,
-  getSixMonthAverages,
+  getRecentAverages,
   getUniqueMonths,
   getUniqueCategories,
   getUniqueLargeCategories,
@@ -206,7 +206,7 @@ describe("cashFlow domain", () => {
     });
   });
 
-  describe("getSixMonthAverages", () => {
+  describe("getRecentAverages", () => {
     it("returns averages for up to latest 6 months", () => {
       const monthly = [
         { month: "2025-09", income: 100, expense: 10, net: 90 },
@@ -218,7 +218,7 @@ describe("cashFlow domain", () => {
         { month: "2026-03", income: 700, expense: 70, net: 630 },
       ];
 
-      expect(getSixMonthAverages(monthly)).toEqual({
+      expect(getRecentAverages(monthly)).toEqual({
         income: 450,
         expense: 45,
         net: 405,
@@ -227,7 +227,7 @@ describe("cashFlow domain", () => {
     });
 
     it("returns zeros for empty input", () => {
-      expect(getSixMonthAverages([])).toEqual({ income: 0, expense: 0, net: 0, count: 0 });
+      expect(getRecentAverages([])).toEqual({ income: 0, expense: 0, net: 0, count: 0 });
     });
   });
 

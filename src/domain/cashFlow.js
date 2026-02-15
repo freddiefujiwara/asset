@@ -155,7 +155,7 @@ export function aggregateByMonth(cashFlow, { includeNet = true } = {}) {
 }
 
 
-export function getSixMonthAverages(monthlyData, months = 6) {
+export function getRecentAverages(monthlyData, months = 6) {
   if (!monthlyData.length) {
     return { income: 0, expense: 0, net: 0, count: 0 };
   }
