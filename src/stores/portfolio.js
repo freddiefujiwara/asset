@@ -10,8 +10,7 @@ function getGoogleIdToken() {
   return globalThis.localStorage?.getItem(ID_TOKEN_STORAGE_KEY) ?? "";
 }
 
-function buildApiUrlWithToken() {
-  const idToken = getGoogleIdToken();
+function buildApiUrlWithToken(idToken) {
   if (!idToken) {
     return API_URL;
   }
@@ -30,7 +29,7 @@ export const usePortfolioStore = defineStore("portfolio", {
     rawResponse: null,
   }),
   actions: {
-    async fetchPortfolio() {
+    async fetchPortfolio(directToken = null) {
       if (this.loading) {
         return;
       }
@@ -40,10 +39,11 @@ export const usePortfolioStore = defineStore("portfolio", {
 
       this.loading = true;
       this.error = "";
+      const idToken = directToken || getGoogleIdToken();
       try {
         let didRetryMissingIdToken = false;
         while (true) {
-          const response = await fetch(buildApiUrlWithToken());
+          const response = await fetch(buildApiUrlWithToken(idToken));
           if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
           }
@@ -53,7 +53,7 @@ export const usePortfolioStore = defineStore("portfolio", {
             const authMessage = json.error ?? "unauthorized";
             if (
               authMessage === "missing id token"
-              && getGoogleIdToken()
+              && idToken
               && !didRetryMissingIdToken
             ) {
               didRetryMissingIdToken = true;
@@ -84,7 +84,7 @@ export const usePortfolioStore = defineStore("portfolio", {
         }
 
         const isCorsError = message.toLowerCase().includes("failed to fetch");
-        if (getGoogleIdToken() && isCorsError) {
+        if (idToken && isCorsError) {
           this.error = "CORS blocked API request. Ensure GAS doGet returns Access-Control-Allow-Origin.";
           this.data = null;
           this.source = "";

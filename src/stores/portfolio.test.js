@@ -70,6 +70,18 @@ describe("portfolio store", () => {
     expect(calledUrl).toContain("id_token=token-123");
   });
 
+  it("uses direct token when passed to fetchPortfolio", async () => {
+    globalThis.localStorage.getItem.mockReturnValue("");
+    const fetchMock = vi.fn().mockResolvedValue(successResponse({ breakdown: [] }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const store = usePortfolioStore();
+    await store.fetchPortfolio("direct-token-456");
+
+    const calledUrl = fetchMock.mock.calls[0][0];
+    expect(calledUrl).toContain("id_token=direct-token-456");
+  });
+
   it("shows cors error and does not fallback to mock when request is blocked", async () => {
     globalThis.localStorage.getItem.mockReturnValue("token-123");
     const fetchMock = vi.fn().mockRejectedValue(new TypeError("Failed to fetch"));
