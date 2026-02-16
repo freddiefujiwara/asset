@@ -91,4 +91,27 @@ describe("Monte Carlo Simulation", () => {
 
     expect(monteCarlo.fireReachedMonth).toBe(deterministic.fireReachedMonth);
   });
+
+  it("sanitizes invalid trial count to a minimum of 1", () => {
+    const result = runMonteCarloSimulation(baseParams, {
+      trials: 0,
+      annualVolatility: 0.1,
+      seed: 7,
+    });
+
+    expect(result.trials).toBe(1);
+    expect(Number.isFinite(result.successRate)).toBe(true);
+  });
+
+  it("clamps negative volatility to 0", () => {
+    const deterministic = performFireSimulation(baseParams);
+    const result = runMonteCarloSimulation(baseParams, {
+      trials: 20,
+      annualVolatility: -0.5,
+      seed: 7,
+    });
+
+    expect(result.p50).toBeCloseTo(deterministic.finalAssets, 8);
+  });
+
 });

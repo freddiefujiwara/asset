@@ -914,6 +914,8 @@ export function runMonteCarloSimulation(inputParams, { trials = 1000, annualVola
   const params = normalizeFireParams(inputParams);
   const detResult = performFireSimulation(params);
   const fireMonth = detResult.fireReachedMonth;
+  const safeTrials = Math.max(1, Math.floor(Number(trials) || 0));
+  const safeAnnualVolatility = Math.max(0, Number.isFinite(annualVolatility) ? annualVolatility : 0);
   const rand = createRandom(seed);
 
   const { currentAge, annualReturnRate } = params;
@@ -921,7 +923,7 @@ export function runMonteCarloSimulation(inputParams, { trials = 1000, annualVola
 
   // Lognormal return parameters
   const mu = annualReturnRate;
-  const sigma = annualVolatility;
+  const sigma = safeAnnualVolatility;
   // Log-return mean and variance
   const alpha = Math.log(1 + mu) - 0.5 * Math.log(1 + Math.pow(sigma / (1 + mu), 2));
   const betaSq = Math.log(1 + Math.pow(sigma / (1 + mu), 2));
@@ -935,7 +937,7 @@ export function runMonteCarloSimulation(inputParams, { trials = 1000, annualVola
 
   const totalYears = Math.ceil(totalMonths / 12);
 
-  for (let t = 0; t < trials; t++) {
+  for (let t = 0; t < safeTrials; t++) {
     const returnsArray = [];
     for (let m = 0; m <= totalMonths; m++) {
       const logReturn = alphaM + betaM * nextGaussian(rand);
@@ -996,14 +998,14 @@ export function runMonteCarloSimulation(inputParams, { trials = 1000, annualVola
   }
 
   return {
-    successRate: successCount / trials,
+    successRate: successCount / safeTrials,
     p10: getPercentile(10),
     p50: getPercentile(50),
     p90: getPercentile(90),
     p10Path,
     p50Path,
     p90Path,
-    trials,
+    trials: safeTrials,
     fireReachedMonth: fireMonth
   };
 }
