@@ -324,17 +324,15 @@ export function estimateMonthlyExpenses(cashFlow) {
 
     const absAmount = Math.abs(item.amount);
     const category = item.category || "未分類";
-
-    if (category.startsWith("特別な支出")) {
-      totalSpecialExpense += absAmount;
-      return;
-    }
-
-    if (category.startsWith("現金") || category.startsWith("カード")) {
-      return;
-    }
-
     const type = getExpenseType(item);
+
+    if (type === "exclude") {
+      if (category.startsWith("特別な支出")) {
+        totalSpecialExpense += absAmount;
+      }
+      return;
+    }
+
     if (type === "fixed") {
       totalFixedExpense += absAmount;
     } else if (type === "variable") {
