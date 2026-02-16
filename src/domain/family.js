@@ -10,6 +10,8 @@ const OWNER_RULES = [
 const DEFAULT_OWNER = { id: "me", label: "私" };
 
 export const USER_BIRTH_DATE = "1979-09-02";
+export const SPOUSE_BIRTH_DATE = "1976-04-23";
+export const DAUGHTER_BIRTH_DATE = "2013-02-20";
 
 /**
  * Calculate age based on birth date string and a base date.
