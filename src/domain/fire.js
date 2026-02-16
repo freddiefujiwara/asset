@@ -966,7 +966,23 @@ export function runMonteCarloSimulation(inputParams, { trials = 1000, annualVola
 
   finalAssetsList.sort((a, b) => a - b);
 
-  const getPercentile = (p) => finalAssetsList[Math.floor((p / 100) * (trials - 1))];
+  const interpolatePercentile = (sortedValues, p) => {
+    if (!sortedValues.length) return 0;
+    if (sortedValues.length === 1) return sortedValues[0];
+
+    const pos = (p / 100) * (sortedValues.length - 1);
+    const lowerIndex = Math.floor(pos);
+    const upperIndex = Math.ceil(pos);
+
+    if (lowerIndex === upperIndex) {
+      return sortedValues[lowerIndex];
+    }
+
+    const weight = pos - lowerIndex;
+    return sortedValues[lowerIndex] + (sortedValues[upperIndex] - sortedValues[lowerIndex]) * weight;
+  };
+
+  const getPercentile = (p) => interpolatePercentile(finalAssetsList, p);
 
   const p10Path = [];
   const p50Path = [];
@@ -974,9 +990,9 @@ export function runMonteCarloSimulation(inputParams, { trials = 1000, annualVola
 
   for (let y = 0; y <= totalYears; y++) {
     const assetsAtY = annualHistory.map(h => h[y]).sort((a, b) => a - b);
-    p10Path.push(assetsAtY[Math.floor(0.1 * (trials - 1))]);
-    p50Path.push(assetsAtY[Math.floor(0.5 * (trials - 1))]);
-    p90Path.push(assetsAtY[Math.floor(0.9 * (trials - 1))]);
+    p10Path.push(interpolatePercentile(assetsAtY, 10));
+    p50Path.push(interpolatePercentile(assetsAtY, 50));
+    p90Path.push(interpolatePercentile(assetsAtY, 90));
   }
 
   return {
