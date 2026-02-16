@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { runMonteCarloSimulation } from "./fire";
+import { performFireSimulation, runMonteCarloSimulation } from "./fire";
 
 describe("Monte Carlo Simulation", () => {
   const baseParams = {
@@ -67,4 +67,51 @@ describe("Monte Carlo Simulation", () => {
 
     expect(result1.p50).not.toBe(result2.p50);
   });
+
+  it("matches deterministic final assets when volatility is 0%", () => {
+    const deterministic = performFireSimulation(baseParams);
+    const monteCarlo = runMonteCarloSimulation(baseParams, {
+      trials: 50,
+      annualVolatility: 0,
+      seed: 42,
+    });
+
+    expect(monteCarlo.p10).toBeCloseTo(deterministic.finalAssets, 8);
+    expect(monteCarlo.p50).toBeCloseTo(deterministic.finalAssets, 8);
+    expect(monteCarlo.p90).toBeCloseTo(deterministic.finalAssets, 8);
+  });
+
+  it("uses the same FIRE timing as deterministic simulation", () => {
+    const deterministic = performFireSimulation(baseParams);
+    const monteCarlo = runMonteCarloSimulation(baseParams, {
+      trials: 30,
+      annualVolatility: 0.12,
+      seed: 123,
+    });
+
+    expect(monteCarlo.fireReachedMonth).toBe(deterministic.fireReachedMonth);
+  });
+
+  it("sanitizes invalid trial count to a minimum of 1", () => {
+    const result = runMonteCarloSimulation(baseParams, {
+      trials: 0,
+      annualVolatility: 0.1,
+      seed: 7,
+    });
+
+    expect(result.trials).toBe(1);
+    expect(Number.isFinite(result.successRate)).toBe(true);
+  });
+
+  it("clamps negative volatility to 0", () => {
+    const deterministic = performFireSimulation(baseParams);
+    const result = runMonteCarloSimulation(baseParams, {
+      trials: 20,
+      annualVolatility: -0.5,
+      seed: 7,
+    });
+
+    expect(result.p50).toBeCloseTo(deterministic.finalAssets, 8);
+  });
+
 });

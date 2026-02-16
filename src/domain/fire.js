@@ -229,6 +229,7 @@ export function calculateFirePortfolio(portfolio, includedOwnerIds = ["me", "wif
   ];
 
   const allAssetKeys = ["cashLike", "stocks", "funds", "pensions", "points"];
+  const riskAssetKeys = new Set(["stocks", "funds", "pensions"]);
 
   let totalAssetsYen = 0;
   let riskAssetsYen = 0;
@@ -243,7 +244,7 @@ export function calculateFirePortfolio(portfolio, includedOwnerIds = ["me", "wif
       totalAssetsYen += amount;
 
       const category = row.category || "";
-      if (riskCategories.includes(category)) {
+      if (riskAssetKeys.has(key) || riskCategories.includes(category)) {
         riskAssetsYen += amount;
       }
     });
@@ -914,6 +915,8 @@ export function runMonteCarloSimulation(inputParams, { trials = 1000, annualVola
   const params = normalizeFireParams(inputParams);
   const detResult = performFireSimulation(params);
   const fireMonth = detResult.fireReachedMonth;
+  const safeTrials = Math.max(1, Math.floor(Number(trials) || 0));
+  const safeAnnualVolatility = Math.max(0, Number.isFinite(annualVolatility) ? annualVolatility : 0);
   const rand = createRandom(seed);
 
   const { currentAge, annualReturnRate } = params;
@@ -921,7 +924,7 @@ export function runMonteCarloSimulation(inputParams, { trials = 1000, annualVola
 
   // Lognormal return parameters
   const mu = annualReturnRate;
-  const sigma = annualVolatility;
+  const sigma = safeAnnualVolatility;
   // Log-return mean and variance
   const alpha = Math.log(1 + mu) - 0.5 * Math.log(1 + Math.pow(sigma / (1 + mu), 2));
   const betaSq = Math.log(1 + Math.pow(sigma / (1 + mu), 2));
@@ -935,7 +938,7 @@ export function runMonteCarloSimulation(inputParams, { trials = 1000, annualVola
 
   const totalYears = Math.ceil(totalMonths / 12);
 
-  for (let t = 0; t < trials; t++) {
+  for (let t = 0; t < safeTrials; t++) {
     const returnsArray = [];
     for (let m = 0; m <= totalMonths; m++) {
       const logReturn = alphaM + betaM * nextGaussian(rand);
@@ -966,7 +969,23 @@ export function runMonteCarloSimulation(inputParams, { trials = 1000, annualVola
 
   finalAssetsList.sort((a, b) => a - b);
 
-  const getPercentile = (p) => finalAssetsList[Math.floor((p / 100) * (trials - 1))];
+  const interpolatePercentile = (sortedValues, p) => {
+    if (!sortedValues.length) return 0;
+    if (sortedValues.length === 1) return sortedValues[0];
+
+    const pos = (p / 100) * (sortedValues.length - 1);
+    const lowerIndex = Math.floor(pos);
+    const upperIndex = Math.ceil(pos);
+
+    if (lowerIndex === upperIndex) {
+      return sortedValues[lowerIndex];
+    }
+
+    const weight = pos - lowerIndex;
+    return sortedValues[lowerIndex] + (sortedValues[upperIndex] - sortedValues[lowerIndex]) * weight;
+  };
+
+  const getPercentile = (p) => interpolatePercentile(finalAssetsList, p);
 
   const p10Path = [];
   const p50Path = [];
@@ -974,20 +993,20 @@ export function runMonteCarloSimulation(inputParams, { trials = 1000, annualVola
 
   for (let y = 0; y <= totalYears; y++) {
     const assetsAtY = annualHistory.map(h => h[y]).sort((a, b) => a - b);
-    p10Path.push(assetsAtY[Math.floor(0.1 * (trials - 1))]);
-    p50Path.push(assetsAtY[Math.floor(0.5 * (trials - 1))]);
-    p90Path.push(assetsAtY[Math.floor(0.9 * (trials - 1))]);
+    p10Path.push(interpolatePercentile(assetsAtY, 10));
+    p50Path.push(interpolatePercentile(assetsAtY, 50));
+    p90Path.push(interpolatePercentile(assetsAtY, 90));
   }
 
   return {
-    successRate: successCount / trials,
+    successRate: successCount / safeTrials,
     p10: getPercentile(10),
     p50: getPercentile(50),
     p90: getPercentile(90),
     p10Path,
     p50Path,
     p90Path,
-    trials,
+    trials: safeTrials,
     fireReachedMonth: fireMonth
   };
 }

@@ -235,6 +235,28 @@ describe("fire domain", () => {
       expect(result.riskAssetsYen).toBe(0);
       expect(result.liabilitiesYen).toBe(0);
     });
+
+
+    it("treats stocks/funds/pensions as risk even if category is missing", () => {
+      const partialPortfolio = {
+        holdings: {
+          stocks: [
+            { "銘柄名": "株A", "評価額": "100000" },
+          ],
+          funds: [
+            { "名称・説明": "投信A@chipop", "評価額": "200000" },
+          ],
+          pensions: [
+            { "名称": "年金A", "現在価値": "300000" },
+          ],
+        },
+      };
+
+      const result = calculateFirePortfolio(partialPortfolio);
+      expect(result.totalAssetsYen).toBe(600000);
+      expect(result.riskAssetsYen).toBe(600000);
+      expect(result.cashAssetsYen).toBe(0);
+    });
   });
 
   describe("calculateCashAssets", () => {
