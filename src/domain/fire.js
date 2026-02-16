@@ -229,6 +229,7 @@ export function calculateFirePortfolio(portfolio, includedOwnerIds = ["me", "wif
   ];
 
   const allAssetKeys = ["cashLike", "stocks", "funds", "pensions", "points"];
+  const riskAssetKeys = new Set(["stocks", "funds", "pensions"]);
 
   let totalAssetsYen = 0;
   let riskAssetsYen = 0;
@@ -243,7 +244,7 @@ export function calculateFirePortfolio(portfolio, includedOwnerIds = ["me", "wif
       totalAssetsYen += amount;
 
       const category = row.category || "";
-      if (riskCategories.includes(category)) {
+      if (riskAssetKeys.has(key) || riskCategories.includes(category)) {
         riskAssetsYen += amount;
       }
     });
