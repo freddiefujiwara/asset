@@ -19,10 +19,15 @@ const CONFIG = {
 };
 
 /**
- * カテゴリ文字列から分類を返す (fixed | variable | exclude)
- * @param {string} category
+ * カテゴリ文字列または明細オブジェクトから分類を返す (fixed | variable | exclude)
+ * @param {string|object} categoryOrItem
  */
-export const getExpenseType = (category) => {
+export const getExpenseType = (categoryOrItem) => {
+  const isObj = categoryOrItem && typeof categoryOrItem === "object";
+  const isTransfer = isObj ? categoryOrItem.isTransfer : false;
+  const category = isObj ? (categoryOrItem.category || "") : (categoryOrItem || "");
+
+  if (isTransfer) return "exclude";
   if (CONFIG.EXCLUDE.some((k) => category.includes(k))) return "exclude";
   if (CONFIG.FIXED.some((k) => category.includes(k))) return "fixed";
   return "variable"; // それ以外はすべて変動費
@@ -55,7 +60,7 @@ export function filterCashFlow(
       return false;
     }
 
-    if (type && getExpenseType(categoryLabel) !== type) {
+    if (type && getExpenseType(item) !== type) {
       return false;
     }
 
@@ -189,7 +194,7 @@ function getTargetRowsForAverage(cashFlow, averageMonths, excludeCurrentMonth) {
     return cashFlow;
   }
 
-  const expenseRows = cashFlow.filter((item) => !item.isTransfer && item.amount < 0);
+  const expenseRows = cashFlow.filter((item) => item.amount < 0);
   const now = new Date();
   const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
@@ -243,11 +248,10 @@ export function aggregateByType(cashFlow, { averageMonths = 0, excludeCurrentMon
   };
 
   targetCashFlow.forEach((item) => {
-    if (item.isTransfer || item.amount >= 0) {
+    if (item.amount >= 0) {
       return;
     }
-    const categoryLabel = getCategoryLabel(item);
-    const type = getExpenseType(categoryLabel);
+    const type = getExpenseType(item);
     if (types[type]) {
       types[type].value += Math.abs(item.amount);
     }

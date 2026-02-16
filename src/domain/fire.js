@@ -334,7 +334,7 @@ export function estimateMonthlyExpenses(cashFlow) {
       return;
     }
 
-    const type = getExpenseType(category);
+    const type = getExpenseType(item);
     if (type === "fixed") {
       totalFixedExpense += absAmount;
     } else if (type === "variable") {

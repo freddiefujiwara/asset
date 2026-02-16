@@ -29,8 +29,23 @@ const mockCashFlow = [
 
 describe("cashFlow domain", () => {
   describe("getExpenseType", () => {
+    it("classifies transfers as exclude", () => {
+      expect(getExpenseType({ isTransfer: true })).toBe("exclude");
+      expect(getExpenseType({ isTransfer: true, category: "住宅/ローン返済" })).toBe("exclude");
+    });
+
+    it("handles objects without category", () => {
+      expect(getExpenseType({ isTransfer: false })).toBe("variable");
+    });
+
+    it("handles null or empty input", () => {
+      expect(getExpenseType(null)).toBe("variable");
+      expect(getExpenseType("")).toBe("variable");
+    });
+
     it("classifies fixed expenses", () => {
       expect(getExpenseType("住宅/ローン返済")).toBe("fixed");
+      expect(getExpenseType({ isTransfer: false, category: "住宅/ローン返済" })).toBe("fixed");
       expect(getExpenseType("住宅/管理費")).toBe("fixed");
       expect(getExpenseType("水道・光熱費")).toBe("fixed");
       expect(getExpenseType("教養・教育/学費")).toBe("fixed");
@@ -263,15 +278,16 @@ describe("cashFlow domain", () => {
       expect(result).toContainEqual({ label: "除外", value: 3000, color: "#94a3b8" });
     });
 
-    it("ignores transfers and positive amounts", () => {
+    it("includes negative transfers in exclude and ignores positive amounts", () => {
       const mixed = [
         { date: "2026-02-01", amount: -1000, category: "住宅/ローン返済", isTransfer: false },
         { date: "2026-02-01", amount: -2000, category: "Transfer", isTransfer: true },
         { date: "2026-02-01", amount: 3000, category: "Income", isTransfer: false },
       ];
       const result = aggregateByType(mixed);
-      expect(result).toHaveLength(1);
-      expect(result[0].label).toBe("固定費");
+      expect(result).toHaveLength(2);
+      expect(result.find(r => r.label === "固定費").value).toBe(1000);
+      expect(result.find(r => r.label === "除外").value).toBe(2000);
     });
 
     it("can average past 5 months excluding current month", () => {
