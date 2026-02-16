@@ -5,6 +5,7 @@ import { formatYen } from "@/domain/format";
 const props = defineProps({
   data: { type: Array, required: true },
   annotations: { type: Array, default: () => [] },
+  monteCarloPaths: { type: Object, default: null },
 });
 
 const chartContainerRef = ref(null);
@@ -22,7 +23,15 @@ const maxCashFlow = computed(() => {
 });
 
 const maxAssets = computed(() => {
-  return Math.max(...props.data.map(d => d.assets), 10000000);
+  const baseMax = Math.max(...props.data.map(d => d.assets), 10000000);
+  if (!props.monteCarloPaths) return baseMax;
+
+  const pMax = Math.max(
+    ...props.monteCarloPaths.p10Path,
+    ...props.monteCarloPaths.p50Path,
+    ...props.monteCarloPaths.p90Path
+  );
+  return Math.max(baseMax, pMax);
 });
 
 const yScaleCash = (val) => {
@@ -74,6 +83,24 @@ const bars = computed(() => {
 const assetPath = computed(() => {
   if (props.data.length === 0) return "";
   const points = props.data.map((d, i) => `${xScale(i)},${yScaleAssets(d.assets)}`);
+  return `M ${points.join(" L ")}`;
+});
+
+const p10Path = computed(() => {
+  if (!props.monteCarloPaths?.p10Path) return "";
+  const points = props.monteCarloPaths.p10Path.map((v, i) => `${xScale(i)},${yScaleAssets(v)}`);
+  return `M ${points.join(" L ")}`;
+});
+
+const p50Path = computed(() => {
+  if (!props.monteCarloPaths?.p50Path) return "";
+  const points = props.monteCarloPaths.p50Path.map((v, i) => `${xScale(i)},${yScaleAssets(v)}`);
+  return `M ${points.join(" L ")}`;
+});
+
+const p90Path = computed(() => {
+  if (!props.monteCarloPaths?.p90Path) return "";
+  const points = props.monteCarloPaths.p90Path.map((v, i) => `${xScale(i)},${yScaleAssets(v)}`);
   return `M ${points.join(" L ")}`;
 });
 
@@ -177,8 +204,15 @@ const hideTooltip = () => {
           <!-- Expense Line -->
           <path :d="expensePath" fill="none" stroke="var(--text)" stroke-width="2" stroke-dasharray="2" />
 
-          <!-- Asset Line -->
+          <!-- Asset Line (Deterministic) -->
           <path :d="assetPath" fill="none" stroke="#3b82f6" stroke-width="3" />
+
+          <!-- Monte Carlo Lines -->
+          <template v-if="props.monteCarloPaths">
+            <path :d="p90Path" fill="none" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="2" opacity="0.6" />
+            <path :d="p50Path" fill="none" stroke="#3b82f6" stroke-width="2" opacity="0.8" />
+            <path :d="p10Path" fill="none" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="2" opacity="0.6" />
+          </template>
 
           <!-- Annotations (Vertical Lines) -->
           <g v-for="(ann, i) in annotationPoints" :key="ann.label + ann.age">
@@ -223,7 +257,12 @@ const hideTooltip = () => {
       <div class="legend-item"><span class="box" style="background: #f59e0b;"></span>年金収入</div>
       <div class="legend-item"><span class="box" style="background: #ef4444;"></span>資産取り崩し</div>
       <div class="legend-item"><span class="line" style="border-bottom: 2px dashed var(--text);"></span>支出</div>
-      <div class="legend-item"><span class="line" style="border-bottom: 2px solid #3b82f6;"></span>金融資産 (右軸)</div>
+      <div class="legend-item"><span class="line" style="border-bottom: 2px solid #3b82f6;"></span>金融資産 (決定論)</div>
+      <template v-if="props.monteCarloPaths">
+        <div class="legend-item"><span class="line" style="border-bottom: 2px solid #3b82f6; opacity: 0.8;"></span>P50 (中央値)</div>
+        <div class="legend-item"><span class="line" style="border-bottom: 1.5px dashed #3b82f6; opacity: 0.6;"></span>P90 (上位10%)</div>
+        <div class="legend-item"><span class="line" style="border-bottom: 1.5px dashed #ef4444; opacity: 0.6;"></span>P10 (下位10%)</div>
+      </template>
     </div>
   </div>
 </template>

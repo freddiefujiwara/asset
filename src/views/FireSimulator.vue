@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watchEffect } from "vue";
+import { computed, ref, watch, watchEffect } from "vue";
 import { usePortfolioData } from "@/composables/usePortfolioData";
 import { formatYen } from "@/domain/format";
 import { detectAssetOwner, assetAmountYen, calculateAge, USER_BIRTH_DATE } from "@/domain/family";
@@ -41,6 +41,7 @@ const includeBonus = ref(true);
 const useMonteCarlo = ref(false);
 const monteCarloTrials = ref(1000);
 const monteCarloVolatility = ref(15);
+const monteCarloSeed = ref(123);
 
 // Data-derived parameters
 const firePortfolio = computed(() =>
@@ -154,12 +155,27 @@ watchEffect(() => {
 
 const growthData = computed(() => generateGrowthTable(simulationParams.value));
 
-const monteCarloResults = computed(() => {
-  if (!useMonteCarlo.value) return null;
-  return runMonteCarloSimulation(simulationParams.value, {
-    trials: monteCarloTrials.value,
-    annualVolatility: monteCarloVolatility.value / 100,
-  });
+const monteCarloResults = ref(null);
+const isCalculatingMonteCarlo = ref(false);
+
+const runMonteCarlo = () => {
+  if (!useMonteCarlo.value) return;
+  isCalculatingMonteCarlo.value = true;
+  // Give UI a chance to show loading state
+  setTimeout(() => {
+    monteCarloResults.value = runMonteCarloSimulation(simulationParams.value, {
+      trials: monteCarloTrials.value,
+      annualVolatility: monteCarloVolatility.value / 100,
+      seed: monteCarloSeed.value,
+    });
+    isCalculatingMonteCarlo.value = false;
+  }, 10);
+};
+
+watch(useMonteCarlo, (val) => {
+  if (!val) {
+    monteCarloResults.value = null;
+  }
 });
 
 const annualSimulationData = computed(() => generateAnnualSimulation(simulationParams.value));
@@ -238,6 +254,9 @@ const algorithmExplanationSegments = computed(() => {
     postFireExtraExpenseMonthly: postFireExtraExpense.value,
     postFireFirstYearExtraExpense: postFireFirstYearExtraExpense.value,
     retirementLumpSumAtFire: retirementLumpSumAtFire.value,
+    useMonteCarlo: useMonteCarlo.value,
+    monteCarloTrials: monteCarloTrials.value,
+    monteCarloVolatilityPct: monteCarloVolatility.value,
   });
 });
 
@@ -468,6 +487,19 @@ const copyAnnualTable = () => JSON.stringify(buildAnnualTableJson(), null, 2);
             <label>年率ボラティリティ (%)</label>
             <input v-model.number="monteCarloVolatility" type="number" step="1" min="0" />
           </div>
+          <div class="filter-item">
+            <label>乱数シード (再現用)</label>
+            <input v-model.number="monteCarloSeed" type="number" />
+          </div>
+        </div>
+        <div v-if="useMonteCarlo" style="margin-top: 12px;">
+          <button
+            @click="runMonteCarlo"
+            class="calculate-btn"
+            :disabled="isCalculatingMonteCarlo"
+          >
+            {{ isCalculatingMonteCarlo ? '⚡ 計算中...' : '🎲 モンテカルロ試行を実行' }}
+          </button>
         </div>
       </div>
 
@@ -622,7 +654,7 @@ const copyAnnualTable = () => JSON.stringify(buildAnnualTableJson(), null, 2);
     </div>
 
     <div class="main-visualization">
-      <FireSimulationChart :data="annualSimulationData" :annotations="chartAnnotations" />
+      <FireSimulationChart :data="annualSimulationData" :annotations="chartAnnotations" :monte-carlo-paths="monteCarloResults" />
       <div class="copy-actions table-copy-action">
         <CopyButton
           label="📋 年齢別収支推移表をコピー"
@@ -768,5 +800,26 @@ const copyAnnualTable = () => JSON.stringify(buildAnnualTableJson(), null, 2);
 .table-copy-action {
   margin-top: 0;
   margin-bottom: -10px;
+}
+
+.calculate-btn {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  width: 100%;
+  transition: opacity 0.2s;
+}
+
+.calculate-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.calculate-btn:hover:not(:disabled) {
+  opacity: 0.9;
 }
 </style>
