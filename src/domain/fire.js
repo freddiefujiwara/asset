@@ -1,5 +1,5 @@
 import { getUniqueMonths, getExpenseType } from "./cashFlow";
-import { assetAmountYen, detectAssetOwner } from "./family";
+import { assetAmountYen, detectAssetOwner, USER_BIRTH_DATE, SPOUSE_BIRTH_DATE, DAUGHTER_BIRTH_DATE } from "./family";
 import { formatYen } from "./format";
 
 const PENSION_USER_START_AGE = 60;
@@ -7,7 +7,7 @@ const PENSION_SPOUSE_USER_AGE_START = 62; // Spouse (1976) age 65 when User (197
 const PENSION_BASIC_FULL = 780000;
 const PENSION_BASIC_REDUCTION = 0.9; // 10% reduction for 4 years gap
 const PENSION_EARLY_REDUCTION = 0.76; // 24% reduction for starting at 60
-const PENSION_USER_DATA_AGE = 44; // Age at which premium data was provided
+const PENSION_DATA_AGE = 44; // Age at which premium data was provided
 const PENSION_USER_KOSEN_ACCRUED_AT_44 = 892252; // Accrued Employees' Pension based on 14.9M premiums
 const PENSION_USER_KOSEN_FUTURE_FACTOR = 42000; // Estimated future accrual per year worked
 
@@ -18,9 +18,14 @@ export const FIRE_ALGORITHM_CONSTANTS = {
     basicFullAnnualYen: PENSION_BASIC_FULL,
     basicReduction: PENSION_BASIC_REDUCTION,
     earlyReduction: PENSION_EARLY_REDUCTION,
-    userDataAge: PENSION_USER_DATA_AGE,
+    pensionDataAge: PENSION_DATA_AGE,
     userKoseiAccruedAt44AnnualYen: PENSION_USER_KOSEN_ACCRUED_AT_44,
     userKoseiFutureFactorAnnualYenPerYear: PENSION_USER_KOSEN_FUTURE_FACTOR,
+  },
+  familyBirthDates: {
+    user: USER_BIRTH_DATE,
+    spouse: SPOUSE_BIRTH_DATE,
+    daughter: DAUGHTER_BIRTH_DATE,
   },
 };
 
@@ -37,7 +42,7 @@ export function calculateMonthlyPension(age, fireAge) {
     const basicPart = PENSION_BASIC_FULL * PENSION_BASIC_REDUCTION * PENSION_EARLY_REDUCTION;
     // Participation stops at FIRE or age 60 (whichever comes first, as pension starts at 60)
     const participationEndAge = Math.min(60, fireAge);
-    const futureYears = Math.max(0, participationEndAge - PENSION_USER_DATA_AGE);
+    const futureYears = Math.max(0, participationEndAge - PENSION_DATA_AGE);
     const employeesPartAt65 = PENSION_USER_KOSEN_ACCRUED_AT_44 + futureYears * PENSION_USER_KOSEN_FUTURE_FACTOR;
 
     totalAnnual += (basicPart + employeesPartAt65 * PENSION_EARLY_REDUCTION);
