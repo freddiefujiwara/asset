@@ -290,6 +290,15 @@ const buildConditionsAndAlgorithmJson = () => ({
     postFireFirstYearExtraExpenseYen: postFireFirstYearExtraExpense.value,
     retirementLumpSumAtFireYen: retirementLumpSumAtFire.value,
   },
+  monteCarlo: monteCarloResults.value ? {
+    successRatePercent: (monteCarloResults.value.successRate * 100).toFixed(1),
+    p10Yen: monteCarloResults.value.p10,
+    p50Yen: monteCarloResults.value.p50,
+    p90Yen: monteCarloResults.value.p90,
+    trials: monteCarloResults.value.trials,
+    volatilityPercent: monteCarloVolatility.value,
+    seed: monteCarloSeed.value
+  } : null,
   pensionEstimates: {
     householdMonthlyAtUserAge60Yen: estimatedMonthlyPensionAt60.value,
     householdAnnualAtUserAge60Yen: pensionAnnualAtFire.value,

@@ -195,7 +195,13 @@ export function generateAlgorithmExplanationSegments(params) {
   segments.push(
     { type: "text", value: "\n■ 各項目の算出定義\n・収入 (年金込): 定期収入（給与等） + 年金受給額の合算です。\n・支出: (基本生活費 - 住宅ローン) × インフレ調整 + 住宅ローン(固定) + FIRE後追加支出（FIRE達成月より加算） + FIRE1年目特別支出\n・運用益: 当年中の運用リターン合計。月次複利で計算されます。\n・取り崩し額: 生活費の不足分、または「資産 × 取崩率」のいずれか大きい額を引き出します（税金考慮時は利益分のみグロスアップ）。\n・貯金額 (現金): 前年末残高 + 当年収支(収入 - 支出) - 当年投資額 + リスク資産からの補填（純額）\n・リスク資産額: 前年末残高 + 投資額 + 運用益 - 取崩額(グロス)\n\nFIRE後の追加支出（デフォルト" },
     { type: "amount", value: formatYen(postFireExtraExpenseMonthly) },
-    { type: "text", value: "）は、国民年金、国民健康保険、固定資産税を合算した目安値です。\n・リタイア1年目の特別支出: 前年所得に基づく社会保険料・住民税のスパイク分として、FIRE後12か月間にわたり年額 " },
+    { type: "text", value: "）は、国民年金（夫婦2名分: " },
+    { type: "amount", value: "約3.5万円" },
+    { type: "text", value: "）、国民健康保険（均等割7割軽減想定: " },
+    { type: "amount", value: "約1.5万円" },
+    { type: "text", value: "）、固定資産税（" },
+    { type: "amount", value: "月1万円" },
+    { type: "text", value: "）を合算した目安値です。\n・リタイア1年目の特別支出: 前年所得に基づく社会保険料・住民税のスパイク分として、FIRE後12か月間にわたり年額 " },
     { type: "amount", value: formatYen(postFireFirstYearExtraExpense) },
     { type: "text", value: "（インフレ調整あり）が追加で計上されます。" }
   );
