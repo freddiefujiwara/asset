@@ -153,16 +153,23 @@ export function generateAlgorithmExplanationSegments(params) {
     pensionAnnualAtFire,
     withdrawalRatePct,
     postFireExtraExpenseMonthly,
+    postFireFirstYearExtraExpense,
+    retirementLumpSumAtFire,
+    useMonteCarlo,
+    monteCarloTrials,
+    monteCarloVolatilityPct,
   } = params;
 
   const daughterDetailStr = `現金:${formatYen(daughterBreakdown.cash)}, 株式:${formatYen(daughterBreakdown.stocks)}, 投資信託:${formatYen(daughterBreakdown.funds)}, 年金:${formatYen(daughterBreakdown.pensions)}, ポイント:${formatYen(daughterBreakdown.points)}, 負債:${formatYen(daughterBreakdown.liabilities)}`;
 
-  return [
+  const segments = [
     { type: "text", value: "本シミュレーションは、設定された期待リターン・インフレ率・年金・ローン等のキャッシュフローに基づき、100歳時点で資産が残る最短リタイア年齢を算出しています。\n・必要資産目安は「FIRE達成年齢で退職して100歳まで資産が尽きない最小条件」を満たす達成時点の金融資産額と同じ定義です。\n・娘名義の資産（" },
     { type: "amount", value: daughterDetailStr },
-    { type: "text", value: "）は初期資産から除外してシミュレーションしています。\n・投資優先順位ルール: 生活防衛資金として現金を維持するため、毎月の投資額は「前月までの貯金残高 + 当月の収支剰余金」を上限として自動調整されます（貯金がマイナスにならないよう制限されます）。\n・FIRE達成後は追加投資を停止し、定期収入（給与・ボーナス等）もゼロになると仮定しています。\n・FIRE達成後は、年間支出または資産の" },
+    { type: "text", value: "）は初期資産から除外してシミュレーションしています。\n・投資優先順位ルール: 生活防衛資金として現金を維持するため、毎月の投資額は「前月までの貯金残高 + 当月の収支剰余金」を上限として自動調整されます（貯金がマイナスにならないよう制限されます）。\n・FIRE達成後は追加投資を停止し、定期収入（給与・ボーナス等）もゼロになると仮定しています。\n・FIRE達成月には退職金（一括）として " },
+    { type: "amount", value: formatYen(retirementLumpSumAtFire) },
+    { type: "text", value: " が現金資産に加算されます。\n・FIRE達成後は、年間支出または資産の" },
     { type: "text", value: String(withdrawalRatePct) },
-    { type: "text", value: "%（設定値）のいずれか大きい額を引き出すと仮定しています。\n\n■ 年金受給の見込みについて\n本シミュレーションでは、ご本人が" },
+    { type: "text", value: "%（設定値）のいずれか大きい額を引き出すと仮定しています。余剰分は再投資されず現金に滞留します。\n\n■ 年金受給の見込みについて\n本シミュレーションでは、ご本人が" },
     { type: "text", value: String(fireAchievementAge) },
     { type: "text", value: "歳でFIREし、60歳から年金を繰上げ受給する以下のシナリオを想定しています。\n・受給開始: 60歳（2039年〜）\n・世帯受給額（概算）: 年額 " },
     { type: "amount", value: formatYen(pensionAnnualAtFire) },
@@ -172,7 +179,21 @@ export function generateAlgorithmExplanationSegments(params) {
     { type: "amount", value: "約1,496万円" },
     { type: "text", value: "）に基づき、現在までの加入実績を反映。\n  - 20代前半の未納期間（4年間）による基礎年金の減額を反映。\n  - " },
     { type: "text", value: String(fireAchievementAge) },
-    { type: "text", value: "歳リタイア(シミュレーション結果による)に伴う厚生年金加入期間の停止を考慮。\n  - 60歳繰上げ受給による受給額24%減額を適用。\n・配偶者加算: 奥様（1976年生）が65歳に達した時点から、奥様自身の基礎年金が世帯収入に加算されるものとして計算。\n\n住宅ローンの完済月以降は、月間支出からローン返済額を自動的に差し引いてシミュレーションを継続します。\n\n■ 各項目の算出定義\n・収入 (年金込): 定期収入（給与等） + 年金受給額の合算です。\n・支出: (基本生活費 - 住宅ローン) × インフレ調整 + 住宅ローン(固定) + FIRE後追加支出（FIRE達成月より加算）\n・運用益: 当年中の運用リターン合計。月次複利で計算されます。\n・取り崩し額: 生活費の不足分、または「資産 × 取崩率」のいずれか大きい額を引き出します（税金考慮時はグロスアップ）。\n・貯金額 (現金): 前年末残高 + 当年収支(収入 - 支出) - 当年投資額 + リスク資産からの補填（純額）\n・リスク資産額: 前年末残高 + 投資額 + 運用益 - 取崩額(グロス)\n\nFIRE後の追加支出（デフォルト" },
+    { type: "text", value: "歳リタイア(シミュレーション結果による)に伴う厚生年金加入期間の停止を考慮。\n  - 60歳繰上げ受給による受給額24%減額を適用。\n・配偶者加算: 奥様（1976年生）が65歳に達した時点から、奥様自身の基礎年金が世帯収入に加算されるものとして計算。\n\n住宅ローンの完済月以降は、月間支出からローン返済額を自動的に差し引いてシミュレーションを継続します。\n" },
+  ];
+
+  if (useMonteCarlo) {
+    segments.push(
+      { type: "text", value: "\n■ 順序リスク評価（モンテカルロ法）について\n本シミュレーションでは " },
+      { type: "text", value: String(monteCarloTrials) },
+      { type: "text", value: " 回のランダム試行を行い、期待リターンにボラティリティ（年率 " },
+      { type: "text", value: String(monteCarloVolatilityPct) },
+      { type: "text", value: "%）を加味した収益率の変動が資産寿命に与える影響を評価しています。\n・リターン分布: 対数正規分布を仮定し、Box-Muller法を用いて月次の収益率を生成しています。\n・P50 (中央値): 試行結果のうち、上位から50%の位置にあるシナリオです。期待リターンに近い結果を示します。\n・P10 (下位10%): 試行結果のうち、下位10%（ワーストに近い）のシナリオです。不況が続いた場合の生存確認に利用します。\n・P90 (上位10%): 試行結果のうち、上位10%（好況）のシナリオです。\n" }
+    );
+  }
+
+  segments.push(
+    { type: "text", value: "\n■ 各項目の算出定義\n・収入 (年金込): 定期収入（給与等） + 年金受給額の合算です。\n・支出: (基本生活費 - 住宅ローン) × インフレ調整 + 住宅ローン(固定) + FIRE後追加支出（FIRE達成月より加算） + FIRE1年目特別支出\n・運用益: 当年中の運用リターン合計。月次複利で計算されます。\n・取り崩し額: 生活費の不足分、または「資産 × 取崩率」のいずれか大きい額を引き出します（税金考慮時は利益分のみグロスアップ）。\n・貯金額 (現金): 前年末残高 + 当年収支(収入 - 支出) - 当年投資額 + リスク資産からの補填（純額）\n・リスク資産額: 前年末残高 + 投資額 + 運用益 - 取崩額(グロス)\n\nFIRE後の追加支出（デフォルト" },
     { type: "amount", value: formatYen(postFireExtraExpenseMonthly) },
     { type: "text", value: "）は、国民年金（夫婦2名分: " },
     { type: "amount", value: "約3.5万円" },
@@ -180,8 +201,12 @@ export function generateAlgorithmExplanationSegments(params) {
     { type: "amount", value: "約1.5万円" },
     { type: "text", value: "）、固定資産税（" },
     { type: "amount", value: "月1万円" },
-    { type: "text", value: "）を合算した目安値です。\n※ 注意：リタイア1年目は前年の所得に基づき社会保険料・住民税が高額になる「1年目の罠」があるため、別途数十万円単位の予備費確保を推奨します。" },
-  ];
+    { type: "text", value: "）を合算した目安値です。\n・リタイア1年目の特別支出: 前年所得に基づく社会保険料・住民税のスパイク分として、FIRE後12か月間にわたり年額 " },
+    { type: "amount", value: formatYen(postFireFirstYearExtraExpense) },
+    { type: "text", value: "（インフレ調整あり）が追加で計上されます。" }
+  );
+
+  return segments;
 }
 
 /**
@@ -544,6 +569,8 @@ export function normalizeFireParams(params) {
     mortgageMonthlyPayment: Number(params.mortgageMonthlyPayment ?? 0),
     mortgagePayoffDate: params.mortgagePayoffDate || null,
     postFireExtraExpense: Number(params.postFireExtraExpense ?? 0),
+    postFireFirstYearExtraExpense: Number(params.postFireFirstYearExtraExpense ?? 0),
+    retirementLumpSumAtFire: Number(params.retirementLumpSumAtFire ?? 5000000),
     includePension: Boolean(params.includePension),
     monthlyInvestment: Number(params.monthlyInvestment ?? 0),
     maxMonths: Number(params.maxMonths ?? 1200),
@@ -570,6 +597,8 @@ function _runCoreSimulation(params, { recordMonthly = false, fireMonth = -1, ret
     mortgageMonthlyPayment,
     mortgagePayoffDate,
     postFireExtraExpense,
+    postFireFirstYearExtraExpense,
+    retirementLumpSumAtFire,
     includePension,
     monthlyInvestment,
   } = params;
@@ -581,6 +610,7 @@ function _runCoreSimulation(params, { recordMonthly = false, fireMonth = -1, ret
   const simulationStartDate = new Date();
 
   let currentRisk = riskAssets;
+  let currentCostBasis = riskAssets; // Initialize cost basis with starting risk assets
   let currentCash = initialAssets - riskAssets;
   let fireReachedMonth = fireMonth;
   const monthlyData = recordMonthly ? [] : null;
@@ -591,6 +621,11 @@ function _runCoreSimulation(params, { recordMonthly = false, fireMonth = -1, ret
     const ageAtMonthM = currentAge + m / 12;
     const remainingMonths = Math.max(0, totalMonthsUntil100 - m);
 
+    // 1. One-time injection of retirement lump sum at FIRE achievement month
+    if (m === fireReachedMonth) {
+      currentCash += retirementLumpSumAtFire;
+    }
+
     const curMonthlyExp = calculateCurrentMonthlyExpense({
       baseMonthlyExpense: monthlyExp,
       monthlyInflationRate,
@@ -600,6 +635,13 @@ function _runCoreSimulation(params, { recordMonthly = false, fireMonth = -1, ret
       mortgagePayoffDate,
     });
     const extraWithInf = postFireExtraExpense * Math.pow(1 + monthlyInflationRate, m);
+
+    // 2. Add first-year post-FIRE social insurance spike (12 months starting from FIRE month)
+    let firstYearSpikeWithInf = 0;
+    if (fireReachedMonth !== -1 && m >= fireReachedMonth && m < fireReachedMonth + 12) {
+      firstYearSpikeWithInf = (postFireFirstYearExtraExpense / 12) * Math.pow(1 + monthlyInflationRate, m);
+    }
+
     const assets = Math.max(0, currentCash + currentRisk);
 
     const isFire = fireReachedMonth !== -1 && m >= fireReachedMonth;
@@ -607,12 +649,12 @@ function _runCoreSimulation(params, { recordMonthly = false, fireMonth = -1, ret
     const curPension = includePension ? calculateMonthlyPension(ageAtMonthM, fireAgeAtMonthM) : 0;
 
     const monthlyIncomeVal = isFire ? 0 : monthlyIncome;
-    const monthlyExpensesVal = curMonthlyExp + (isFire ? extraWithInf : 0);
+    const monthlyExpensesVal = curMonthlyExp + (isFire ? extraWithInf : 0) + firstYearSpikeWithInf;
     const incomeAvailable = monthlyIncomeVal + curPension;
 
     if (recordMonthly && m <= maxMonths) {
       const reqAssets = calculateRequiredAssets({
-        monthlyExpense: curMonthlyExp + extraWithInf,
+        monthlyExpense: curMonthlyExp + extraWithInf + (m >= fireReachedMonth && m < fireReachedMonth + 12 ? (postFireFirstYearExtraExpense / 12) * Math.pow(1 + monthlyInflationRate, m) : 0),
         monthlyReturn: monthlyReturnMean,
         monthlyInflation: monthlyInflationRate,
         remainingMonths,
@@ -654,11 +696,18 @@ function _runCoreSimulation(params, { recordMonthly = false, fireMonth = -1, ret
       if (cashAfterFlow < 0) {
         // Shortfall: take from risk (capped by available risk)
         const needed = Math.abs(cashAfterFlow);
-        const maxNetFromRisk = Math.max(0, currentRisk * (includeTax ? (1 - taxRate) : 1));
+
+        // Correct Tax Logic: Only tax the gain portion
+        const gainRatio = currentRisk > 0 ? Math.max(0, (currentRisk - currentCostBasis) / currentRisk) : 0;
+        const maxNetFromRisk = Math.max(0, currentRisk * (1 - (includeTax ? gainRatio * taxRate : 0)));
         const actualNetFromRisk = Math.min(needed, maxNetFromRisk);
-        const grossFromRisk = actualNetFromRisk / (includeTax ? (1 - taxRate) : 1);
+        const grossFromRisk = actualNetFromRisk / (1 - (includeTax ? gainRatio * taxRate : 0));
+
+        const costBasisWithdrawn = grossFromRisk * (1 - gainRatio);
+        currentCostBasis -= costBasisWithdrawn;
         currentRisk -= grossFromRisk;
         currentRisk = Math.max(0, currentRisk);
+        currentCostBasis = Math.max(0, currentCostBasis);
 
         currentCash = cashAfterFlow + actualNetFromRisk;
         monthlyWithdrawal = actualNetFromRisk > 0 ? grossFromRisk : 0;
@@ -667,6 +716,7 @@ function _runCoreSimulation(params, { recordMonthly = false, fireMonth = -1, ret
         monthlyInvest = Math.min(monthlyInvestment, cashAfterFlow);
         currentCash = cashAfterFlow - monthlyInvest;
         currentRisk += monthlyInvest;
+        currentCostBasis += monthlyInvest; // Increase cost basis by investment amount
         monthlyWithdrawal = 0;
       }
     } else {
@@ -680,13 +730,21 @@ function _runCoreSimulation(params, { recordMonthly = false, fireMonth = -1, ret
       const remainingShortfall = netToTakeFromAssets - takenFromCash;
 
       // 2. Take from Risk if Cash is insufficient (capped by available risk)
-      const maxNetFromRisk = Math.max(0, currentRisk * (includeTax ? (1 - taxRate) : 1));
+      // Correct Tax Logic: Only tax the gain portion
+      const gainRatio = currentRisk > 0 ? Math.max(0, (currentRisk - currentCostBasis) / currentRisk) : 0;
+      const maxNetFromRisk = Math.max(0, currentRisk * (1 - (includeTax ? gainRatio * taxRate : 0)));
       const actualNetFromRisk = Math.min(remainingShortfall, maxNetFromRisk);
-      const grossFromRisk = actualNetFromRisk / (includeTax ? (1 - taxRate) : 1);
+      const grossFromRisk = actualNetFromRisk / (1 - (includeTax ? gainRatio * taxRate : 0));
+
+      const costBasisWithdrawn = grossFromRisk * (1 - gainRatio);
+      currentCostBasis -= costBasisWithdrawn;
       currentRisk -= grossFromRisk;
       currentRisk = Math.max(0, currentRisk);
+      currentCostBasis = Math.max(0, currentCostBasis);
 
       // 3. Ledger balance
+      // Any withdrawal exceeding the expense shortfall (due to asset withdrawal rate rule)
+      // is added to cash assets (currentCash).
       currentCash += (incomeAvailable + actualNetFromRisk - monthlyExpensesVal);
 
       monthlyWithdrawal = takenFromCash + grossFromRisk;
@@ -706,7 +764,7 @@ function _runCoreSimulation(params, { recordMonthly = false, fireMonth = -1, ret
   }
 
   const survived = (currentCash + currentRisk) >= 0;
-  return { fireReachedMonth, monthlyData, survived };
+  return { fireReachedMonth, monthlyData, survived, finalAssets: currentCash + currentRisk };
 }
 
 /**
@@ -825,4 +883,111 @@ export function generateAnnualSimulation(params) {
     });
   }
   return yearlySummaries;
+}
+
+/**
+ * Seeded random number generator (Mulberry32).
+ */
+function createRandom(seed) {
+  return function() {
+    let t = seed += 0x6D2B79F5;
+    t = Math.imul(t ^ t >>> 15, t | 1);
+    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  }
+}
+
+/**
+ * Standard Normal Random Variable using Box-Muller transform.
+ */
+function nextGaussian(rand) {
+  let u = 0, v = 0;
+  while(u === 0) u = rand();
+  while(v === 0) v = rand();
+  return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+}
+
+/**
+ * Execute Monte Carlo simulation.
+ */
+export function runMonteCarloSimulation(inputParams, { trials = 1000, annualVolatility = 0.15, seed = 123 } = {}) {
+  const params = normalizeFireParams(inputParams);
+  const detResult = performFireSimulation(params);
+  const fireMonth = detResult.fireReachedMonth;
+  const rand = createRandom(seed);
+
+  const { currentAge, annualReturnRate } = params;
+  const totalMonths = (100 - currentAge) * 12;
+
+  // Lognormal return parameters
+  const mu = annualReturnRate;
+  const sigma = annualVolatility;
+  // Log-return mean and variance
+  const alpha = Math.log(1 + mu) - 0.5 * Math.log(1 + Math.pow(sigma / (1 + mu), 2));
+  const betaSq = Math.log(1 + Math.pow(sigma / (1 + mu), 2));
+
+  const alphaM = alpha / 12;
+  const betaM = Math.sqrt(betaSq / 12);
+
+  const finalAssetsList = [];
+  const annualHistory = []; // [trialIndex][yearIndex]
+  let successCount = 0;
+
+  const totalYears = Math.ceil(totalMonths / 12);
+
+  for (let t = 0; t < trials; t++) {
+    const returnsArray = [];
+    for (let m = 0; m <= totalMonths; m++) {
+      const logReturn = alphaM + betaM * nextGaussian(rand);
+      returnsArray.push(Math.exp(logReturn) - 1);
+    }
+
+    const res = _runCoreSimulation(params, {
+      fireMonth,
+      returnsArray,
+      recordMonthly: true
+    });
+
+    finalAssetsList.push(res.finalAssets);
+    if (res.survived) successCount++;
+
+    // Collect annual asset values (start of year)
+    const yearAssets = [];
+    for (let y = 0; y <= totalYears; y++) {
+      const mIdx = y * 12;
+      if (mIdx < res.monthlyData.length) {
+        yearAssets.push(res.monthlyData[mIdx].assets);
+      } else {
+        yearAssets.push(res.monthlyData[res.monthlyData.length - 1].assets);
+      }
+    }
+    annualHistory.push(yearAssets);
+  }
+
+  finalAssetsList.sort((a, b) => a - b);
+
+  const getPercentile = (p) => finalAssetsList[Math.floor((p / 100) * (trials - 1))];
+
+  const p10Path = [];
+  const p50Path = [];
+  const p90Path = [];
+
+  for (let y = 0; y <= totalYears; y++) {
+    const assetsAtY = annualHistory.map(h => h[y]).sort((a, b) => a - b);
+    p10Path.push(assetsAtY[Math.floor(0.1 * (trials - 1))]);
+    p50Path.push(assetsAtY[Math.floor(0.5 * (trials - 1))]);
+    p90Path.push(assetsAtY[Math.floor(0.9 * (trials - 1))]);
+  }
+
+  return {
+    successRate: successCount / trials,
+    p10: getPercentile(10),
+    p50: getPercentile(50),
+    p90: getPercentile(90),
+    p10Path,
+    p50Path,
+    p90Path,
+    trials,
+    fireReachedMonth: fireMonth
+  };
 }

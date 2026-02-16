@@ -496,7 +496,7 @@ describe("fire domain", () => {
 
   describe("generateGrowthTable", () => {
     const params = {
-      initialAssets: 10000000,
+      initialAssets: 10000000, retirementLumpSumAtFire: 0,
       riskAssets: 5000000,
       monthlyInvestment: 100000,
       annualReturnRate: 0.05,
@@ -539,7 +539,7 @@ describe("fire domain", () => {
       const required = monthlyExpense * remainingMonths; // 12,000,000
 
       const result = generateGrowthTable({
-        initialAssets: required,
+        initialAssets: required, retirementLumpSumAtFire: 0,
         riskAssets: 0,
         monthlyInvestment: 0,
         annualReturnRate: 0,
@@ -563,23 +563,23 @@ describe("fire domain", () => {
       expect(result.table[1].requiredAssets).toBeLessThan(result.table[0].requiredAssets);
     });
 
-    it("grosses up withdrawal by taxRate when includeTax is true post-FIRE", () => {
+    it("does NOT gross up withdrawal by taxRate if there is no gain (tax on gain only)", () => {
       const initialAssets = 500000000;
       const monthlyExpense = 100000;
       const taxRate = 0.2; // 20%
       const result = generateGrowthTable({
         ...params,
         initialAssets,
-        riskAssets: initialAssets, // Ensure we take from risk to trigger tax
+        riskAssets: initialAssets, // costBasis = 500M
         monthlyExpense,
         includeTax: true,
         taxRate,
-        annualReturnRate: 0,
-        withdrawalRate: 0,
+        annualReturnRate: 0, // No gain
+        withdrawalRate: 0, retirementLumpSumAtFire: 0,
       });
-      // Post-FIRE withdrawal should be 100,000 / (1 - 0.2) = 125,000
+      // Post-FIRE withdrawal should be 100,000 because Gain is 0.
       expect(result.fireReachedMonth).toBe(0);
-      expect(result.table[1].assets).toBe(initialAssets - 125000);
+      expect(result.table[1].assets).toBe(initialAssets - 100000);
     });
 
     it("increases requiredAssets and withdrawal when postFireExtraExpense is provided", () => {
@@ -592,7 +592,7 @@ describe("fire domain", () => {
         monthlyExpense,
         postFireExtraExpense,
         annualReturnRate: 0,
-        withdrawalRate: 0,
+        withdrawalRate: 0, retirementLumpSumAtFire: 0,
       });
       // Post-FIRE withdrawal should be 100,000 + 50,000 = 150,000
       expect(result.fireReachedMonth).toBe(0);
@@ -604,7 +604,7 @@ describe("fire domain", () => {
 
     it("handles tax impact when cash is negative in accumulation phase", () => {
       const result = generateGrowthTable({
-        initialAssets: 1000,
+        initialAssets: 1000, retirementLumpSumAtFire: 0,
         riskAssets: 1000,
         annualReturnRate: 0,
         monthlyIncome: 0,
@@ -624,7 +624,7 @@ describe("fire domain", () => {
     it("sets assets to 0 if they go negative", () => {
       const result = generateGrowthTable({
         ...params,
-        initialAssets: 1000,
+        initialAssets: 1000, retirementLumpSumAtFire: 0,
         monthlyInvestment: 0,
         monthlyExpense: 1000000,
       });
@@ -651,7 +651,7 @@ describe("fire domain", () => {
         monthlyExpense: undefined,
         monthlyExpenses: 2400000, // 200k/month
         monthlyIncome: 300000,
-        initialAssets: 1000,
+        initialAssets: 1000, retirementLumpSumAtFire: 0,
       });
       expect(result[0].expenses).toBe(200000 * 12);
     });
@@ -662,14 +662,14 @@ describe("fire domain", () => {
         monthlyExpense: undefined,
         monthlyExpenses: undefined,
         monthlyIncome: 300000,
-        initialAssets: 1000,
+        initialAssets: 1000, retirementLumpSumAtFire: 0,
       });
       expect(result[0].expenses).toBe(0);
     });
 
     it("caps investment in growth table by available cash", () => {
       const result = generateGrowthTable({
-        initialAssets: 1000,
+        initialAssets: 1000, retirementLumpSumAtFire: 0,
         riskAssets: 0,
         monthlyIncome: 0,
         monthlyExpense: 0,
@@ -729,7 +729,7 @@ describe("fire domain", () => {
         monthlyExpense: 100000,
         currentAge: 40,
         maxMonths: 1,
-        withdrawalRate: 0,
+        withdrawalRate: 0, retirementLumpSumAtFire: 0,
       });
 
       // FIRE reached at month 0, so month 1 should subtract expense only (income is forced to 0)
@@ -777,13 +777,13 @@ describe("fire domain", () => {
 
   describe("performFireSimulation", () => {
     it("runs simulation with forceFireMonth", () => {
-      const params = { initialAssets: 1000000, monthlyExpense: 10000 };
+      const params = { initialAssets: 1000000, retirementLumpSumAtFire: 0, monthlyExpense: 10000 };
       const res = performFireSimulation(params, { forceFireMonth: 12 });
       expect(res.fireReachedMonth).toBe(12);
     });
 
     it("uses returnsArray if provided", () => {
-      const params = { initialAssets: 1000000, monthlyExpense: 10000, currentAge: 99 };
+      const params = { initialAssets: 1000000, retirementLumpSumAtFire: 0, monthlyExpense: 10000, currentAge: 99 };
       const returns = new Array(12).fill(0.1);
       const res = performFireSimulation(params, { returnsArray: returns, recordMonthly: true });
       expect(res.monthlyData[0].investmentGain).toBeCloseTo(0, 0); // No risk assets initially
@@ -793,7 +793,7 @@ describe("fire domain", () => {
   describe("pension impact on simulation", () => {
     it("reduces requiredAssets when pension is near", () => {
       const params = {
-        initialAssets: 10000000,
+        initialAssets: 10000000, retirementLumpSumAtFire: 0,
         riskAssets: 0,
         annualReturnRate: 0,
         monthlyExpense: 200000,
@@ -821,7 +821,7 @@ describe("fire domain", () => {
         monthlyExpense,
         currentAge: 60,
         maxMonths: 1,
-        withdrawalRate: 0,
+        withdrawalRate: 0, retirementLumpSumAtFire: 0,
         includePension: true,
       });
 
@@ -844,7 +844,7 @@ describe("fire domain", () => {
         monthlyExpense,
         currentAge: 60,
         maxMonths: 1,
-        withdrawalRate: 0,
+        withdrawalRate: 0, retirementLumpSumAtFire: 0,
         includePension: true,
       });
 
@@ -870,6 +870,7 @@ describe("fire domain", () => {
         maxMonths: 1,
         withdrawalRate,
         includePension: false,
+        retirementLumpSumAtFire: 0,
       });
 
       const month1 = result.table[1];
@@ -887,6 +888,7 @@ describe("fire domain", () => {
         currentAge: 60,
         withdrawalRate,
         includePension: false,
+        retirementLumpSumAtFire: 0,
       });
       // Monthly ~333,333 * 12. Since assets decrease slightly each month,
       // the total will be slightly less than 4,000,000.
@@ -896,7 +898,7 @@ describe("fire domain", () => {
 
     it("handles tax with pension enabled", () => {
       const result = generateGrowthTable({
-        initialAssets: 10000000,
+        initialAssets: 10000000, retirementLumpSumAtFire: 0,
         riskAssets: 0,
         annualReturnRate: 0.05,
         monthlyExpense: 200000,
@@ -912,7 +914,7 @@ describe("fire domain", () => {
 
   describe("generateAnnualSimulation", () => {
     const params = {
-      initialAssets: 10000000,
+      initialAssets: 10000000, retirementLumpSumAtFire: 0,
       riskAssets: 5000000,
       annualReturnRate: 0.05,
       monthlyExpense: 200000,
@@ -930,7 +932,7 @@ describe("fire domain", () => {
 
     it("caps investment by available cash and keeps cashAssets non-negative", () => {
       const result = generateAnnualSimulation({
-        initialAssets: 1000000,
+        initialAssets: 1000000, retirementLumpSumAtFire: 0,
         riskAssets: 0,
         monthlyIncome: 100000,
         monthlyExpense: 100000,
@@ -961,7 +963,7 @@ describe("fire domain", () => {
     it("handles pension and transition to FIRE", () => {
       const result = generateAnnualSimulation({
         ...params,
-        initialAssets: 100000000, // already FIRE
+        initialAssets: 100000000, retirementLumpSumAtFire: 0, // already FIRE
         includePension: true,
         currentAge: 59,
       });
@@ -978,7 +980,7 @@ describe("fire domain", () => {
     it("calculates withdrawal amount when expenses > income", () => {
       const result = generateAnnualSimulation({
         ...params,
-        initialAssets: 10000000,
+        initialAssets: 10000000, retirementLumpSumAtFire: 0,
         riskAssets: 10000000,
         monthlyIncome: 100000,
         monthlyExpense: 200000,
@@ -991,7 +993,7 @@ describe("fire domain", () => {
     it("tracks risk assets separately without forced rebalancing", () => {
       const result = generateAnnualSimulation({
         ...params,
-        initialAssets: 10000000,
+        initialAssets: 10000000, retirementLumpSumAtFire: 0,
         riskAssets: 8000000, // 80%
         annualReturnRate: 0,
       });
@@ -1009,7 +1011,7 @@ describe("fire domain", () => {
     it("calculates investment gain and handles monthly investment", () => {
       const result = generateAnnualSimulation({
         ...params,
-        initialAssets: 10000000,
+        initialAssets: 10000000, retirementLumpSumAtFire: 0,
         riskAssets: 5000000,
         annualReturnRate: 0.1, // 10%
         monthlyInvestment: 100000, // 1.2M / year
@@ -1049,33 +1051,35 @@ describe("fire domain", () => {
       vi.useRealTimers();
     });
 
-    it("handles tax on withdrawal", () => {
+    it("handles tax on withdrawal (tax on gain portion)", () => {
       const result = generateAnnualSimulation({
         ...params,
-        initialAssets: 10000000,
+        initialAssets: 10000000, retirementLumpSumAtFire: 0,
         riskAssets: 10000000,
         monthlyIncome: 0,
         monthlyExpense: 100000,
         includeTax: true,
         taxRate: 0.2,
+        annualReturnRate: 0.05,
       });
-      // Shortfall 100k -> Gross up 125k. Annual: 125k * 12 = 1.5M
-      expect(result[0].withdrawal).toBe(1500000);
+      // Some gain exists due to 5% return. Tax is applied only to that portion.
+      // 1,205,317 is the new deterministic value with 5% return and gain-only tax.
+      expect(result[0].withdrawal).toBe(1205317);
     });
 
-    it("handles tax on withdrawal when post-FIRE", () => {
+    it("handles tax on withdrawal when post-FIRE (tax on gain portion)", () => {
       const result = generateAnnualSimulation({
         ...params,
-        initialAssets: 100000000,
-        riskAssets: 100000000, // Withdraw from risk assets to see tax gross-up
+        initialAssets: 100000000, retirementLumpSumAtFire: 0,
+        riskAssets: 100000000,
         monthlyIncome: 0,
         monthlyExpense: 100000,
         includeTax: true,
         taxRate: 0.2,
-        withdrawalRate: 0,
+        withdrawalRate: 0, retirementLumpSumAtFire: 0,
+        annualReturnRate: 0.05,
       });
-      // Shortfall 100k -> Gross up 125k. Annual: 125k * 12 = 1.5M
-      expect(result[0].withdrawal).toBe(1500000);
+      expect(result[0].withdrawal).toBe(1205317);
     });
 
     it("handles inflation", () => {
@@ -1090,7 +1094,7 @@ describe("fire domain", () => {
     it("sets assets to 0 if they go negative", () => {
       const result = generateAnnualSimulation({
         ...params,
-        initialAssets: 1000,
+        initialAssets: 1000, retirementLumpSumAtFire: 0,
         monthlyIncome: 0,
         monthlyExpense: 1000000,
       });
@@ -1100,13 +1104,13 @@ describe("fire domain", () => {
     it("handles surplus during FIRE (no investment)", () => {
       const result = generateAnnualSimulation({
         ...params,
-        initialAssets: 1000000000, // huge assets to force FIRE immediately
+        initialAssets: 1000000000, retirementLumpSumAtFire: 0, // huge assets to force FIRE immediately
         riskAssets: 900000000,
         monthlyIncome: 1000000,
         monthlyExpense: 100000,
         monthlyInvestment: 500000,
         currentAge: 70, // Pension will be active
-        withdrawalRate: 0,
+        withdrawalRate: 0, retirementLumpSumAtFire: 0,
         includePension: true,
         includeTax: false,
         includeInflation: false,
