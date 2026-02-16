@@ -29,8 +29,29 @@ const mockCashFlow = [
 
 describe("cashFlow domain", () => {
   describe("getExpenseType", () => {
+    it("classifies transfers as exclude", () => {
+      expect(getExpenseType({ isTransfer: true })).toBe("exclude");
+      expect(getExpenseType({ isTransfer: true, category: "住宅/ローン返済" })).toBe("exclude");
+    });
+
+    it("classifies special prefixes as exclude", () => {
+      expect(getExpenseType("特別な支出/冠婚葬祭")).toBe("exclude");
+      expect(getExpenseType("現金/引き出し")).toBe("exclude");
+      expect(getExpenseType("カード/支払")).toBe("exclude");
+    });
+
+    it("handles objects without category", () => {
+      expect(getExpenseType({ isTransfer: false })).toBe("variable");
+    });
+
+    it("handles null or empty input", () => {
+      expect(getExpenseType(null)).toBe("variable");
+      expect(getExpenseType("")).toBe("variable");
+    });
+
     it("classifies fixed expenses", () => {
       expect(getExpenseType("住宅/ローン返済")).toBe("fixed");
+      expect(getExpenseType({ isTransfer: false, category: "住宅/ローン返済" })).toBe("fixed");
       expect(getExpenseType("住宅/管理費")).toBe("fixed");
       expect(getExpenseType("水道・光熱費")).toBe("fixed");
       expect(getExpenseType("教養・教育/学費")).toBe("fixed");
@@ -263,18 +284,19 @@ describe("cashFlow domain", () => {
       expect(result).toContainEqual({ label: "除外", value: 3000, color: "#94a3b8" });
     });
 
-    it("ignores transfers and positive amounts", () => {
+    it("includes negative transfers in exclude and ignores positive amounts", () => {
       const mixed = [
         { date: "2026-02-01", amount: -1000, category: "住宅/ローン返済", isTransfer: false },
         { date: "2026-02-01", amount: -2000, category: "Transfer", isTransfer: true },
         { date: "2026-02-01", amount: 3000, category: "Income", isTransfer: false },
       ];
       const result = aggregateByType(mixed);
-      expect(result).toHaveLength(1);
-      expect(result[0].label).toBe("固定費");
+      expect(result).toHaveLength(2);
+      expect(result.find(r => r.label === "固定費").value).toBe(1000);
+      expect(result.find(r => r.label === "除外").value).toBe(2000);
     });
 
-    it("can average past 5 months excluding current month", () => {
+    it("can average past 5 months using fixed divisor", () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date("2026-06-15T09:00:00+09:00"));
 
@@ -283,12 +305,11 @@ describe("cashFlow domain", () => {
         { date: "2026-05-05", amount: -500, category: "住宅/ローン返済", isTransfer: false },
         { date: "2026-04-05", amount: -400, category: "住宅/ローン返済", isTransfer: false },
         { date: "2026-03-05", amount: -300, category: "住宅/ローン返済", isTransfer: false },
-        { date: "2026-02-05", amount: -200, category: "住宅/ローン返済", isTransfer: false },
-        { date: "2026-01-05", amount: -100, category: "住宅/ローン返済", isTransfer: false },
       ];
 
+      // Sum = 500 + 400 + 300 = 1200. Divisor = 5. Result = 240.
       expect(aggregateByType(rows, { averageMonths: 5, excludeCurrentMonth: true })).toEqual([
-        { label: "固定費", value: 300, color: "#38bdf8" },
+        { label: "固定費", value: 240, color: "#38bdf8" },
       ]);
     });
   });

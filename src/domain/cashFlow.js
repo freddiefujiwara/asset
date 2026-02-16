@@ -19,10 +19,18 @@ const CONFIG = {
 };
 
 /**
- * カテゴリ文字列から分類を返す (fixed | variable | exclude)
- * @param {string} category
+ * カテゴリ文字列または明細オブジェクトから分類を返す (fixed | variable | exclude)
+ * @param {string|object} categoryOrItem
  */
-export const getExpenseType = (category) => {
+export const getExpenseType = (categoryOrItem) => {
+  const isObj = categoryOrItem && typeof categoryOrItem === "object";
+  const isTransfer = isObj ? categoryOrItem.isTransfer : false;
+  const category = isObj ? (categoryOrItem.category || "") : (categoryOrItem || "");
+
+  if (isTransfer) return "exclude";
+  if (category.startsWith("特別な支出")) return "exclude";
+  if (category.startsWith("現金")) return "exclude";
+  if (category.startsWith("カード")) return "exclude";
   if (CONFIG.EXCLUDE.some((k) => category.includes(k))) return "exclude";
   if (CONFIG.FIXED.some((k) => category.includes(k))) return "fixed";
   return "variable"; // それ以外はすべて変動費
@@ -55,7 +63,7 @@ export function filterCashFlow(
       return false;
     }
 
-    if (type && getExpenseType(categoryLabel) !== type) {
+    if (type && getExpenseType(item) !== type) {
       return false;
     }
 
@@ -189,20 +197,17 @@ function getTargetRowsForAverage(cashFlow, averageMonths, excludeCurrentMonth) {
     return cashFlow;
   }
 
-  const expenseRows = cashFlow.filter((item) => !item.isTransfer && item.amount < 0);
+  const expenseRows = cashFlow.filter((item) => item.amount < 0);
   const now = new Date();
-  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
-  const recentMonths = Array.from(new Set(expenseRows.map((item) => getMonthKey(item)).filter(Boolean)))
-    .filter((month) => !(excludeCurrentMonth && month === currentMonthKey))
-    .sort((a, b) => a.localeCompare(b))
-    .slice(-averageMonths);
-
-  if (!recentMonths.length) {
-    return [];
+  // Pick exactly the last N months from now to match fire.js logic
+  const targetMonths = [];
+  for (let i = 1; i <= averageMonths; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    targetMonths.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
   }
 
-  const monthSet = new Set(recentMonths);
+  const monthSet = new Set(targetMonths);
   return expenseRows.filter((item) => monthSet.has(getMonthKey(item)));
 }
 
@@ -222,12 +227,9 @@ export function aggregateByCategory(cashFlow, { averageMonths = 0, excludeCurren
   });
   const items = Object.values(categories);
   if (averageMonths > 0) {
-    const availableMonths = new Set(targetCashFlow.map((item) => getMonthKey(item)).filter(Boolean)).size;
-    if (availableMonths > 0) {
-      items.forEach((item) => {
-        item.value /= availableMonths;
-      });
-    }
+    items.forEach((item) => {
+      item.value /= averageMonths;
+    });
   }
 
   return items.sort((a, b) => b.value - a.value);
@@ -243,27 +245,22 @@ export function aggregateByType(cashFlow, { averageMonths = 0, excludeCurrentMon
   };
 
   targetCashFlow.forEach((item) => {
-    if (item.isTransfer || item.amount >= 0) {
+    if (item.amount >= 0) {
       return;
     }
-    const categoryLabel = getCategoryLabel(item);
-    const type = getExpenseType(categoryLabel);
+    const type = getExpenseType(item);
     if (types[type]) {
       types[type].value += Math.abs(item.amount);
     }
   });
 
-  const items = Object.values(types).filter((t) => t.value > 0);
   if (averageMonths > 0) {
-    const availableMonths = new Set(targetCashFlow.map((item) => getMonthKey(item)).filter(Boolean)).size;
-    if (availableMonths > 0) {
-      items.forEach((item) => {
-        item.value /= availableMonths;
-      });
-    }
+    Object.values(types).forEach((t) => {
+      t.value /= averageMonths;
+    });
   }
 
-  return items;
+  return Object.values(types).filter((t) => t.value > 0);
 }
 
 export function getUniqueMonths(cashFlow) {

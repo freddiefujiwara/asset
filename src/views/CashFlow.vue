@@ -78,8 +78,8 @@ const typePieData = computed(() => {
   };
 
   filteredCashFlow.value.forEach((item) => {
-    if (!item.isTransfer && item.amount < 0) {
-      const type = getExpenseType(item.category || "");
+    if (item.amount < 0) {
+      const type = getExpenseType(item);
       if (types[type]) {
         types[type].value += Math.abs(item.amount);
       }
