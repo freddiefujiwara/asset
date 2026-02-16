@@ -14,6 +14,7 @@ import {
   calculateDaughterAssetsBreakdown,
   generateAlgorithmExplanationSegments,
   getPast5MonthSummary,
+  runMonteCarloSimulation,
 } from "@/domain/fire";
 import FireSimulationTable from "@/components/FireSimulationTable.vue";
 import FireSimulationChart from "@/components/FireSimulationChart.vue";
@@ -29,8 +30,17 @@ const inflationRate = ref(2);
 const includeTax = ref(false);
 const taxRate = ref(20.315);
 const postFireExtraExpense = ref(60000);
+const retirementLumpSumAtFire = ref(5000000);
+const manualPostFireFirstYearExtraExpense = ref(0);
+const useAutoFirstYearExtra = ref(true);
+
 const withdrawalRate = ref(4);
 const includeBonus = ref(true);
+
+// Monte Carlo
+const useMonteCarlo = ref(false);
+const monteCarloTrials = ref(1000);
+const monteCarloVolatility = ref(15);
 
 // Data-derived parameters
 const firePortfolio = computed(() =>
@@ -87,6 +97,8 @@ const simulationParams = computed(() => ({
   mortgageMonthlyPayment: mortgageMonthlyPayment.value,
   mortgagePayoffDate: mortgagePayoffDate.value || null,
   postFireExtraExpense: postFireExtraExpense.value,
+  postFireFirstYearExtraExpense: postFireFirstYearExtraExpense.value,
+  retirementLumpSumAtFire: retirementLumpSumAtFire.value,
   includePension: true,
   monthlyInvestment: monthlyInvestment.value,
 }));
@@ -114,6 +126,14 @@ const monthlyIncome = computed(() => regularMonthlyIncome.value + annualBonus.va
 const annualInvestment = computed(() => monthlyInvestment.value * 12);
 const annualSavings = computed(() => Math.max(0, (monthlyIncome.value - monthlyExpense.value - monthlyInvestment.value) * 12));
 
+const autoPostFireFirstYearExtraExpense = computed(() => {
+  const annualIncome = monthlyIncome.value * 12;
+  return Math.round((annualIncome * 0.15) / 10000) * 10000;
+});
+const postFireFirstYearExtraExpense = computed(() =>
+  useAutoFirstYearExtra.value ? autoPostFireFirstYearExtraExpense.value : manualPostFireFirstYearExtraExpense.value
+);
+
 watchEffect(() => {
   if (autoMonthlyExpense.value && useAutoExpense.value) {
     manualMonthlyExpense.value = autoMonthlyExpense.value;
@@ -127,9 +147,20 @@ watchEffect(() => {
   if (autoMortgageMonthlyPayment.value > 0 && mortgageMonthlyPayment.value === 0) {
     mortgageMonthlyPayment.value = autoMortgageMonthlyPayment.value;
   }
+  if (useAutoFirstYearExtra.value) {
+    manualPostFireFirstYearExtraExpense.value = autoPostFireFirstYearExtraExpense.value;
+  }
 });
 
 const growthData = computed(() => generateGrowthTable(simulationParams.value));
+
+const monteCarloResults = computed(() => {
+  if (!useMonteCarlo.value) return null;
+  return runMonteCarloSimulation(simulationParams.value, {
+    trials: monteCarloTrials.value,
+    annualVolatility: monteCarloVolatility.value / 100,
+  });
+});
 
 const annualSimulationData = computed(() => generateAnnualSimulation(simulationParams.value));
 
@@ -205,6 +236,8 @@ const algorithmExplanationSegments = computed(() => {
     pensionAnnualAtFire: pensionAnnualAtFire.value,
     withdrawalRatePct: withdrawalRate.value,
     postFireExtraExpenseMonthly: postFireExtraExpense.value,
+    postFireFirstYearExtraExpense: postFireFirstYearExtraExpense.value,
+    retirementLumpSumAtFire: retirementLumpSumAtFire.value,
   });
 });
 
@@ -235,6 +268,8 @@ const buildConditionsAndAlgorithmJson = () => ({
     taxRatePercent: taxRate.value,
     withdrawalRatePercent: withdrawalRate.value,
     postFireExtraExpenseMonthlyYen: postFireExtraExpense.value,
+    postFireFirstYearExtraExpenseYen: postFireFirstYearExtraExpense.value,
+    retirementLumpSumAtFireYen: retirementLumpSumAtFire.value,
   },
   pensionEstimates: {
     householdMonthlyAtUserAge60Yen: estimatedMonthlyPensionAt60.value,
@@ -397,6 +432,43 @@ const copyAnnualTable = () => JSON.stringify(buildAnnualTableJson(), null, 2);
           <label>FIRE後の社会保険料・税(月額)</label>
           <input v-model.number="postFireExtraExpense" type="number" step="5000" />
         </div>
+        <div class="filter-item expense-item">
+          <div class="label-row">
+            <label>FIRE達成時の退職金 (円)</label>
+          </div>
+          <input v-model.number="retirementLumpSumAtFire" type="number" step="100000" />
+        </div>
+        <div class="filter-item expense-item">
+          <div class="label-row">
+            <label>FIRE1年目の追加支出 (年額)</label>
+            <label class="auto-toggle is-public">
+              <input type="checkbox" v-model="useAutoFirstYearExtra" class="is-public" /> 自動算出
+            </label>
+          </div>
+          <input v-model.number="manualPostFireFirstYearExtraExpense" type="number" step="100000" :disabled="useAutoFirstYearExtra" />
+          <div v-if="useAutoFirstYearExtra" class="expense-breakdown" style="font-size: 0.7rem; color: var(--muted); padding: 4px;">
+            ※ 年間収入の15%相当（社会保険料・住民税のスパイク分）
+          </div>
+        </div>
+      </div>
+
+      <div class="monte-carlo-settings" style="margin-top: 16px; padding-top: 16px; border-top: 1px dashed var(--border);">
+        <h4 style="font-size: 0.9rem; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+          🎲 順序リスク評価 (モンテカルロ法)
+          <label class="auto-toggle is-public">
+            <input type="checkbox" v-model="useMonteCarlo" class="is-public" /> 有効にする
+          </label>
+        </h4>
+        <div v-if="useMonteCarlo" class="fire-form-grid">
+          <div class="filter-item">
+            <label>試行回数</label>
+            <input v-model.number="monteCarloTrials" type="number" step="100" min="100" max="10000" />
+          </div>
+          <div class="filter-item">
+            <label>年率ボラティリティ (%)</label>
+            <input v-model.number="monteCarloVolatility" type="number" step="1" min="0" />
+          </div>
+        </div>
       </div>
 
       <div class="copy-actions">
@@ -494,6 +566,33 @@ const copyAnnualTable = () => JSON.stringify(buildAnnualTableJson(), null, 2);
           </div>
         </details>
       </div>
+    </div>
+
+    <div v-if="useMonteCarlo && monteCarloResults" class="card-grid monte-carlo-results">
+      <article class="card highlight">
+        <h2>FIRE成功率 (100歳生存)</h2>
+        <p :class="monteCarloResults.successRate > 0.9 ? 'is-positive' : monteCarloResults.successRate > 0.5 ? 'is-warning' : 'is-negative'">
+          {{ (monteCarloResults.successRate * 100).toFixed(1) }}%
+        </p>
+        <p class="meta">{{ monteCarloResults.trials }}回の試行結果</p>
+      </article>
+      <article class="card">
+        <h2>最終資産・中央値 (P50)</h2>
+        <p class="amount-value">{{ formatYen(monteCarloResults.p50) }}</p>
+        <p class="meta">確率50%でこの額以上残る</p>
+      </article>
+      <article class="card">
+        <h2>最終資産・下位10% (P10)</h2>
+        <p class="amount-value" :class="monteCarloResults.p10 < 0 ? 'is-negative' : ''">
+          {{ formatYen(monteCarloResults.p10) }}
+        </p>
+        <p class="meta">最悪ケースに近いシナリオ</p>
+      </article>
+      <article class="card">
+        <h2>最終資産・上位10% (P90)</h2>
+        <p class="amount-value">{{ formatYen(monteCarloResults.p90) }}</p>
+        <p class="meta">好調な市場が続いた場合</p>
+      </article>
     </div>
 
     <div class="card-grid">
@@ -649,6 +748,9 @@ const copyAnnualTable = () => JSON.stringify(buildAnnualTableJson(), null, 2);
     font-size: 1.5rem;
     font-weight: bold;
     margin: 4px 0;
+}
+.card.highlight {
+    border: 2px solid var(--primary);
 }
 .main-visualization {
   margin-top: 24px;
