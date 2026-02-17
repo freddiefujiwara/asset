@@ -12,8 +12,8 @@ const chartContainerRef = ref(null);
 const activeTooltip = ref(null);
 
 const width = 800;
-const height = 400;
-const margin = { top: 40, right: 80, bottom: 60, left: 80 };
+const height = 440;
+const margin = { top: 80, right: 80, bottom: 60, left: 80 };
 const innerWidth = width - margin.left - margin.right;
 const innerHeight = height - margin.top - margin.bottom;
 
