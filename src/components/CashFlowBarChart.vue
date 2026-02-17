@@ -43,13 +43,21 @@ const yScale = (val) => {
 };
 
 const devRange = computed(() => {
-  const avg = props.averages ? (props.averages.fixed + props.averages.variable) : 0;
-  if (!avg) return { min: -50, max: 50 };
+  if (!props.averages) return { min: -50, max: 50 };
+  const avgTotal = (props.averages.fixed + props.averages.variable) || 0;
+  const avgFixed = props.averages.fixed || 0;
+  const avgVariable = props.averages.variable || 0;
 
-  const devs = props.data.map((d) => {
+  const devs = props.data.flatMap((d) => {
     const lifestyle = (d.fixed || 0) + (d.variable || 0);
-    return ((lifestyle / avg) - 1) * 100;
+    const res = [];
+    if (avgTotal > 0) res.push(((lifestyle / avgTotal) - 1) * 100);
+    if (avgFixed > 0) res.push(((d.fixed || 0) / avgFixed - 1) * 100);
+    if (avgVariable > 0) res.push(((d.variable || 0) / avgVariable - 1) * 100);
+    return res;
   });
+
+  if (devs.length === 0) return { min: -50, max: 50 };
   const maxAbs = Math.max(...devs.map(Math.abs), 30);
   const niceMax = Math.ceil(maxAbs / 10) * 10;
   return { min: -niceMax, max: niceMax };
@@ -108,9 +116,11 @@ const bars = computed(() => {
         y: yScale(d.net),
         val: d.net,
       },
-      deviation: props.averages && (props.averages.fixed + props.averages.variable) > 0 ? {
+      deviation: props.averages ? {
         x: x + barWidth,
-        val: (((d.fixed || 0) + (d.variable || 0)) / (props.averages.fixed + props.averages.variable) - 1) * 100,
+        val: (props.averages.fixed + props.averages.variable) > 0 ? (((d.fixed || 0) + (d.variable || 0)) / (props.averages.fixed + props.averages.variable) - 1) * 100 : null,
+        fixedVal: props.averages.fixed > 0 ? ((d.fixed || 0) / props.averages.fixed - 1) * 100 : null,
+        variableVal: props.averages.variable > 0 ? ((d.variable || 0) / props.averages.variable - 1) * 100 : null,
       } : null,
     };
   });
@@ -124,8 +134,24 @@ const netLinePath = computed(() => {
 
 const deviationLinePath = computed(() => {
   const points = bars.value
-    .filter((b) => b.deviation)
+    .filter((b) => b.deviation && b.deviation.val !== null)
     .map((b) => `${b.deviation.x},${yScaleRight(b.deviation.val)}`);
+  if (points.length === 0) return "";
+  return `M ${points.join(" L ")}`;
+});
+
+const fixedDeviationLinePath = computed(() => {
+  const points = bars.value
+    .filter((b) => b.deviation && b.deviation.fixedVal !== null)
+    .map((b) => `${b.deviation.x},${yScaleRight(b.deviation.fixedVal)}`);
+  if (points.length === 0) return "";
+  return `M ${points.join(" L ")}`;
+});
+
+const variableDeviationLinePath = computed(() => {
+  const points = bars.value
+    .filter((b) => b.deviation && b.deviation.variableVal !== null)
+    .map((b) => `${b.deviation.x},${yScaleRight(b.deviation.variableVal)}`);
   if (points.length === 0) return "";
   return `M ${points.join(" L ")}`;
 });
@@ -234,10 +260,10 @@ const clearTooltip = () => {
               :height="b.expense.fixed.h"
               fill="#38bdf8"
               opacity="0.8"
-              @pointerenter="showTooltip($event, { month: b.month, label: '固定費', value: b.expense.fixed.val, deviation: averages ? (b.expense.fixed.val / (averages.fixed || 1) - 1) * 100 : null })"
-              @pointermove="showTooltip($event, { month: b.month, label: '固定費', value: b.expense.fixed.val, deviation: averages ? (b.expense.fixed.val / (averages.fixed || 1) - 1) * 100 : null })"
+              @pointerenter="showTooltip($event, { month: b.month, label: '固定費', value: b.expense.fixed.val, deviation: b.deviation?.fixedVal })"
+              @pointermove="showTooltip($event, { month: b.month, label: '固定費', value: b.expense.fixed.val, deviation: b.deviation?.fixedVal })"
               @pointerleave="hideTooltip($event)"
-              @click.stop="showTooltip($event, { month: b.month, label: '固定費', value: b.expense.fixed.val, deviation: averages ? (b.expense.fixed.val / (averages.fixed || 1) - 1) * 100 : null })"
+              @click.stop="showTooltip($event, { month: b.month, label: '固定費', value: b.expense.fixed.val, deviation: b.deviation?.fixedVal })"
             >
               <title>{{ b.month }} 固定費: {{ b.expense.fixed.val.toLocaleString() }}</title>
             </rect>
@@ -248,10 +274,10 @@ const clearTooltip = () => {
               :height="b.expense.variable.h"
               fill="#f59e0b"
               opacity="0.8"
-              @pointerenter="showTooltip($event, { month: b.month, label: '変動費', value: b.expense.variable.val, deviation: averages ? (b.expense.variable.val / (averages.variable || 1) - 1) * 100 : null })"
-              @pointermove="showTooltip($event, { month: b.month, label: '変動費', value: b.expense.variable.val, deviation: averages ? (b.expense.variable.val / (averages.variable || 1) - 1) * 100 : null })"
+              @pointerenter="showTooltip($event, { month: b.month, label: '変動費', value: b.expense.variable.val, deviation: b.deviation?.variableVal })"
+              @pointermove="showTooltip($event, { month: b.month, label: '変動費', value: b.expense.variable.val, deviation: b.deviation?.variableVal })"
               @pointerleave="hideTooltip($event)"
-              @click.stop="showTooltip($event, { month: b.month, label: '変動費', value: b.expense.variable.val, deviation: averages ? (b.expense.variable.val / (averages.variable || 1) - 1) * 100 : null })"
+              @click.stop="showTooltip($event, { month: b.month, label: '変動費', value: b.expense.variable.val, deviation: b.deviation?.variableVal })"
             >
               <title>{{ b.month }} 変動費: {{ b.expense.variable.val.toLocaleString() }}</title>
             </rect>
@@ -364,17 +390,52 @@ const clearTooltip = () => {
             </text>
           </g>
 
-          <!-- Deviation Line -->
-          <template v-if="deviationLinePath">
-            <path :d="deviationLinePath" fill="none" stroke="#ec4899" stroke-width="2" stroke-dasharray="4 2" opacity="0.7" />
+          <!-- Deviation Lines (Individual) -->
+          <template v-if="fixedDeviationLinePath">
+            <path :d="fixedDeviationLinePath" fill="none" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="2 2" opacity="0.5" />
             <circle
-              v-for="b in bars"
+              v-for="b in bars.filter(b => b.deviation && b.deviation.fixedVal !== null)"
+              :key="'fdev-'+b.month"
+              :cx="b.deviation.x"
+              :cy="yScaleRight(b.deviation.fixedVal)"
+              r="3"
+              fill="#38bdf8"
+              opacity="0.5"
+              @pointerenter="showTooltip($event, { month: b.month, label: '固定費', value: b.expense.fixed.val, deviation: b.deviation.fixedVal })"
+              @pointermove="showTooltip($event, { month: b.month, label: '固定費', value: b.expense.fixed.val, deviation: b.deviation.fixedVal })"
+              @pointerleave="hideTooltip($event)"
+              @click.stop="showTooltip($event, { month: b.month, label: '固定費', value: b.expense.fixed.val, deviation: b.deviation.fixedVal })"
+            />
+          </template>
+
+          <template v-if="variableDeviationLinePath">
+            <path :d="variableDeviationLinePath" fill="none" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="2 2" opacity="0.5" />
+            <circle
+              v-for="b in bars.filter(b => b.deviation && b.deviation.variableVal !== null)"
+              :key="'vdev-'+b.month"
+              :cx="b.deviation.x"
+              :cy="yScaleRight(b.deviation.variableVal)"
+              r="3"
+              fill="#f59e0b"
+              opacity="0.5"
+              @pointerenter="showTooltip($event, { month: b.month, label: '変動費', value: b.expense.variable.val, deviation: b.deviation.variableVal })"
+              @pointermove="showTooltip($event, { month: b.month, label: '変動費', value: b.expense.variable.val, deviation: b.deviation.variableVal })"
+              @pointerleave="hideTooltip($event)"
+              @click.stop="showTooltip($event, { month: b.month, label: '変動費', value: b.expense.variable.val, deviation: b.deviation.variableVal })"
+            />
+          </template>
+
+          <!-- Deviation Line (Total) -->
+          <template v-if="deviationLinePath">
+            <path :d="deviationLinePath" fill="none" stroke="#ec4899" stroke-width="2" stroke-dasharray="4 2" opacity="0.8" />
+            <circle
+              v-for="b in bars.filter(b => b.deviation && b.deviation.val !== null)"
               :key="'dev-'+b.month"
-              :cx="b.deviation?.x"
-              :cy="yScaleRight(b.deviation?.val)"
+              :cx="b.deviation.x"
+              :cy="yScaleRight(b.deviation.val)"
               r="4"
               fill="#ec4899"
-              opacity="0.8"
+              opacity="0.9"
               @pointerenter="showTooltip($event, { month: b.month, label: '生活費(固定+変動)', value: b.expense.fixed.val + b.expense.variable.val, deviation: b.deviation.val })"
               @pointermove="showTooltip($event, { month: b.month, label: '生活費(固定+変動)', value: b.expense.fixed.val + b.expense.variable.val, deviation: b.deviation.val })"
               @pointerleave="hideTooltip($event)"
@@ -422,7 +483,15 @@ const clearTooltip = () => {
       </div>
       <div v-if="averages" style="display: flex; align-items: center; gap: 4px;">
         <span style="width: 12px; height: 2px; border-top: 2px dashed #ec4899;"></span>
-        <span style="font-size: 12px; color: #ec4899;">生活費乖離率</span>
+        <span style="font-size: 12px; color: #ec4899;">生活費(計)乖離</span>
+      </div>
+      <div v-if="averages && averages.fixed > 0" style="display: flex; align-items: center; gap: 4px;">
+        <span style="width: 12px; height: 1px; border-top: 1px dashed #38bdf8;"></span>
+        <span style="font-size: 12px; color: #38bdf8;">固定費乖離</span>
+      </div>
+      <div v-if="averages && averages.variable > 0" style="display: flex; align-items: center; gap: 4px;">
+        <span style="width: 12px; height: 1px; border-top: 1px dashed #f59e0b;"></span>
+        <span style="font-size: 12px; color: #f59e0b;">変動費乖離</span>
       </div>
     </div>
     <p
@@ -460,5 +529,12 @@ const clearTooltip = () => {
   font-size: 12px;
   z-index: 2;
   white-space: nowrap;
+}
+
+.is-positive {
+  color: var(--success, #22c55e);
+}
+.is-negative {
+  color: var(--danger, #ef4444);
 }
 </style>

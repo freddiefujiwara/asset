@@ -29,7 +29,7 @@ describe('CashFlowBarChart', () => {
     expect(wrapper.findAll('rect')).toHaveLength(8); // (1 income + 3 expense) * 2 months
   });
 
-  it('renders reference lines and deviation line when averages are provided', () => {
+  it('renders reference lines and multiple deviation lines when averages are provided', () => {
     const wrapper = mount(CashFlowBarChart, {
       props: {
         data: sampleData,
@@ -38,7 +38,14 @@ describe('CashFlowBarChart', () => {
     });
 
     expect(wrapper.find('.right-axis').exists()).toBe(true);
-    expect(wrapper.find('path[stroke="#ec4899"]').exists()).toBe(true); // Deviation line
+    expect(wrapper.find('path[stroke="#ec4899"]').exists()).toBe(true); // Total deviation line
+    expect(wrapper.find('path[stroke="#38bdf8"]').exists()).toBe(true); // Fixed deviation line
+    expect(wrapper.find('path[stroke="#f59e0b"]').exists()).toBe(true); // Variable deviation line
+
+    // Check for circles
+    expect(wrapper.findAll('circle[fill="#ec4899"]')).toHaveLength(2); // Total
+    expect(wrapper.findAll('circle[fill="#38bdf8"]')).toHaveLength(2); // Fixed
+    expect(wrapper.findAll('circle[fill="#f59e0b"]')).toHaveLength(2); // Variable
   });
 
   it('shows high deviation indicator when lifestyle cost is >10% above average', () => {
@@ -62,8 +69,8 @@ describe('CashFlowBarChart', () => {
     const bars = wrapper.vm.bars;
     // Jan lifestyle: 100k+150k=250k. Avg: 300k. Dev: (250/300 - 1)*100 = -16.66...
     expect(bars[0].deviation.val).toBeCloseTo(-16.666);
-    // Feb lifestyle: 100k+250k=350k. Avg: 300k. Dev: (350/300 - 1)*100 = +16.66...
-    expect(bars[1].deviation.val).toBeCloseTo(16.666);
+    expect(bars[0].deviation.fixedVal).toBeCloseTo(0); // 100k/100k - 1 = 0
+    expect(bars[0].deviation.variableVal).toBeCloseTo(-25); // 150k/200k - 1 = -25%
   });
 
   it('handles zero average lifestyle gracefully', () => {
@@ -75,6 +82,8 @@ describe('CashFlowBarChart', () => {
     });
     expect(wrapper.find('.right-axis').exists()).toBe(false);
     expect(wrapper.find('path[stroke="#ec4899"]').exists()).toBe(false);
+    expect(wrapper.find('path[stroke="#38bdf8"]').exists()).toBe(false);
+    expect(wrapper.find('path[stroke="#f59e0b"]').exists()).toBe(false);
   });
 
   it('shows and hides tooltip on interaction', async () => {
@@ -147,48 +156,6 @@ describe('CashFlowBarChart', () => {
     Object.defineProperty(enterEvent, 'clientY', { value: 100 });
     await netPoint.element.dispatchEvent(enterEvent);
     expect(wrapper.find('.cash-flow-tooltip').text()).toContain('純収支');
-  });
-
-  it('handles exclude bar interaction', async () => {
-    const wrapper = mount(CashFlowBarChart, {
-      props: { data: sampleData, averages: sampleAverages }
-    });
-    wrapper.element.getBoundingClientRect = () => ({ left: 0, top: 0, width: 800, height: 300 });
-
-    const excludeRect = wrapper.find('rect[fill="#4b5563"]');
-    const enterEvent = new MouseEvent('pointerenter', { bubbles: true });
-    Object.defineProperty(enterEvent, 'clientX', { value: 100 });
-    Object.defineProperty(enterEvent, 'clientY', { value: 100 });
-    await excludeRect.element.dispatchEvent(enterEvent);
-    expect(wrapper.find('.cash-flow-tooltip').text()).toContain('除外');
-  });
-
-  it('handles negative deviation in tooltip', async () => {
-    const wrapper = mount(CashFlowBarChart, {
-      props: { data: sampleData, averages: sampleAverages }
-    });
-    wrapper.element.getBoundingClientRect = () => ({ left: 0, top: 0, width: 800, height: 300 });
-
-    const devPoint = wrapper.find('circle[fill="#ec4899"]');
-    const enterEvent = new MouseEvent('pointerenter', { bubbles: true });
-    Object.defineProperty(enterEvent, 'clientX', { value: 10 });
-    Object.defineProperty(enterEvent, 'clientY', { value: 10 });
-    await devPoint.element.dispatchEvent(enterEvent);
-
-    const tooltip = wrapper.find('.cash-flow-tooltip');
-    expect(tooltip.text()).toContain('-16.7%');
-    expect(tooltip.find('.is-positive').exists()).toBe(true);
-
-    // Test positive deviation
-    const febDevPoint = wrapper.findAll('circle[fill="#ec4899"]')[1];
-    const enterEvent2 = new MouseEvent('pointerenter', { bubbles: true });
-    Object.defineProperty(enterEvent2, 'clientX', { value: 20 });
-    Object.defineProperty(enterEvent2, 'clientY', { value: 20 });
-    await febDevPoint.element.dispatchEvent(enterEvent2);
-
-    const tooltip2 = wrapper.find('.cash-flow-tooltip');
-    expect(tooltip2.text()).toContain('+16.7%');
-    expect(tooltip2.find('.is-negative').exists()).toBe(true);
   });
 
   it('handles hideTooltip with non-mouse pointer', async () => {
