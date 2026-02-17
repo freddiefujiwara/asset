@@ -27,9 +27,9 @@ const maxAssets = computed(() => {
   if (!props.monteCarloPaths) return baseMax;
 
   const pMax = Math.max(
-    ...props.monteCarloPaths.p10Path,
-    ...props.monteCarloPaths.p50Path,
-    ...props.monteCarloPaths.p90Path
+    ...(props.monteCarloPaths.p10Path || []),
+    ...(props.monteCarloPaths.p50Path || []),
+    ...(props.monteCarloPaths.p90Path || [])
   );
   return Math.max(baseMax, pMax);
 });
@@ -45,7 +45,7 @@ const yScaleAssets = (val) => {
 const xScale = (i) => (i * innerWidth) / Math.max(props.data.length - 1, 1);
 
 const annotationPoints = computed(() => {
-  return props.annotations.map(ann => {
+  const points = props.annotations.map(ann => {
     const index = props.data.findIndex(d => d.age === ann.age);
     if (index === -1) return null;
     return {
@@ -54,6 +54,9 @@ const annotationPoints = computed(() => {
       age: ann.age
     };
   }).filter(Boolean);
+
+  // Sort by x to ensure consistent staggering for nearby events
+  return points.sort((a, b) => a.x - b.x);
 });
 
 const bars = computed(() => {
@@ -87,20 +90,23 @@ const assetPath = computed(() => {
 });
 
 const p10Path = computed(() => {
-  if (!props.monteCarloPaths?.p10Path) return "";
-  const points = props.monteCarloPaths.p10Path.map((v, i) => `${xScale(i)},${yScaleAssets(v)}`);
+  const pData = props.monteCarloPaths?.p10Path;
+  if (!pData) return "";
+  const points = pData.map((v, i) => `${xScale(i)},${yScaleAssets(v)}`);
   return `M ${points.join(" L ")}`;
 });
 
 const p50Path = computed(() => {
-  if (!props.monteCarloPaths?.p50Path) return "";
-  const points = props.monteCarloPaths.p50Path.map((v, i) => `${xScale(i)},${yScaleAssets(v)}`);
+  const pData = props.monteCarloPaths?.p50Path;
+  if (!pData) return "";
+  const points = pData.map((v, i) => `${xScale(i)},${yScaleAssets(v)}`);
   return `M ${points.join(" L ")}`;
 });
 
 const p90Path = computed(() => {
-  if (!props.monteCarloPaths?.p90Path) return "";
-  const points = props.monteCarloPaths.p90Path.map((v, i) => `${xScale(i)},${yScaleAssets(v)}`);
+  const pData = props.monteCarloPaths?.p90Path;
+  if (!pData) return "";
+  const points = pData.map((v, i) => `${xScale(i)},${yScaleAssets(v)}`);
   return `M ${points.join(" L ")}`;
 });
 
@@ -217,7 +223,7 @@ const hideTooltip = () => {
           <!-- Annotations (Vertical Lines) -->
           <g v-for="(ann, i) in annotationPoints" :key="ann.label + ann.age">
             <line :x1="ann.x" y1="0" :x2="ann.x" :y2="innerHeight" stroke="#8b5cf6" stroke-dasharray="4" stroke-width="1.5" />
-            <text :x="ann.x" :y="-8 - (i % 3) * 12" text-anchor="middle" font-size="10" fill="#8b5cf6" font-weight="bold">
+            <text :x="ann.x" :y="-8 - (i % 4) * 14" text-anchor="middle" font-size="10" fill="#8b5cf6" font-weight="bold">
               {{ ann.label }}
             </text>
             <line :x1="ann.x" y1="0" :x2="ann.x" :y2="innerHeight" stroke="transparent" stroke-width="10" style="cursor: help;"

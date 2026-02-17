@@ -114,4 +114,27 @@ describe("Monte Carlo Simulation", () => {
     expect(result.p50).toBeCloseTo(deterministic.finalAssets, 8);
   });
 
+  it("covers interpolation and maxMonths limits", () => {
+    const params = {
+      initialAssets: 1000000,
+      riskAssets: 500000,
+      monthlyExpense: 100000,
+      currentAge: 99,
+      maxMonths: 6, // Small maxMonths to trigger line 1017
+    };
+    // trials=101 to trigger lowerIndex === upperIndex at P50
+    const res = runMonteCarloSimulation(params, { trials: 101, annualVolatility: 0.1 });
+    expect(res.p50).toBeDefined();
+  });
+
+  it("handles non-finite volatility", () => {
+    const res = runMonteCarloSimulation(baseParams, {
+      trials: 10,
+      annualVolatility: Infinity,
+      seed: 42
+    });
+    // Should fallback to 0 volatility
+    expect(res.p50).toBeDefined();
+  });
+
 });

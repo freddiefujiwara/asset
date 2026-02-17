@@ -11,6 +11,12 @@ const PENSION_DATA_AGE = 44; // Age at which premium data was provided
 const PENSION_USER_KOSEN_ACCRUED_AT_44 = 892252; // Accrued Employees' Pension based on 14.9M premiums
 const PENSION_USER_KOSEN_FUTURE_FACTOR = 42000; // Estimated future accrual per year worked
 
+/**
+ * Independence date for the daughter: born 2013-02-20, turns 24 in 2037-02.
+ * Starts working from 2037-04.
+ */
+const INDEPENDENCE_MONTH_KEY = "2037-04";
+
 export const FIRE_ALGORITHM_CONSTANTS = {
   pension: {
     userStartAge: PENSION_USER_START_AGE,
@@ -184,7 +190,7 @@ export function generateAlgorithmExplanationSegments(params) {
     { type: "amount", value: "約1,496万円" },
     { type: "text", value: "）に基づき、現在までの加入実績を反映。\n  - 20代前半の未納期間（4年間）による基礎年金の減額を反映。\n  - " },
     { type: "text", value: String(fireAchievementAge) },
-    { type: "text", value: "歳リタイア(シミュレーション結果による)に伴う厚生年金加入期間の停止を考慮。\n  - 60歳繰上げ受給による受給額24%減額を適用。\n・配偶者加算: 奥様（1976年生）が65歳に達した時点から、奥様自身の基礎年金が世帯収入に加算されるものとして計算。\n\n住宅ローンの完済月以降は、月間支出からローン返済額を自動的に差し引いてシミュレーションを継続します。\n" },
+    { type: "text", value: "歳リタイア(シミュレーション結果による)に伴う厚生年金加入期間の停止を考慮。\n  - 60歳繰上げ受給による受給額24%減額を適用。\n・配偶者加算: 奥様（1976年生）が65歳に達した時点から、奥様自身の基礎年金が世帯収入に加算されるものとして計算。\n\n住宅ローンの完済月以降は、月間支出からローン返済額を自動的に差し引いてシミュレーションを継続します。\n\n■ 家族構成の変化（娘の独立）について\n娘が24歳になる2037年4月以降は、家族人数が3人から2人に減少するものとして生活費を見直します。\n・対象カテゴリと減額率:\n  - 食費: 約3割減 (x2/3)\n  - 教養・教育: ほぼゼロ (¥0)\n  - 通信費: 約3割減 (x2/3)\n  - 衣服・美容: 約3割減 (x2/3)\n  - 日用品: 約3割減 (x2/3)\n・その他のカテゴリ（住居・光熱費・保険等）は変更なしと仮定しています。\n" },
   ];
 
   if (useMonteCarlo) {
@@ -531,18 +537,23 @@ function calculateCurrentMonthlyExpense({
   simulationStartDate,
   mortgageMonthlyPayment,
   mortgagePayoffDate,
+  lifestyleReductionFactor = 1.0,
 }) {
   const mortgage = mortgageMonthlyPayment || 0;
   const nonMortgageExpense = Math.max(0, baseMonthlyExpense - mortgage);
-  const inflatedNonMortgage = nonMortgageExpense * Math.pow(1 + monthlyInflationRate, monthIndex);
-
-  if (!mortgage || !mortgagePayoffDate) {
-    return inflatedNonMortgage + mortgage;
-  }
 
   const currentDate = new Date(simulationStartDate);
   currentDate.setMonth(currentDate.getMonth() + monthIndex);
   const currentMonthKey = toMonthKey(currentDate);
+
+  const isIndependent = currentMonthKey >= INDEPENDENCE_MONTH_KEY;
+  const effectiveReduction = isIndependent ? lifestyleReductionFactor : 1.0;
+
+  const inflatedNonMortgage = (nonMortgageExpense * effectiveReduction) * Math.pow(1 + monthlyInflationRate, monthIndex);
+
+  if (!mortgage || !mortgagePayoffDate) {
+    return inflatedNonMortgage + mortgage;
+  }
 
   // Use strictly greater than to ensure the payoff month itself is still paid
   if (currentMonthKey > mortgagePayoffDate) {
@@ -550,6 +561,42 @@ function calculateCurrentMonthlyExpense({
   }
 
   return inflatedNonMortgage + mortgage;
+}
+
+/**
+ * Calculate the reduction factor for lifestyle expenses when family size changes from 3 to 2.
+ * Rules:
+ * - Food (食費): x2/3
+ * - Education (教養・教育): 0
+ * - Communication (通信費): x2/3
+ * - Clothing/Beauty (衣服・美容): x2/3
+ * - Daily goods (日用品): x2/3
+ * - Others: No change
+ */
+export function calculateLifestyleReduction(breakdown) {
+  if (!breakdown || !Array.isArray(breakdown) || breakdown.length === 0) {
+    return 1.0;
+  }
+
+  const reductionRules = {
+    "食費": 2 / 3,
+    "教養・教育": 0,
+    "通信費": 2 / 3,
+    "衣服・美容": 2 / 3,
+    "日用品": 2 / 3,
+  };
+
+  let originalTotal = 0;
+  let reducedTotal = 0;
+
+  breakdown.forEach((item) => {
+    originalTotal += item.amount;
+    const multiplier = reductionRules[item.name] ?? 1.0;
+    reducedTotal += item.amount * multiplier;
+  });
+
+  if (originalTotal === 0) return 1.0;
+  return reducedTotal / originalTotal;
 }
 
 /**
@@ -578,6 +625,7 @@ export function normalizeFireParams(params) {
     includePension: Boolean(params.includePension),
     monthlyInvestment: Number(params.monthlyInvestment ?? 0),
     maxMonths: Number(params.maxMonths ?? 1200),
+    expenseBreakdown: params.expenseBreakdown || null,
   };
 }
 
@@ -620,6 +668,7 @@ function _runCoreSimulation(params, { recordMonthly = false, fireMonth = -1, ret
   const monthlyData = recordMonthly ? [] : null;
 
   const simulationLimit = totalMonthsUntil100;
+  const lifestyleReductionFactor = calculateLifestyleReduction(params.expenseBreakdown);
 
   for (let m = 0; m <= simulationLimit; m++) {
     const ageAtMonthM = currentAge + m / 12;
@@ -637,6 +686,7 @@ function _runCoreSimulation(params, { recordMonthly = false, fireMonth = -1, ret
       simulationStartDate,
       mortgageMonthlyPayment,
       mortgagePayoffDate,
+      lifestyleReductionFactor,
     });
     const extraWithInf = postFireExtraExpense * Math.pow(1 + monthlyInflationRate, m);
 
@@ -973,7 +1023,6 @@ export function runMonteCarloSimulation(inputParams, { trials = 1000, annualVola
   finalAssetsList.sort((a, b) => a - b);
 
   const interpolatePercentile = (sortedValues, p) => {
-    if (!sortedValues.length) return 0;
     if (sortedValues.length === 1) return sortedValues[0];
 
     const pos = (p / 100) * (sortedValues.length - 1);
