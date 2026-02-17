@@ -18,7 +18,7 @@ const innerHeight = height - margin.top - margin.bottom;
 
 const range = computed(() => {
   const values = props.data.flatMap((d) =>
-    props.showNet ? [d.income, d.expense, d.net] : [d.income, d.expense],
+    props.showNet ? [d.income, d.expense, -d.expense, d.net] : [d.income, d.expense, -d.expense],
   );
   const min = Math.min(...values, 0);
   const max = Math.max(...values, 100000);

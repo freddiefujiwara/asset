@@ -175,4 +175,29 @@ describe('CashFlowBarChart', () => {
     await incomeRect.element.dispatchEvent(leaveEvent);
     expect(wrapper.find('.cash-flow-tooltip').exists()).toBe(true);
   });
+
+  it('expands Y-axis range to accommodate high expenses', () => {
+    const highExpenseData = [
+      { month: '2024-01', income: 100000, expense: 500000, net: -400000, fixed: 300000, variable: 150000, exclude: 50000 },
+    ];
+    const wrapper = mount(CashFlowBarChart, {
+      props: {
+        data: highExpenseData,
+        averages: sampleAverages
+      }
+    });
+
+    const range = wrapper.vm.range;
+    // Expense is 500,000. range.min should be at least -500,000 plus padding.
+    expect(range.min).toBeLessThanOrEqual(-500000);
+
+    const bars = wrapper.vm.bars;
+    const expenseBar = bars[0].expense;
+    const totalHeight = expenseBar.fixed.h + expenseBar.variable.h + expenseBar.exclude.h;
+
+    // The bars are drawn from yScale(0) downwards.
+    // They should be within innerHeight.
+    const y0 = wrapper.vm.yScale(0);
+    expect(y0 + totalHeight).toBeLessThanOrEqual(220); // 300 - 50 - 30 = 220 is innerHeight
+  });
 });
