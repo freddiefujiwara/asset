@@ -7,6 +7,8 @@ const props = defineProps({
   valueFormatter: { type: Function, default: null },
 });
 
+const emit = defineEmits(["select"]);
+
 const radius = 72;
 const size = 160;
 const center = size / 2;
@@ -65,7 +67,12 @@ const formatValue = (value) => {
         <path v-for="slice in slices" :key="slice.label" :d="slice.d" :fill="slice.color" />
       </svg>
       <ul class="legend">
-        <li v-for="slice in slices" :key="`legend-${slice.label}`">
+        <li
+          v-for="slice in slices"
+          :key="`legend-${slice.label}`"
+          class="legend-item"
+          @click="emit('select', slice.label)"
+        >
           <span class="swatch" :style="{ backgroundColor: slice.color }" />
           <span class="legend-label">{{ slice.label }}</span>
           <strong class="legend-values">
@@ -79,6 +86,21 @@ const formatValue = (value) => {
 </template>
 
 <style scoped>
+.legend li {
+  display: grid;
+  grid-template-columns: 10px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.legend li:hover {
+  background-color: var(--surface-elevated);
+}
+
 .legend-label {
   min-width: 0;
   white-space: normal;

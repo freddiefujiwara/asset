@@ -13,14 +13,11 @@ import {
   getUniqueSmallCategories,
   sortCashFlow,
   getRecentAverages,
-  getExpenseType,
-  aggregateByType,
 } from "@/domain/cashFlow";
 import { getPast5MonthSummary } from "@/domain/fire";
 import CashFlowBarChart from "@/components/CashFlowBarChart.vue";
 import CashFlowTable from "@/components/CashFlowTable.vue";
 import PieChart from "@/components/PieChart.vue";
-import StackedBarChart from "@/components/StackedBarChart.vue";
 
 const { data, loading, error, rawResponse } = usePortfolioData();
 
@@ -67,29 +64,6 @@ const monthlyData = computed(() =>
 );
 const categoryPieData = computed(() => aggregateByCategory(filteredCashFlow.value, { averageMonths: 5, excludeCurrentMonth: true }));
 
-const typePieData = computed(() => {
-  if (!monthFilter.value) {
-    return aggregateByType(filteredCashFlow.value, { averageMonths: 5, excludeCurrentMonth: true });
-  }
-
-  const types = {
-    fixed: { label: "固定費", value: 0, color: "#38bdf8" },
-    variable: { label: "変動費", value: 0, color: "#f59e0b" },
-    exclude: { label: "除外", value: 0, color: "#4b5563" },
-  };
-
-  filteredCashFlow.value.forEach((item) => {
-    if (!item.isTransfer && item.amount < 0) {
-      const type = getExpenseType(item);
-      if (types[type]) {
-        types[type].value += Math.abs(item.amount);
-      }
-    }
-  });
-
-  return Object.values(types).filter((t) => t.value > 0);
-});
-
 const showPastAverage = computed(() => !monthFilter.value);
 const pastAverages = computed(() => {
   if (!showPastAverage.value) {
@@ -113,6 +87,17 @@ const uniqueSmallCategories = computed(() =>
 const handleSort = ({ key, order }) => {
   sortKey.value = key;
   sortOrder.value = order;
+};
+
+const handleCategorySelect = (label) => {
+  const [large, small = ""] = label.split("/");
+  if (largeCategoryFilter.value === large && smallCategoryFilter.value === small) {
+    largeCategoryFilter.value = "";
+    smallCategoryFilter.value = "";
+  } else {
+    largeCategoryFilter.value = large;
+    smallCategoryFilter.value = small;
+  }
 };
 
 const getSplitResponse = () => {
@@ -249,8 +234,12 @@ const resetFilters = () => {
     <CashFlowBarChart :data="monthlyData" :show-net="!hasActiveFilters" :averages="pastAverages" />
 
     <div class="chart-grid">
-      <PieChart title="カテゴリ別支出内訳" :data="categoryPieData" :value-formatter="formatYen" />
-      <StackedBarChart title="支出3分類" :data="typePieData" :value-formatter="formatYen" />
+      <PieChart
+        title="カテゴリ別支出内訳"
+        :data="categoryPieData"
+        :value-formatter="formatYen"
+        @select="handleCategorySelect"
+      />
     </div>
 
     <div class="table-wrap api-actions">
