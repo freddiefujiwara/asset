@@ -505,6 +505,10 @@ const clearTooltip = () => {
       <template v-if="showNet">
         / 純収支 <span class="amount-value">{{ Math.round(averages.net).toLocaleString() }}</span>
       </template>
+      <br />
+      固定費 <span class="amount-value">{{ Math.round(averages.fixed).toLocaleString() }}</span> /
+      変動費 <span class="amount-value">{{ Math.round(averages.variable).toLocaleString() }}</span> /
+      生活費（計） <span class="amount-value">{{ Math.round(averages.fixed + averages.variable).toLocaleString() }}</span>
     </p>
   </div>
 </template>
