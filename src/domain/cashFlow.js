@@ -88,7 +88,7 @@ export function filterCashFlow(
     }
 
     if (normalizedSearch) {
-      const name = item.name.toLowerCase();
+      const name = (item.name || "").toLowerCase();
       const searchableCategory = categoryLabel.toLowerCase();
       if (!name.includes(normalizedSearch) && !searchableCategory.includes(normalizedSearch)) {
         return false;
@@ -202,7 +202,8 @@ function getTargetRowsForAverage(cashFlow, averageMonths, excludeCurrentMonth) {
 
   // Pick exactly the last N months from now to match fire.js logic
   const targetMonths = [];
-  for (let i = 1; i <= averageMonths; i++) {
+  const startOffset = excludeCurrentMonth ? 1 : 0;
+  for (let i = startOffset; i < startOffset + averageMonths; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     targetMonths.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
   }

@@ -122,6 +122,14 @@ describe("cashFlow domain", () => {
       expect(filterCashFlow(mockCashFlow, { search: "restaurant" })).toHaveLength(1);
     });
 
+    it("does not throw when searching rows with missing name", () => {
+      const rows = [
+        { date: "2026-02-01", amount: -1000, category: "Food", isTransfer: false },
+      ];
+
+      expect(filterCashFlow(rows, { search: "food" })).toHaveLength(1);
+    });
+
     it("can exclude transfer rows", () => {
       expect(filterCashFlow(mockCashFlow, { includeTransfers: false })).toHaveLength(4);
     });
@@ -342,6 +350,23 @@ describe("cashFlow domain", () => {
       ];
 
       expect(aggregateByCategory(rows, { averageMonths: 5, excludeCurrentMonth: true })).toEqual([
+        { label: "Food", value: 300 },
+      ]);
+    });
+
+    it("includes current month when excludeCurrentMonth is false", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-06-15T09:00:00+09:00"));
+
+      const rows = [
+        { date: "2026-06-05", amount: -500, category: "Food", isTransfer: false, name: "current" },
+        { date: "2026-05-05", amount: -400, category: "Food", isTransfer: false, name: "m5" },
+        { date: "2026-04-05", amount: -300, category: "Food", isTransfer: false, name: "m4" },
+        { date: "2026-03-05", amount: -200, category: "Food", isTransfer: false, name: "m3" },
+        { date: "2026-02-05", amount: -100, category: "Food", isTransfer: false, name: "m2" },
+      ];
+
+      expect(aggregateByCategory(rows, { averageMonths: 5, excludeCurrentMonth: false })).toEqual([
         { label: "Food", value: 300 },
       ]);
     });
