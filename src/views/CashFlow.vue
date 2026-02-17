@@ -20,6 +20,7 @@ import { getPast5MonthSummary } from "@/domain/fire";
 import CashFlowBarChart from "@/components/CashFlowBarChart.vue";
 import CashFlowTable from "@/components/CashFlowTable.vue";
 import PieChart from "@/components/PieChart.vue";
+import StackedBarChart from "@/components/StackedBarChart.vue";
 
 const { data, loading, error, rawResponse } = usePortfolioData();
 
@@ -249,7 +250,7 @@ const resetFilters = () => {
 
     <div class="chart-grid">
       <PieChart title="カテゴリ別支出内訳" :data="categoryPieData" :value-formatter="formatYen" />
-      <PieChart title="支出3分類" :data="typePieData" :value-formatter="formatYen" />
+      <StackedBarChart title="支出3分類" :data="typePieData" :value-formatter="formatYen" />
     </div>
 
     <div class="table-wrap api-actions">
