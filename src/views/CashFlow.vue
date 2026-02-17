@@ -89,6 +89,17 @@ const handleSort = ({ key, order }) => {
   sortOrder.value = order;
 };
 
+const handleCategorySelect = (label) => {
+  const [large, small = ""] = label.split("/");
+  if (largeCategoryFilter.value === large && smallCategoryFilter.value === small) {
+    largeCategoryFilter.value = "";
+    smallCategoryFilter.value = "";
+  } else {
+    largeCategoryFilter.value = large;
+    smallCategoryFilter.value = small;
+  }
+};
+
 const getSplitResponse = () => {
   if (!rawResponse.value || typeof rawResponse.value !== "object") {
     return null;
@@ -223,7 +234,12 @@ const resetFilters = () => {
     <CashFlowBarChart :data="monthlyData" :show-net="!hasActiveFilters" :averages="pastAverages" />
 
     <div class="chart-grid">
-      <PieChart title="カテゴリ別支出内訳" :data="categoryPieData" :value-formatter="formatYen" />
+      <PieChart
+        title="カテゴリ別支出内訳"
+        :data="categoryPieData"
+        :value-formatter="formatYen"
+        @select="handleCategorySelect"
+      />
     </div>
 
     <div class="table-wrap api-actions">
