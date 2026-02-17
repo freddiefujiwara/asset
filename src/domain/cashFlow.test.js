@@ -212,19 +212,66 @@ describe("cashFlow domain", () => {
   });
 
   describe("aggregateByMonth", () => {
+    it("aggregates filtered monthly values with fixed and variable breakdown", () => {
+      const mixed = [
+        { date: "2026-01-01", amount: -1000, category: "住宅/ローン返済", isTransfer: false }, // fixed
+        { date: "2026-01-02", amount: -2000, category: "食費/外食", isTransfer: false }, // variable
+        { date: "2026-01-03", amount: -3000, category: "カード引き落とし", isTransfer: false }, // exclude
+        { date: "2026-01-10", amount: 10000, category: "収入/給与", isTransfer: false }, // income
+      ];
+      expect(aggregateByMonth(mixed)).toEqual([
+        {
+          month: "2026-01",
+          income: 10000,
+          expense: 6000,
+          net: 4000,
+          fixed: 1000,
+          variable: 2000,
+        },
+      ]);
+    });
+
     it("aggregates filtered monthly values", () => {
       const filtered = filterCashFlow(mockCashFlow, { largeCategory: "Food" });
       expect(aggregateByMonth(filtered)).toEqual([
-        { month: "2026-01", income: 0, expense: 1000, net: -1000 },
-        { month: "2026-02", income: 0, expense: 3000, net: -3000 },
+        {
+          month: "2026-01",
+          income: 0,
+          expense: 1000,
+          net: -1000,
+          fixed: 0,
+          variable: 1000,
+        },
+        {
+          month: "2026-02",
+          income: 0,
+          expense: 3000,
+          net: -3000,
+          fixed: 0,
+          variable: 3000,
+        },
       ]);
     });
 
     it("skips net calculations when includeNet is false", () => {
       const filtered = filterCashFlow(mockCashFlow, { largeCategory: "Food" });
       expect(aggregateByMonth(filtered, { includeNet: false })).toEqual([
-        { month: "2026-01", income: 0, expense: 1000, net: 0 },
-        { month: "2026-02", income: 0, expense: 3000, net: 0 },
+        {
+          month: "2026-01",
+          income: 0,
+          expense: 1000,
+          net: 0,
+          fixed: 0,
+          variable: 1000,
+        },
+        {
+          month: "2026-02",
+          income: 0,
+          expense: 3000,
+          net: 0,
+          fixed: 0,
+          variable: 3000,
+        },
       ]);
     });
 
@@ -236,8 +283,22 @@ describe("cashFlow domain", () => {
       const aggregated = aggregateByMonth(mixed);
       expect(aggregated.find((row) => row.month === "")).toBeUndefined();
       expect(aggregated).toEqual([
-        { month: "2026-01", income: 0, expense: 81000, net: -81000 },
-        { month: "2026-02", income: 300000, expense: 3000, net: 297000 },
+        {
+          month: "2026-01",
+          income: 0,
+          expense: 81000,
+          net: -81000,
+          fixed: 0,
+          variable: 81000,
+        },
+        {
+          month: "2026-02",
+          income: 300000,
+          expense: 3000,
+          net: 297000,
+          fixed: 0,
+          variable: 3000,
+        },
       ]);
     });
   });
@@ -258,12 +319,21 @@ describe("cashFlow domain", () => {
         income: 450,
         expense: 45,
         net: 405,
+        fixed: 0,
+        variable: 0,
         count: 6,
       });
     });
 
     it("returns zeros for empty input", () => {
-      expect(getRecentAverages([])).toEqual({ income: 0, expense: 0, net: 0, count: 0 });
+      expect(getRecentAverages([])).toEqual({
+        income: 0,
+        expense: 0,
+        net: 0,
+        fixed: 0,
+        variable: 0,
+        count: 0,
+      });
     });
   });
 

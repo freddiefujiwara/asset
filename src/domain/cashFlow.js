@@ -152,12 +152,27 @@ export function aggregateByMonth(cashFlow, { includeNet = true } = {}) {
       return;
     }
     if (!months[month]) {
-      months[month] = { month, income: 0, expense: 0, net: 0 };
+      months[month] = {
+        month,
+        income: 0,
+        expense: 0,
+        net: 0,
+        fixed: 0,
+        variable: 0,
+      };
     }
     if (item.amount > 0) {
       months[month].income += item.amount;
     } else {
-      months[month].expense += Math.abs(item.amount);
+      const absAmount = Math.abs(item.amount);
+      months[month].expense += absAmount;
+
+      const type = getExpenseType(item);
+      if (type === "fixed") {
+        months[month].fixed += absAmount;
+      } else if (type === "variable") {
+        months[month].variable += absAmount;
+      }
     }
     if (includeNet) {
       months[month].net += item.amount;
@@ -170,7 +185,14 @@ export function aggregateByMonth(cashFlow, { includeNet = true } = {}) {
 
 export function getRecentAverages(monthlyData, months = 6) {
   if (!monthlyData.length) {
-    return { income: 0, expense: 0, net: 0, count: 0 };
+    return {
+      income: 0,
+      expense: 0,
+      net: 0,
+      fixed: 0,
+      variable: 0,
+      count: 0,
+    };
   }
 
   const recent = monthlyData.slice(-months);
@@ -179,8 +201,16 @@ export function getRecentAverages(monthlyData, months = 6) {
       income: acc.income + item.income,
       expense: acc.expense + item.expense,
       net: acc.net + item.net,
+      fixed: acc.fixed + (item.fixed || 0),
+      variable: acc.variable + (item.variable || 0),
     }),
-    { income: 0, expense: 0, net: 0 },
+    {
+      income: 0,
+      expense: 0,
+      net: 0,
+      fixed: 0,
+      variable: 0,
+    },
   );
 
   const count = recent.length;
@@ -188,6 +218,8 @@ export function getRecentAverages(monthlyData, months = 6) {
     income: totals.income / count,
     expense: totals.expense / count,
     net: totals.net / count,
+    fixed: totals.fixed / count,
+    variable: totals.variable / count,
     count,
   };
 }

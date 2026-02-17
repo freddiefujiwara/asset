@@ -52,7 +52,8 @@ const bars = computed(() => {
     const y0 = yScale(0);
 
     const yIncome = yScale(d.income);
-    const yExpense = yScale(d.expense);
+    const hFixed = Math.abs(yScale(-(d.fixed || 0)) - y0);
+    const hVariable = Math.abs(yScale(-(d.variable || 0)) - y0);
 
     return {
       month: d.month,
@@ -65,10 +66,18 @@ const bars = computed(() => {
       },
       expense: {
         x: x + barWidth,
-        y: Math.min(yExpense, y0),
-        h: Math.abs(yExpense - y0),
         w: barWidth,
-        val: d.expense,
+        fixed: {
+          y: y0,
+          h: hFixed,
+          val: d.fixed || 0,
+        },
+        variable: {
+          y: y0 + hFixed,
+          h: hVariable,
+          val: d.variable || 0,
+        },
+        totalVal: (d.fixed || 0) + (d.variable || 0),
       },
       net: {
         x: x + barWidth, // This is the center point (x + 0.35*step = xScale + 0.5*step)
@@ -176,18 +185,32 @@ const clearTooltip = () => {
             </rect>
             <rect
               :x="b.expense.x"
-              :y="b.expense.y"
+              :y="b.expense.fixed.y"
               :width="b.expense.w"
-              :height="b.expense.h"
-              fill="#ef4444"
+              :height="b.expense.fixed.h"
+              fill="#38bdf8"
+              opacity="0.8"
+              @pointerenter="showTooltip($event, { month: b.month, label: '固定費', value: b.expense.fixed.val })"
+              @pointermove="showTooltip($event, { month: b.month, label: '固定費', value: b.expense.fixed.val })"
+              @pointerleave="hideTooltip($event)"
+              @click.stop="showTooltip($event, { month: b.month, label: '固定費', value: b.expense.fixed.val })"
+            >
+              <title>{{ b.month }} 固定費: {{ b.expense.fixed.val.toLocaleString() }}</title>
+            </rect>
+            <rect
+              :x="b.expense.x"
+              :y="b.expense.variable.y"
+              :width="b.expense.w"
+              :height="b.expense.variable.h"
+              fill="#f59e0b"
               rx="2"
               opacity="0.8"
-              @pointerenter="showTooltip($event, { month: b.month, label: '支出', value: b.expense.val })"
-              @pointermove="showTooltip($event, { month: b.month, label: '支出', value: b.expense.val })"
+              @pointerenter="showTooltip($event, { month: b.month, label: '変動費', value: b.expense.variable.val })"
+              @pointermove="showTooltip($event, { month: b.month, label: '変動費', value: b.expense.variable.val })"
               @pointerleave="hideTooltip($event)"
-              @click.stop="showTooltip($event, { month: b.month, label: '支出', value: b.expense.val })"
+              @click.stop="showTooltip($event, { month: b.month, label: '変動費', value: b.expense.variable.val })"
             >
-              <title>{{ b.month }} 支出: {{ b.expense.val.toLocaleString() }}</title>
+              <title>{{ b.month }} 変動費: {{ b.expense.variable.val.toLocaleString() }}</title>
             </rect>
             <text
               :x="b.income.x + b.income.w"
@@ -233,14 +256,18 @@ const clearTooltip = () => {
         <div><span class="amount-value">{{ formatYen(activeTooltip.value) }}</span></div>
       </div>
     </div>
-    <div class="legend" style="display: flex; flex-direction: row; justify-content: center; gap: 20px; margin-top: 10px;">
+    <div class="legend" style="display: flex; flex-direction: row; justify-content: center; gap: 20px; margin-top: 10px; flex-wrap: wrap;">
       <div style="display: flex; align-items: center; gap: 4px;">
         <span style="width: 12px; height: 12px; background: #22c55e; border-radius: 2px;"></span>
         <span style="font-size: 12px;">収入</span>
       </div>
       <div style="display: flex; align-items: center; gap: 4px;">
-        <span style="width: 12px; height: 12px; background: #ef4444; border-radius: 2px;"></span>
-        <span style="font-size: 12px;">支出</span>
+        <span style="width: 12px; height: 12px; background: #38bdf8; border-radius: 2px;"></span>
+        <span style="font-size: 12px;">支出（固定）</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 4px;">
+        <span style="width: 12px; height: 12px; background: #f59e0b; border-radius: 2px;"></span>
+        <span style="font-size: 12px;">支出（変動）</span>
       </div>
       <div v-if="showNet" style="display: flex; align-items: center; gap: 4px;">
         <span style="width: 12px; height: 2px; background: #3b82f6;"></span>
