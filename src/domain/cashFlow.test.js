@@ -362,16 +362,16 @@ describe("cashFlow domain", () => {
       expect(result).toContainEqual({ label: "除外", value: 3000, color: "#94a3b8" });
     });
 
-    it("includes negative transfers in exclude and ignores positive amounts", () => {
+    it("excludes transfers and ignores positive amounts", () => {
       const mixed = [
         { date: "2026-02-01", amount: -1000, category: "住宅/ローン返済", isTransfer: false },
         { date: "2026-02-01", amount: -2000, category: "Transfer", isTransfer: true },
         { date: "2026-02-01", amount: 3000, category: "Income", isTransfer: false },
       ];
       const result = aggregateByType(mixed);
-      expect(result).toHaveLength(2);
+      expect(result).toHaveLength(1);
       expect(result.find(r => r.label === "固定費").value).toBe(1000);
-      expect(result.find(r => r.label === "除外").value).toBe(2000);
+      expect(result.find(r => r.label === "除外")).toBeUndefined();
     });
 
     it("can average past 5 months using fixed divisor", () => {

@@ -229,7 +229,7 @@ function getTargetRowsForAverage(cashFlow, averageMonths, excludeCurrentMonth) {
     return cashFlow;
   }
 
-  const expenseRows = cashFlow.filter((item) => item.amount < 0);
+  const expenseRows = cashFlow.filter((item) => item.amount < 0 && !item.isTransfer);
   const now = new Date();
 
   // Pick exactly the last N months from now to match fire.js logic
@@ -278,7 +278,7 @@ export function aggregateByType(cashFlow, { averageMonths = 0, excludeCurrentMon
   };
 
   targetCashFlow.forEach((item) => {
-    if (item.amount >= 0) {
+    if (item.isTransfer || item.amount >= 0) {
       return;
     }
     const type = getExpenseType(item);
