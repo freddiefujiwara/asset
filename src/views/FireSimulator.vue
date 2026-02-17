@@ -81,7 +81,7 @@ const manualAnnualBonus = ref(0);
 const useAutoIncome = ref(true);
 const useAutoBonus = ref(true);
 const mortgageMonthlyPayment = ref(0);
-const mortgagePayoffDate = ref("2042-07");
+const mortgagePayoffDate = ref("2042-05");
 
 const simulationParams = computed(() => ({
   initialAssets: initialAssets.value,
