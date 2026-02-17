@@ -22,6 +22,7 @@ export default defineConfig({
         "src/stores/**/*.js",
         "src/components/FireSimulationTable.vue",
         "src/components/FireSimulationChart.vue",
+        "src/components/StackedBarChart.vue",
       ],
       all: true,
       thresholds: {

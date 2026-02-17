@@ -20,6 +20,7 @@ import { getPast5MonthSummary } from "@/domain/fire";
 import CashFlowBarChart from "@/components/CashFlowBarChart.vue";
 import CashFlowTable from "@/components/CashFlowTable.vue";
 import PieChart from "@/components/PieChart.vue";
+import StackedBarChart from "@/components/StackedBarChart.vue";
 
 const { data, loading, error, rawResponse } = usePortfolioData();
 
@@ -74,11 +75,11 @@ const typePieData = computed(() => {
   const types = {
     fixed: { label: "固定費", value: 0, color: "#38bdf8" },
     variable: { label: "変動費", value: 0, color: "#f59e0b" },
-    exclude: { label: "除外", value: 0, color: "#94a3b8" },
+    exclude: { label: "除外", value: 0, color: "#4b5563" },
   };
 
   filteredCashFlow.value.forEach((item) => {
-    if (item.amount < 0) {
+    if (!item.isTransfer && item.amount < 0) {
       const type = getExpenseType(item);
       if (types[type]) {
         types[type].value += Math.abs(item.amount);
@@ -249,7 +250,7 @@ const resetFilters = () => {
 
     <div class="chart-grid">
       <PieChart title="カテゴリ別支出内訳" :data="categoryPieData" :value-formatter="formatYen" />
-      <PieChart title="支出3分類" :data="typePieData" :value-formatter="formatYen" />
+      <StackedBarChart title="支出3分類" :data="typePieData" :value-formatter="formatYen" />
     </div>
 
     <div class="table-wrap api-actions">
