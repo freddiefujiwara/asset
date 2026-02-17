@@ -102,6 +102,7 @@ const simulationParams = computed(() => ({
   retirementLumpSumAtFire: retirementLumpSumAtFire.value,
   includePension: true,
   monthlyInvestment: monthlyInvestment.value,
+  expenseBreakdown: past5MonthSummary.value.monthlyLivingExpenses.breakdown,
 }));
 
 const mortgageOptions = computed(() => {
@@ -198,6 +199,10 @@ const mortgagePayoffAge = computed(() => {
   return calculateAge(USER_BIRTH_DATE, payoff);
 });
 
+const daughterIndependenceAge = computed(() => {
+  return calculateAge(USER_BIRTH_DATE, new Date("2037-04-01"));
+});
+
 const chartAnnotations = computed(() => {
   const list = [];
   if (fireAchievementMonth.value > 0 && fireAchievementMonth.value < 1200) {
@@ -205,6 +210,7 @@ const chartAnnotations = computed(() => {
   }
   list.push({ age: 60, label: "年金開始(本人)" });
   list.push({ age: 62, label: "年金開始(妻)" });
+  list.push({ age: daughterIndependenceAge.value, label: "娘の独立" });
   if (mortgagePayoffAge.value) {
     list.push({ age: mortgagePayoffAge.value, label: "ローン完済" });
   }

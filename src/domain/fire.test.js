@@ -16,6 +16,7 @@ import {
   generateAlgorithmExplanationSegments,
   performFireSimulation,
   getPast5MonthSummary,
+  calculateLifestyleReduction,
 } from "./fire";
 
 describe("fire domain", () => {
@@ -38,6 +39,12 @@ describe("fire domain", () => {
       const result = normalizeFireParams({ currentAge: "45", initialAssets: "1000" });
       expect(result.currentAge).toBe(45);
       expect(result.initialAssets).toBe(1000);
+    });
+
+    it("handles null/undefined in calculateLifestyleReduction", () => {
+      expect(calculateLifestyleReduction(null)).toBe(1.0);
+      expect(calculateLifestyleReduction([])).toBe(1.0);
+      expect(calculateLifestyleReduction([{ name: "Other", amount: 0 }])).toBe(1.0);
     });
 
     it("respects provided falsey but non-null values", () => {
@@ -92,6 +99,21 @@ describe("fire domain", () => {
       expect(segments).toBeInstanceOf(Array);
       expect(segments.find(s => s.type === "amount" && s.value.includes("現金:¥100"))).toBeDefined();
       expect(segments.find(s => s.value === "45")).toBeDefined();
+    });
+
+    it("generates Monte Carlo explanation segments", () => {
+      const params = {
+        daughterBreakdown: { cash: 0, stocks: 0, funds: 0, pensions: 0, points: 0, liabilities: 0 },
+        fireAchievementAge: 45,
+        pensionAnnualAtFire: 1200000,
+        withdrawalRatePct: 4,
+        postFireExtraExpenseMonthly: 60000,
+        useMonteCarlo: true,
+        monteCarloTrials: 1000,
+        monteCarloVolatilityPct: 15,
+      };
+      const segments = generateAlgorithmExplanationSegments(params);
+      expect(segments.find(s => s.value.includes("モンテカルロ法"))).toBeDefined();
     });
   });
 
@@ -652,6 +674,34 @@ describe("fire domain", () => {
       });
       expect(result.table[1].assets).toBe(0);
       expect(result.table[1].isFire).toBe(false);
+    });
+
+    it("applies daughter independence reduction starting from 2037-04", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2025-05-14T09:00:00+09:00"));
+      const expenseBreakdown = [
+        { name: "食費", amount: 60000 }, // reduces by 1/3 -> 40000
+        { name: "住居", amount: 80000 }, // no change
+      ];
+      const params = {
+        initialAssets: 100000000,
+        riskAssets: 0,
+        monthlyExpense: 140000,
+        currentAge: 45,
+        expenseBreakdown,
+        includeInflation: false,
+        includePension: false,
+        retirementLumpSumAtFire: 0,
+        withdrawalRate: 0,
+        maxMonths: 200,
+      };
+
+      const result = performFireSimulation(params, { recordMonthly: true, forceFireMonth: 0 });
+      // 2025-05 (m0) to 2037-03 (m142) -> 143 months
+      // 2037-04 (m143)
+      expect(result.monthlyData[142].expenses).toBe(140000);
+      expect(result.monthlyData[143].expenses).toBe(120000);
+      vi.useRealTimers();
     });
 
     it("handles extreme negative flow with current assets", () => {

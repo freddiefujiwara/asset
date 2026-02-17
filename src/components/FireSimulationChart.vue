@@ -27,9 +27,9 @@ const maxAssets = computed(() => {
   if (!props.monteCarloPaths) return baseMax;
 
   const pMax = Math.max(
-    ...props.monteCarloPaths.p10Path,
-    ...props.monteCarloPaths.p50Path,
-    ...props.monteCarloPaths.p90Path
+    ...(props.monteCarloPaths.p10Path || []),
+    ...(props.monteCarloPaths.p50Path || []),
+    ...(props.monteCarloPaths.p90Path || [])
   );
   return Math.max(baseMax, pMax);
 });
@@ -87,20 +87,23 @@ const assetPath = computed(() => {
 });
 
 const p10Path = computed(() => {
-  if (!props.monteCarloPaths?.p10Path) return "";
-  const points = props.monteCarloPaths.p10Path.map((v, i) => `${xScale(i)},${yScaleAssets(v)}`);
+  const pData = props.monteCarloPaths?.p10Path;
+  if (!pData) return "";
+  const points = pData.map((v, i) => `${xScale(i)},${yScaleAssets(v)}`);
   return `M ${points.join(" L ")}`;
 });
 
 const p50Path = computed(() => {
-  if (!props.monteCarloPaths?.p50Path) return "";
-  const points = props.monteCarloPaths.p50Path.map((v, i) => `${xScale(i)},${yScaleAssets(v)}`);
+  const pData = props.monteCarloPaths?.p50Path;
+  if (!pData) return "";
+  const points = pData.map((v, i) => `${xScale(i)},${yScaleAssets(v)}`);
   return `M ${points.join(" L ")}`;
 });
 
 const p90Path = computed(() => {
-  if (!props.monteCarloPaths?.p90Path) return "";
-  const points = props.monteCarloPaths.p90Path.map((v, i) => `${xScale(i)},${yScaleAssets(v)}`);
+  const pData = props.monteCarloPaths?.p90Path;
+  if (!pData) return "";
+  const points = pData.map((v, i) => `${xScale(i)},${yScaleAssets(v)}`);
   return `M ${points.join(" L ")}`;
 });
 

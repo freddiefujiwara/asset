@@ -487,6 +487,7 @@ At each month, state includes:
 - derived total assets
 - income / pension / expenses
 - withdrawal and investment gain
+- lifestyle reduction factor (applied after child independence)
 
 ### 5.6.3 Monthly transition (pre-FIRE)
 
@@ -522,6 +523,16 @@ At each month, state includes:
 2. Binary refinement inside that year window to find earliest successful month.
 
 This hybrid search greatly reduces computation versus full linear monthly scan.
+
+### 5.6.7 Lifestyle reduction after child independence
+The simulation automatically reduces monthly expenses when the daughter reaches independence (defined as April 2037).
+
+The reduction is calculated based on the following category multipliers:
+- **Food, Communication, Clothing/Beauty, Daily Goods**: Reduced by 1/3 (x2/3 multiplier).
+- **Education**: Reduced to zero.
+- **Other categories**: Unchanged.
+
+The overall reduction typically ranges from 15% to 23% depending on the user's expense breakdown.
 
 ### Complexity
 Let `T = months until age 100`.
@@ -750,7 +761,8 @@ This gives strong confidence that business logic behavior is intentional and sta
 1. Owner detection is rule-based using string suffix matching, so it depends on naming consistency in source data.
 2. FIRE simulation is deterministic by default (constant monthly return unless custom returns array provided).
 3. Pension model is a practical approximation with fixed constants and specific household assumptions.
-4. App expects Japanese category naming conventions in several places (for example pension/mortgage/income category prefixes).
+4. Child independence is fixed at April 2037 (assuming daughter born in Feb 2013 turns 24 and starts working).
+5. App expects Japanese category naming conventions in several places (for example pension/mortgage/income category prefixes).
 
 ---
 

@@ -111,4 +111,35 @@ describe("FireSimulationChart.vue", () => {
     // Text "Invalid" should not be present because index is -1
     expect(wrapper.text()).not.toContain("Invalid");
   });
+
+  it("renders Monte Carlo percentile paths when provided", () => {
+    const monteCarloPaths = {
+      p10Path: [40000000, 45000000],
+      p50Path: [50000000, 55000000],
+      p90Path: [60000000, 65000000],
+    };
+    const wrapper = mount(FireSimulationChart, {
+      props: { data: sampleData, monteCarloPaths },
+    });
+
+    // p10, p50, p90 paths should be rendered
+    const paths = wrapper.findAll("path");
+    // Expense, Assets, P10, P50, P90 = 5 paths
+    expect(paths.length).toBeGreaterThanOrEqual(5);
+
+    // Verify paths are not empty
+    expect(paths[2].attributes("d")).not.toBe("");
+    expect(paths[3].attributes("d")).not.toBe("");
+    expect(paths[4].attributes("d")).not.toBe("");
+  });
+
+  it("handles partial monteCarloPaths props", () => {
+    const wrapper = mount(FireSimulationChart, {
+      props: { data: sampleData, monteCarloPaths: {} },
+    });
+    const paths = wrapper.findAll("path");
+    // Only Expense and Assets lines
+    expect(paths.length).toBeGreaterThanOrEqual(2);
+    expect(paths[2].attributes("d")).toBe("");
+  });
 });
