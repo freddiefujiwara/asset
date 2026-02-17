@@ -75,7 +75,7 @@ const typePieData = computed(() => {
   const types = {
     fixed: { label: "固定費", value: 0, color: "#38bdf8" },
     variable: { label: "変動費", value: 0, color: "#f59e0b" },
-    exclude: { label: "除外", value: 0, color: "#94a3b8" },
+    exclude: { label: "除外", value: 0, color: "#4b5563" },
   };
 
   filteredCashFlow.value.forEach((item) => {

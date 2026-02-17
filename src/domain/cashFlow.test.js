@@ -227,6 +227,7 @@ describe("cashFlow domain", () => {
           net: 4000,
           fixed: 1000,
           variable: 2000,
+          exclude: 3000,
         },
       ]);
     });
@@ -241,6 +242,7 @@ describe("cashFlow domain", () => {
           net: -1000,
           fixed: 0,
           variable: 1000,
+          exclude: 0,
         },
         {
           month: "2026-02",
@@ -249,6 +251,7 @@ describe("cashFlow domain", () => {
           net: -3000,
           fixed: 0,
           variable: 3000,
+          exclude: 0,
         },
       ]);
     });
@@ -263,6 +266,7 @@ describe("cashFlow domain", () => {
           net: 0,
           fixed: 0,
           variable: 1000,
+          exclude: 0,
         },
         {
           month: "2026-02",
@@ -271,6 +275,7 @@ describe("cashFlow domain", () => {
           net: 0,
           fixed: 0,
           variable: 3000,
+          exclude: 0,
         },
       ]);
     });
@@ -290,6 +295,7 @@ describe("cashFlow domain", () => {
           net: -81000,
           fixed: 0,
           variable: 81000,
+          exclude: 0,
         },
         {
           month: "2026-02",
@@ -298,6 +304,7 @@ describe("cashFlow domain", () => {
           net: 297000,
           fixed: 0,
           variable: 3000,
+          exclude: 0,
         },
       ]);
     });
@@ -321,6 +328,7 @@ describe("cashFlow domain", () => {
         net: 405,
         fixed: 0,
         variable: 0,
+        exclude: 0,
         count: 6,
       });
     });
@@ -332,6 +340,7 @@ describe("cashFlow domain", () => {
         net: 0,
         fixed: 0,
         variable: 0,
+        exclude: 0,
         count: 0,
       });
     });
@@ -359,7 +368,7 @@ describe("cashFlow domain", () => {
       const result = aggregateByType(mixed);
       expect(result).toContainEqual({ label: "固定費", value: 1000, color: "#38bdf8" });
       expect(result).toContainEqual({ label: "変動費", value: 2000, color: "#f59e0b" });
-      expect(result).toContainEqual({ label: "除外", value: 3000, color: "#94a3b8" });
+      expect(result).toContainEqual({ label: "除外", value: 3000, color: "#4b5563" });
     });
 
     it("excludes transfers and ignores positive amounts", () => {

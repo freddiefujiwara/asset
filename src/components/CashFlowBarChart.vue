@@ -54,6 +54,7 @@ const bars = computed(() => {
     const yIncome = yScale(d.income);
     const hFixed = Math.abs(yScale(-(d.fixed || 0)) - y0);
     const hVariable = Math.abs(yScale(-(d.variable || 0)) - y0);
+    const hExclude = Math.abs(yScale(-(d.exclude || 0)) - y0);
 
     return {
       month: d.month,
@@ -77,7 +78,11 @@ const bars = computed(() => {
           h: hVariable,
           val: d.variable || 0,
         },
-        totalVal: (d.fixed || 0) + (d.variable || 0),
+        exclude: {
+          y: y0 + hFixed + hVariable,
+          h: hExclude,
+          val: d.exclude || 0,
+        },
       },
       net: {
         x: x + barWidth, // This is the center point (x + 0.35*step = xScale + 0.5*step)
@@ -203,7 +208,6 @@ const clearTooltip = () => {
               :width="b.expense.w"
               :height="b.expense.variable.h"
               fill="#f59e0b"
-              rx="2"
               opacity="0.8"
               @pointerenter="showTooltip($event, { month: b.month, label: '変動費', value: b.expense.variable.val })"
               @pointermove="showTooltip($event, { month: b.month, label: '変動費', value: b.expense.variable.val })"
@@ -211,6 +215,21 @@ const clearTooltip = () => {
               @click.stop="showTooltip($event, { month: b.month, label: '変動費', value: b.expense.variable.val })"
             >
               <title>{{ b.month }} 変動費: {{ b.expense.variable.val.toLocaleString() }}</title>
+            </rect>
+            <rect
+              :x="b.expense.x"
+              :y="b.expense.exclude.y"
+              :width="b.expense.w"
+              :height="b.expense.exclude.h"
+              fill="#4b5563"
+              rx="2"
+              opacity="0.8"
+              @pointerenter="showTooltip($event, { month: b.month, label: '除外', value: b.expense.exclude.val })"
+              @pointermove="showTooltip($event, { month: b.month, label: '除外', value: b.expense.exclude.val })"
+              @pointerleave="hideTooltip($event)"
+              @click.stop="showTooltip($event, { month: b.month, label: '除外', value: b.expense.exclude.val })"
+            >
+              <title>{{ b.month }} 除外: {{ b.expense.exclude.val.toLocaleString() }}</title>
             </rect>
             <text
               :x="b.income.x + b.income.w"
@@ -268,6 +287,10 @@ const clearTooltip = () => {
       <div style="display: flex; align-items: center; gap: 4px;">
         <span style="width: 12px; height: 12px; background: #f59e0b; border-radius: 2px;"></span>
         <span style="font-size: 12px;">支出（変動）</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 4px;">
+        <span style="width: 12px; height: 12px; background: #4b5563; border-radius: 2px;"></span>
+        <span style="font-size: 12px;">支出（除外）</span>
       </div>
       <div v-if="showNet" style="display: flex; align-items: center; gap: 4px;">
         <span style="width: 12px; height: 2px; background: #3b82f6;"></span>

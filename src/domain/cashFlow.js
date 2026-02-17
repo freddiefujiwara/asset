@@ -159,6 +159,7 @@ export function aggregateByMonth(cashFlow, { includeNet = true } = {}) {
         net: 0,
         fixed: 0,
         variable: 0,
+        exclude: 0,
       };
     }
     if (item.amount > 0) {
@@ -172,6 +173,8 @@ export function aggregateByMonth(cashFlow, { includeNet = true } = {}) {
         months[month].fixed += absAmount;
       } else if (type === "variable") {
         months[month].variable += absAmount;
+      } else if (type === "exclude") {
+        months[month].exclude += absAmount;
       }
     }
     if (includeNet) {
@@ -191,6 +194,7 @@ export function getRecentAverages(monthlyData, months = 6) {
       net: 0,
       fixed: 0,
       variable: 0,
+      exclude: 0,
       count: 0,
     };
   }
@@ -203,6 +207,7 @@ export function getRecentAverages(monthlyData, months = 6) {
       net: acc.net + item.net,
       fixed: acc.fixed + (item.fixed || 0),
       variable: acc.variable + (item.variable || 0),
+      exclude: acc.exclude + (item.exclude || 0),
     }),
     {
       income: 0,
@@ -210,6 +215,7 @@ export function getRecentAverages(monthlyData, months = 6) {
       net: 0,
       fixed: 0,
       variable: 0,
+      exclude: 0,
     },
   );
 
@@ -220,6 +226,7 @@ export function getRecentAverages(monthlyData, months = 6) {
     net: totals.net / count,
     fixed: totals.fixed / count,
     variable: totals.variable / count,
+    exclude: totals.exclude / count,
     count,
   };
 }
@@ -274,7 +281,7 @@ export function aggregateByType(cashFlow, { averageMonths = 0, excludeCurrentMon
   const types = {
     fixed: { label: "固定費", value: 0, color: "#38bdf8" },
     variable: { label: "変動費", value: 0, color: "#f59e0b" },
-    exclude: { label: "除外", value: 0, color: "#94a3b8" },
+    exclude: { label: "除外", value: 0, color: "#4b5563" },
   };
 
   targetCashFlow.forEach((item) => {

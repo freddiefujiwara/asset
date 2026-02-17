@@ -34,7 +34,7 @@ describe('StackedBarChart', () => {
     expect(legendItems[2].text()).toContain('50.0%'); // 除外
   });
 
-  it('renders only Fixed and Variable segments in the bar', () => {
+  it('renders Fixed, Variable and Exclude segments in the bar', () => {
     const wrapper = mount(StackedBarChart, {
       props: {
         title: 'Chart',
@@ -45,15 +45,15 @@ describe('StackedBarChart', () => {
     const bars = wrapper.findAll('svg rect').filter(r =>
       r.attributes('fill') !== 'var(--surface-elevated)' && r.attributes('fill') !== 'transparent'
     );
-    expect(bars).toHaveLength(2);
+    expect(bars).toHaveLength(3);
 
     const colors = bars.map(b => b.attributes('fill'));
     expect(colors).toContain('#38bdf8'); // Fixed
     expect(colors).toContain('#f59e0b'); // Variable
-    expect(colors).not.toContain('#94a3b8'); // Exclude should not be there
+    expect(colors).toContain('#94a3b8'); // Exclude should be there
   });
 
-  it('stacks Fixed at the bottom and Variable above it', () => {
+  it('stacks Fixed at the bottom, Variable in middle, and Exclude on top', () => {
     const wrapper = mount(StackedBarChart, {
       props: {
         title: 'Chart',
@@ -66,16 +66,18 @@ describe('StackedBarChart', () => {
 
     const fixedBar = bars.find(b => b.attributes('fill') === '#38bdf8');
     const variableBar = bars.find(b => b.attributes('fill') === '#f59e0b');
+    const excludeBar = bars.find(b => b.attributes('fill') === '#94a3b8');
 
     const yFixed = parseFloat(fixedBar.attributes('y'));
     const yVariable = parseFloat(variableBar.attributes('y'));
+    const yExclude = parseFloat(excludeBar.attributes('y'));
     const hFixed = parseFloat(fixedBar.attributes('height'));
 
     // In SVG, higher y value is lower on screen.
-    // Fixed is at the bottom, Variable is above it.
-    // So yVariable should be smaller than yFixed.
-    // Specifically, yVariable should be yFixed - hVariable.
+    // Stack: Fixed (Bottom) -> Variable (Middle) -> Exclude (Top)
+    // So yExclude < yVariable < yFixed
     expect(yVariable).toBeLessThan(yFixed);
+    expect(yExclude).toBeLessThan(yVariable);
 
     // Verify exact stacking: currentY starts at 150 (maxHeight + barPadding = 140 + 10)
     // hFixed = (300/1000) * 140 = 42.
@@ -148,9 +150,9 @@ describe('StackedBarChart', () => {
     const bars = wrapper.findAll('svg rect').filter(r =>
       r.attributes('fill') !== 'var(--surface-elevated)' && r.attributes('fill') !== 'transparent'
     );
-    // Only segments with value > 0 are rendered in bar logic,
-    // but our logic specifically looks for '固定費' and '変動費' and checks value > 0.
-    expect(bars).toHaveLength(0);
+    // Only segments with value > 0 are rendered.
+    // '除外' has value 100, so it should be rendered.
+    expect(bars).toHaveLength(1);
 
     // total should be 100
     expect(wrapper.find('.legend').text()).toContain('100.0%'); // 除外 should be 100%

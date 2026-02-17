@@ -20,40 +20,32 @@ const bars = computed(() => {
   if (!total.value) return [];
 
   // Stack order: Bottom: 固定費 (Fixed), Top: 変動費 (Variable)
-  // Requirement: "除外" (Exclude) is NOT drawn in the bar.
+  // Stack: Fixed (Bottom) -> Variable (Middle) -> Exclude (Top)
   const fixedItem = props.data.find((d) => d.label === "固定費");
   const variableItem = props.data.find((d) => d.label === "変動費");
+  const excludeItem = props.data.find((d) => d.label === "除外");
 
   const result = [];
   let currentY = maxHeight + barPadding; // Start from bottom of the chart area
 
-  if (fixedItem && fixedItem.value > 0) {
-    const h = (fixedItem.value / total.value) * maxHeight;
-    result.push({
-      label: fixedItem.label,
-      value: fixedItem.value,
-      color: fixedItem.color || "#38bdf8",
-      x: (size - barWidth) / 2,
-      y: currentY - h,
-      width: barWidth,
-      height: h,
-    });
-    currentY -= h;
-  }
+  const items = [fixedItem, variableItem, excludeItem];
+  const defaultColors = ["#38bdf8", "#f59e0b", "#4b5563"];
 
-  if (variableItem && variableItem.value > 0) {
-    const h = (variableItem.value / total.value) * maxHeight;
-    result.push({
-      label: variableItem.label,
-      value: variableItem.value,
-      color: variableItem.color || "#f59e0b",
-      x: (size - barWidth) / 2,
-      y: currentY - h,
-      width: barWidth,
-      height: h,
-    });
-    currentY -= h;
-  }
+  items.forEach((item, i) => {
+    if (item && item.value > 0) {
+      const h = (item.value / total.value) * maxHeight;
+      result.push({
+        label: item.label,
+        value: item.value,
+        color: item.color || defaultColors[i],
+        x: (size - barWidth) / 2,
+        y: currentY - h,
+        width: barWidth,
+        height: h,
+      });
+      currentY -= h;
+    }
+  });
 
   return result;
 });
