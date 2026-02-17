@@ -45,7 +45,7 @@ const yScaleAssets = (val) => {
 const xScale = (i) => (i * innerWidth) / Math.max(props.data.length - 1, 1);
 
 const annotationPoints = computed(() => {
-  return props.annotations.map(ann => {
+  const points = props.annotations.map(ann => {
     const index = props.data.findIndex(d => d.age === ann.age);
     if (index === -1) return null;
     return {
@@ -54,6 +54,9 @@ const annotationPoints = computed(() => {
       age: ann.age
     };
   }).filter(Boolean);
+
+  // Sort by x to ensure consistent staggering for nearby events
+  return points.sort((a, b) => a.x - b.x);
 });
 
 const bars = computed(() => {
@@ -220,7 +223,7 @@ const hideTooltip = () => {
           <!-- Annotations (Vertical Lines) -->
           <g v-for="(ann, i) in annotationPoints" :key="ann.label + ann.age">
             <line :x1="ann.x" y1="0" :x2="ann.x" :y2="innerHeight" stroke="#8b5cf6" stroke-dasharray="4" stroke-width="1.5" />
-            <text :x="ann.x" :y="-8 - (i % 3) * 12" text-anchor="middle" font-size="10" fill="#8b5cf6" font-weight="bold">
+            <text :x="ann.x" :y="-8 - (i % 4) * 14" text-anchor="middle" font-size="10" fill="#8b5cf6" font-weight="bold">
               {{ ann.label }}
             </text>
             <line :x1="ann.x" y1="0" :x2="ann.x" :y2="innerHeight" stroke="transparent" stroke-width="10" style="cursor: help;"

@@ -190,7 +190,7 @@ export function generateAlgorithmExplanationSegments(params) {
     { type: "amount", value: "約1,496万円" },
     { type: "text", value: "）に基づき、現在までの加入実績を反映。\n  - 20代前半の未納期間（4年間）による基礎年金の減額を反映。\n  - " },
     { type: "text", value: String(fireAchievementAge) },
-    { type: "text", value: "歳リタイア(シミュレーション結果による)に伴う厚生年金加入期間の停止を考慮。\n  - 60歳繰上げ受給による受給額24%減額を適用。\n・配偶者加算: 奥様（1976年生）が65歳に達した時点から、奥様自身の基礎年金が世帯収入に加算されるものとして計算。\n\n住宅ローンの完済月以降は、月間支出からローン返済額を自動的に差し引いてシミュレーションを継続します。\n" },
+    { type: "text", value: "歳リタイア(シミュレーション結果による)に伴う厚生年金加入期間の停止を考慮。\n  - 60歳繰上げ受給による受給額24%減額を適用。\n・配偶者加算: 奥様（1976年生）が65歳に達した時点から、奥様自身の基礎年金が世帯収入に加算されるものとして計算。\n\n住宅ローンの完済月以降は、月間支出からローン返済額を自動的に差し引いてシミュレーションを継続します。\n\n■ 家族構成の変化（娘の独立）について\n娘が24歳になる2037年4月以降は、家族人数が3人から2人に減少するものとして生活費を見直します。\n・対象カテゴリと減額率:\n  - 食費: 約3割減 (x2/3)\n  - 教養・教育: ほぼゼロ (¥0)\n  - 通信費: 約3割減 (x2/3)\n  - 衣服・美容: 約3割減 (x2/3)\n  - 日用品: 約3割減 (x2/3)\n・その他のカテゴリ（住居・光熱費・保険等）は変更なしと仮定しています。\n" },
   ];
 
   if (useMonteCarlo) {
@@ -668,6 +668,7 @@ function _runCoreSimulation(params, { recordMonthly = false, fireMonth = -1, ret
   const monthlyData = recordMonthly ? [] : null;
 
   const simulationLimit = totalMonthsUntil100;
+  const lifestyleReductionFactor = calculateLifestyleReduction(params.expenseBreakdown);
 
   for (let m = 0; m <= simulationLimit; m++) {
     const ageAtMonthM = currentAge + m / 12;
@@ -685,7 +686,7 @@ function _runCoreSimulation(params, { recordMonthly = false, fireMonth = -1, ret
       simulationStartDate,
       mortgageMonthlyPayment,
       mortgagePayoffDate,
-      lifestyleReductionFactor: calculateLifestyleReduction(params.expenseBreakdown),
+      lifestyleReductionFactor,
     });
     const extraWithInf = postFireExtraExpense * Math.pow(1 + monthlyInflationRate, m);
 
