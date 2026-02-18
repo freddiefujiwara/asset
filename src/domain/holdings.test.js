@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EMPTY_HOLDINGS, HOLDING_TABLE_CONFIGS, stockFundSummary, stockTiles, fundTiles, stockFundRows } from "./holdings";
+import { EMPTY_HOLDINGS, HOLDING_TABLE_CONFIGS, stockFundSummary, stockTiles, fundTiles, pensionTiles, stockFundRows } from "./holdings";
 
 describe("holdings domain", () => {
   it("provides stable default shape", () => {
@@ -192,4 +192,17 @@ describe("holdings domain", () => {
     expect(summary.totalProfitYen).toBe(20);
   });
 
+  it("builds pension tiles with aggregation", () => {
+    const pensions = [
+      { 名称: "Pension A", 現在価値: "500", 評価損益: "50" },
+      { 名称: "Pension A", 現在価値: "500", 評価損益: "50" },
+      { 名称: "Pension B", 現在価値: "2000" },
+    ];
+    const tiles = pensionTiles(pensions);
+    expect(tiles).toHaveLength(2);
+    expect(tiles[0].name).toBe("Pension B");
+    expect(tiles[1].name).toBe("Pension A");
+    expect(tiles[1].value).toBe(1000);
+    expect(tiles[1].profit).toBe(100);
+  });
 });

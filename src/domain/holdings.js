@@ -197,6 +197,10 @@ export function fundTiles(funds) {
   return buildTiles(funds, { aggregate: true });
 }
 
+export function pensionTiles(pensions) {
+  return buildTiles(pensions, { aggregate: true });
+}
+
 function layoutTreemap(items, x, y, width, height, output) {
   if (items.length === 1) {
     output.push({ ...items[0], x, y, width, height });
