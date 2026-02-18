@@ -28,6 +28,8 @@ export const HOLDING_TABLE_CONFIGS = [
       { key: "銘柄コード", label: "コード" },
       { key: "銘柄名", label: "銘柄名" },
       { key: "評価額", label: "評価額" },
+      { key: "__riskAssetRatio", label: "全リスク資産の中の割合" },
+      { key: "__totalAssetRatio", label: "全金融資産の割合" },
       { key: "評価損益", label: "評価損益" },
       { key: "評価損益率", label: "評価損益率" },
       { key: "__dailyChange", label: "前日比" },
@@ -40,6 +42,8 @@ export const HOLDING_TABLE_CONFIGS = [
     columns: [
       { key: "銘柄名", label: "銘柄名" },
       { key: "評価額", label: "評価額" },
+      { key: "__riskAssetRatio", label: "全リスク資産の中の割合" },
+      { key: "__totalAssetRatio", label: "全金融資産の割合" },
       { key: "評価損益", label: "評価損益" },
       { key: "評価損益率", label: "評価損益率" },
       { key: "__dailyChange", label: "前日比" },
@@ -52,6 +56,8 @@ export const HOLDING_TABLE_CONFIGS = [
     columns: [
       { key: "名称", label: "名称" },
       { key: "現在価値", label: "現在価値" },
+      { key: "__riskAssetRatio", label: "全リスク資産の中の割合" },
+      { key: "__totalAssetRatio", label: "全金融資産の割合" },
       { key: "評価損益", label: "評価損益" },
       { key: "評価損益率", label: "評価損益率" },
     ],

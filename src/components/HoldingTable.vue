@@ -15,7 +15,14 @@ const safeRows = computed(() => (Array.isArray(props.rows) ? props.rows : []));
 const amountLikePattern = /金額|残高|評価額|価値|損益/i;
 const nonAmountPattern = /コード|率|割合/i;
 const percentPattern = /率|割合/i;
-const SORTABLE_COLUMN_KEYS = new Set(["評価額", "評価損益", "評価損益率", "__dailyChange"]);
+const SORTABLE_COLUMN_KEYS = new Set([
+  "評価額",
+  "評価損益",
+  "評価損益率",
+  "__dailyChange",
+  "__riskAssetRatio",
+  "__totalAssetRatio",
+]);
 
 const sortKey = ref("");
 const sortDirection = ref("asc");

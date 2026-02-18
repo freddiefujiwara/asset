@@ -12,6 +12,14 @@ describe("holdings domain", () => {
       "liabilitiesDetail",
     ]);
     expect(HOLDING_TABLE_CONFIGS).toHaveLength(6);
+
+    const stocks = HOLDING_TABLE_CONFIGS.find((c) => c.key === "stocks");
+    expect(stocks.columns.some((c) => c.key === "__riskAssetRatio")).toBe(true);
+    expect(stocks.columns.some((c) => c.key === "__totalAssetRatio")).toBe(true);
+
+    const pensions = HOLDING_TABLE_CONFIGS.find((c) => c.key === "pensions");
+    expect(pensions.columns.some((c) => c.key === "__riskAssetRatio")).toBe(true);
+    expect(pensions.columns.some((c) => c.key === "__totalAssetRatio")).toBe(true);
   });
 
   it("computes stock/fund summary", () => {

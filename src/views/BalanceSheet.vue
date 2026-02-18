@@ -11,6 +11,7 @@ import PieChart from "@/components/PieChart.vue";
 import { formatSignedPercent, signedClass } from "@/domain/signed";
 import { usePortfolioData } from "@/composables/usePortfolioData";
 import { filterHoldingsByOwner, OWNER_FILTERS, summarizeByCategory } from "@/domain/assetOwners";
+import { assetAmountYen } from "@/domain/family";
 import { EMPTY_HOLDINGS, HOLDING_TABLE_CONFIGS, stockFundSummary, stockTiles as buildStockTiles } from "@/domain/holdings";
 import { useInitialHashRestore } from "@/composables/useInitialHashRestore";
 
@@ -86,7 +87,36 @@ const totals = computed(() => {
   };
 });
 
+const totalRiskAssetsYen = computed(() => {
+  const riskKeys = ["stocks", "funds", "pensions"];
+  return categoryCards.value
+    .filter((c) => riskKeys.includes(c.key))
+    .reduce((sum, c) => sum + c.amountYen, 0);
+});
+
 const balanceLayout = computed(() => balanceSheetLayout(totals.value));
+
+const enrichedHoldings = computed(() => {
+  const h = filteredHoldings.value;
+  const totalAssets = totals.value.assetsYen;
+  const totalRisk = totalRiskAssetsYen.value;
+
+  const result = { ...h };
+  ["stocks", "funds", "pensions"].forEach((key) => {
+    if (result[key]) {
+      result[key] = result[key].map((row) => {
+        const amount = assetAmountYen(row);
+        return {
+          ...row,
+          __riskAssetRatio: totalRisk > 0 ? ((amount / totalRisk) * 100).toFixed(1) : "0.0",
+          __totalAssetRatio: totalAssets > 0 ? ((amount / totalAssets) * 100).toFixed(1) : "0.0",
+        };
+      });
+    }
+  });
+
+  return result;
+});
 
 const summary = computed(() => stockFundSummary(filteredHoldings.value));
 const stocksAndFundsTotal = computed(() => summary.value.totalYen);
@@ -288,7 +318,7 @@ const copyToken = () => {
       </section>
       <HoldingTable
         :title="config.title"
-        :rows="filteredHoldings[config.key]"
+        :rows="enrichedHoldings[config.key]"
         :columns="config.columns"
         :is-liability="config.isLiability"
       />
@@ -298,7 +328,7 @@ const copyToken = () => {
     <section v-for="config in configs.filter(c => c.isLiability)" :id="`section-${config.key}`" :key="config.key" class="section-block">
       <HoldingTable
         :title="config.title"
-        :rows="filteredHoldings[config.key]"
+        :rows="enrichedHoldings[config.key]"
         :columns="config.columns"
         :is-liability="config.isLiability"
       />
