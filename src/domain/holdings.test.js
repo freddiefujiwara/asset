@@ -1,7 +1,21 @@
 import { describe, expect, it } from "vitest";
+import * as holdingsDomain from "./holdings";
 import { EMPTY_HOLDINGS, HOLDING_TABLE_CONFIGS, stockFundSummary, stockTiles, fundTiles, pensionTiles, stockFundRows, allRiskTiles } from "./holdings";
 
 describe("holdings domain", () => {
+  it("keeps expected exported functions on the holdings barrel", () => {
+    expect(holdingsDomain).toMatchObject({
+      EMPTY_HOLDINGS: expect.any(Object),
+      HOLDING_TABLE_CONFIGS: expect.any(Array),
+      stockFundRows: expect.any(Function),
+      stockFundSummary: expect.any(Function),
+      stockTiles: expect.any(Function),
+      fundTiles: expect.any(Function),
+      pensionTiles: expect.any(Function),
+      allRiskTiles: expect.any(Function),
+    });
+  });
+
   it("provides stable default shape", () => {
     expect(Object.keys(EMPTY_HOLDINGS)).toEqual([
       "cashLike",
