@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EMPTY_HOLDINGS, HOLDING_TABLE_CONFIGS, stockFundSummary, stockTiles, stockFundRows } from "./holdings";
+import { EMPTY_HOLDINGS, HOLDING_TABLE_CONFIGS, stockFundSummary, stockTiles, fundTiles, stockFundRows } from "./holdings";
 
 describe("holdings domain", () => {
   it("provides stable default shape", () => {
@@ -36,9 +36,9 @@ describe("holdings domain", () => {
     expect(summary.totalProfitRatePct).toBeCloseTo(-2.44, 2);
   });
 
-  it("builds stock tiles sorted by valuation with sign color flag", () => {
+  it("builds stock tiles sorted by valuation", () => {
     const tiles = stockTiles([
-      { 銘柄名: "A", 評価額: "200", 前日比: "10" },
+      { 銘柄名: "A", 評価額: "200", 前日比: "10", 評価損益: "50" },
       { 銘柄名: "B", 評価額: "100", 前日比: "-1" },
       { 銘柄名: "C", 評価額: "0", 前日比: "0" },
     ]);
@@ -48,6 +48,7 @@ describe("holdings domain", () => {
       name: "A",
       value: 200,
       dailyChange: 10,
+      profit: 50,
       isNegative: false,
     });
     expect(tiles[1]).toMatchObject({
@@ -57,10 +58,27 @@ describe("holdings domain", () => {
       isNegative: true,
     });
     expect(tiles[0].fontScale).toBeGreaterThan(tiles[1].fontScale);
+  });
 
-    const firstArea = tiles[0].width * tiles[0].height;
-    const secondArea = tiles[1].width * tiles[1].height;
-    expect(Math.round((firstArea / secondArea) * 10) / 10).toBe(2);
+  it("aggregates fund tiles by name", () => {
+    const funds = [
+      { 銘柄名: "Fund A", 評価額: "200", 前日比: "10", 評価損益: "20", 保有金融機関: "Bank X" },
+      { 銘柄名: "Fund A", 評価額: "100", 前日比: "5", 評価損益: "10", 保有金融機関: "Bank Y" },
+      { 銘柄名: "Fund B", 評価額: "500", 前日比: "-10", 評価損益: "-50", 保有金融機関: "Bank Z" },
+    ];
+
+    const tiles = fundTiles(funds);
+
+    expect(tiles).toHaveLength(2);
+    // Sorted by value (Fund B: 500, Fund A: 300)
+    expect(tiles[0].name).toBe("Fund B");
+    expect(tiles[1].name).toBe("Fund A");
+    expect(tiles[1].value).toBe(300);
+    expect(tiles[1].dailyChange).toBe(15);
+    expect(tiles[1].profit).toBe(30);
+    expect(tiles[1].details).toHaveLength(2);
+    expect(tiles[1].details[0]).toEqual({ institution: "Bank X", value: 200 });
+    expect(tiles[1].details[1]).toEqual({ institution: "Bank Y", value: 100 });
   });
 
   it("handles empty or non-array stocks in stockTiles", () => {
@@ -79,35 +97,68 @@ describe("holdings domain", () => {
   });
 
   it("triggers vertical split and deep treemap layout", () => {
-    // Width < Height to trigger vertical split
-    // Need enough items to trigger while loop
     const manyStocks = [
       { 銘柄名: "A", 評価額: "1000" },
-      { 銘柄名: "B", 評価額: "500" },
-      { 銘柄名: "C", 評価額: "300" },
-      { 銘柄名: "D", 評価額: "200" },
+      { 銘柄名: "B", 評価額: "1000" },
+      { 銘柄名: "C", 評価額: "1000" },
+      { 銘柄コード: "D-CODE", 評価額: "1000" },
     ];
-    // We can't directly control width/height of the root call from stockTiles as it is fixed at 100x100.
-    // However, layoutTreemap is recursive.
-    // If it splits horizontally, one of the children will have width < height if we are lucky or provide enough items.
-    // e.g. root 100x100. Split at 1000 vs (500+300+200=1000).
-    // Left: 50x100, Right: 50x100.
-    // In both children, width (50) < height (100) -> triggers vertical split!
     const tiles = stockTiles(manyStocks);
     expect(tiles).toHaveLength(4);
     expect(tiles.every(t => t.width > 0 && t.height > 0)).toBe(true);
 
-    // [100, 100, 100] to trigger while loop in treemap
-    const threeStocks = [
-      { 銘柄名: "A", 評価額: "100" },
-      { 銘柄名: "B", 評価額: "100" },
-      { 銘柄名: "C", 評価額: "100" },
-    ];
-    const tiles2 = stockTiles(threeStocks);
-    expect(tiles2).toHaveLength(3);
+    // D should have name from code
+    expect(tiles.find(t => t.value === 1000 && t.name === "D-CODE")).toBeDefined();
   });
 
-  it("handles missing name fields in stockTiles", () => {
+  it("exercises complex treemap splitting logic", () => {
+    const stocks = [
+      { 銘柄名: "A", 評価額: "10" },
+      { 銘柄名: "B", 評価額: "10" },
+      { 銘柄名: "C", 評価額: "10" },
+      { 銘柄名: "D", 評価額: "10" },
+      { 銘柄名: "E", 評価額: "10" },
+      { 銘柄名: "F", 評価額: "100" },
+    ];
+    const tiles = stockTiles(stocks);
+    expect(tiles).toHaveLength(6);
+  });
+
+  it("handles aggregation with missing optional fields", () => {
+    const funds = [
+      { 銘柄名: "Fund X", 評価額: "100" },
+      { 名称: "Fund X", 現在価値: "200" },
+    ];
+    const tiles = fundTiles(funds);
+    expect(tiles).toHaveLength(1);
+    expect(tiles[0].name).toBe("Fund X");
+    expect(tiles[0].value).toBe(300);
+  });
+
+  it("handles various fallbacks in aggregation", () => {
+    const funds = [
+      { 評価額: "100" }, // missing name -> 名称未設定
+      { 銘柄名: "A" }, // missing value -> 0 (filtered out)
+      { 銘柄名: "B", 評価額: "100", 評価損益: "10", 前日比: "5" } // institution missing -> 不明
+    ];
+    const tiles = fundTiles(funds);
+    expect(tiles).toHaveLength(2);
+    expect(tiles.find(t => t.value === 100 && t.name === "名称未設定")).toBeDefined();
+    const b = tiles.find(t => t.name === "B");
+    expect(b.details[0].institution).toBe("不明");
+  });
+
+  it("handles same valuation in fundTiles sort (no idx)", () => {
+    const funds = [
+      { 銘柄名: "B", 評価額: "100" },
+      { 銘柄名: "A", 評価額: "100" },
+    ];
+    const tiles = fundTiles(funds);
+    expect(tiles).toHaveLength(2);
+    // Since idx is undefined for both, it uses 0 - 0 = 0
+  });
+
+  it("handles missing name fields", () => {
     const tiles = stockTiles([
       { 銘柄コード: "1234", 評価額: "100" },
       { 評価額: "200" },

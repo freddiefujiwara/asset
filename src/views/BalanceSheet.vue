@@ -4,6 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 import HoldingTable from "@/components/HoldingTable.vue";
 import CopyButton from "@/components/CopyButton.vue";
 import AssetCategoryCard from "@/components/AssetCategoryCard.vue";
+import AssetTreemap from "@/components/AssetTreemap.vue";
 import { formatSignedYen, formatYen } from "@/domain/format";
 import { toNumber } from "@/domain/parse";
 import { balanceSheetLayout } from "@/domain/dashboard";
@@ -12,7 +13,7 @@ import { formatSignedPercent, signedClass } from "@/domain/signed";
 import { usePortfolioData } from "@/composables/usePortfolioData";
 import { filterHoldingsByOwner, OWNER_FILTERS, summarizeByCategory } from "@/domain/assetOwners";
 import { assetAmountYen } from "@/domain/family";
-import { EMPTY_HOLDINGS, HOLDING_TABLE_CONFIGS, stockFundSummary, stockTiles as buildStockTiles } from "@/domain/holdings";
+import { EMPTY_HOLDINGS, HOLDING_TABLE_CONFIGS, stockFundSummary, stockTiles as buildStockTiles, fundTiles as buildFundTiles } from "@/domain/holdings";
 import { useInitialHashRestore } from "@/composables/useInitialHashRestore";
 
 const route = useRoute();
@@ -126,7 +127,9 @@ const dailyMoveClass = computed(() => signedClass(dailyMoveTotal.value));
 const totalProfitYen = computed(() => summary.value.totalProfitYen);
 const totalProfitClass = computed(() => signedClass(totalProfitYen.value));
 const totalProfitRatePct = computed(() => summary.value.totalProfitRatePct);
+
 const stockTiles = computed(() => buildStockTiles(filteredHoldings.value?.stocks || []));
+const fundTiles = computed(() => buildFundTiles(filteredHoldings.value?.funds || []));
 
 const KEY_MAP = {
   breakdown: "asset_breakdown",
@@ -287,35 +290,16 @@ const copyToken = () => {
     </nav>
 
     <section v-for="config in configs.filter(c => !c.isLiability)" :id="`section-${config.key}`" :key="config.key" class="section-block">
-      <section v-if="config.key === 'stocks' && stockTiles.length" class="table-wrap">
-        <h3 class="section-title">保有銘柄（評価額）</h3>
-        <div class="stock-tile-grid">
-          <article
-            v-for="tile in stockTiles"
-            :key="`${tile.name}-${tile.value}`"
-            class="stock-tile"
-            :class="tile.isNegative ? 'is-negative-box' : 'is-positive-box'"
-            tabindex="0"
-            :aria-label="`${tile.name} 評価額 ${formatYen(tile.value)}`"
-            :style="{
-              left: `${tile.x}%`,
-              top: `${tile.y}%`,
-              width: `${tile.width}%`,
-              height: `${tile.height}%`,
-              '--name-scale': tile.fontScale,
-            }"
-          >
-            <p class="stock-tile-name">{{ tile.name }}</p>
-            <span class="stock-tile-tooltip" role="tooltip">
-              {{ tile.name }}<br>
-              評価額: <span class="amount-value">{{ formatYen(tile.value) }}</span>
-              <template v-if="tile.dailyChange != null">
-                <br>前日比: <span :class="signedClass(tile.dailyChange)">{{ formatSignedYen(tile.dailyChange) }}</span>
-              </template>
-            </span>
-          </article>
-        </div>
-      </section>
+      <AssetTreemap
+        v-if="config.key === 'stocks' && stockTiles.length"
+        title="保有銘柄（評価額）"
+        :tiles="stockTiles"
+      />
+      <AssetTreemap
+        v-if="config.key === 'funds' && fundTiles.length"
+        title="保有銘柄（評価額）"
+        :tiles="fundTiles"
+      />
       <HoldingTable
         :title="config.title"
         :rows="enrichedHoldings[config.key]"
