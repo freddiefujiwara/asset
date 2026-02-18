@@ -31,6 +31,8 @@ export const HOLDING_TABLE_CONFIGS = [
       { key: "評価損益", label: "評価損益" },
       { key: "評価損益率", label: "評価損益率" },
       { key: "__dailyChange", label: "前日比" },
+      { key: "__riskAssetRatio", label: "リスク比" },
+      { key: "__totalAssetRatio", label: "全体比" },
       { key: "保有金融機関", label: "金融機関" },
     ],
   },
@@ -43,6 +45,8 @@ export const HOLDING_TABLE_CONFIGS = [
       { key: "評価損益", label: "評価損益" },
       { key: "評価損益率", label: "評価損益率" },
       { key: "__dailyChange", label: "前日比" },
+      { key: "__riskAssetRatio", label: "リスク比" },
+      { key: "__totalAssetRatio", label: "全体比" },
       { key: "保有金融機関", label: "金融機関" },
     ],
   },
@@ -54,6 +58,8 @@ export const HOLDING_TABLE_CONFIGS = [
       { key: "現在価値", label: "現在価値" },
       { key: "評価損益", label: "評価損益" },
       { key: "評価損益率", label: "評価損益率" },
+      { key: "__riskAssetRatio", label: "リスク比" },
+      { key: "__totalAssetRatio", label: "全体比" },
     ],
   },
   {
@@ -111,22 +117,56 @@ export function stockFundSummary(holdings) {
   };
 }
 
-export function stockTiles(stocks) {
-  const safeRows = Array.isArray(stocks) ? stocks : [];
-  const prepared = safeRows
-    .map((row, idx) => {
-      const value = toNumber(row?.["評価額"]);
+/**
+ * Aggregates rows by name and builds treemap tiles.
+ */
+function buildTiles(rows, { aggregate = false } = {}) {
+  const safeRows = Array.isArray(rows) ? rows : [];
+
+  let processedRows = safeRows;
+  if (aggregate) {
+    const map = new Map();
+    safeRows.forEach(row => {
+      const name = row?.["銘柄名"] || row?.["名称"] || "名称未設定";
+      const value = toNumber(row?.["評価額"]) || toNumber(row?.["現在価値"]) || 0;
+      const profit = toNumber(row?.["評価損益"]) || 0;
+      const dailyChange = dailyChangeYen(row) || 0;
+      const institution = row?.["保有金融機関"] || "不明";
+
+      if (!map.has(name)) {
+        map.set(name, {
+          name,
+          value: 0,
+          profit: 0,
+          dailyChange: 0,
+          details: []
+        });
+      }
+      const entry = map.get(name);
+      entry.value += value;
+      entry.profit += profit;
+      entry.dailyChange += dailyChange;
+      entry.details.push({ institution, value });
+    });
+    processedRows = Array.from(map.values());
+  } else {
+    processedRows = safeRows.map((row, idx) => {
+      const value = toNumber(row?.["評価額"]) || toNumber(row?.["現在価値"]) || 0;
       return {
-        row,
-        idx,
+        name: row?.["銘柄名"] ?? row?.["銘柄コード"] ?? row?.["名称"] ?? "名称未設定",
         value,
+        profit: toNumber(row?.["評価損益"]),
         dailyChange: dailyChangeYen(row),
+        idx
       };
-    })
+    });
+  }
+
+  const prepared = processedRows
     .filter((entry) => entry.value > 0)
     .sort((a, b) => {
       if (a.value === b.value) {
-        return a.idx - b.idx;
+        return (a.idx ?? 0) - (b.idx ?? 0);
       }
       return b.value - a.value;
     });
@@ -143,16 +183,18 @@ export function stockTiles(stocks) {
   layoutTreemap(prepared, 0, 0, 100, 100, layouted);
 
   return layouted.map((entry) => ({
-    name: entry.row?.["銘柄名"] ?? entry.row?.["銘柄コード"] ?? "名称未設定",
-    value: entry.value,
-    dailyChange: entry.dailyChange,
+    ...entry,
     isNegative: entry.dailyChange != null && entry.dailyChange < 0,
-    x: entry.x,
-    y: entry.y,
-    width: entry.width,
-    height: entry.height,
     fontScale: 0.9 + ((entry.value - minValue) / range) * 0.9,
   }));
+}
+
+export function stockTiles(stocks) {
+  return buildTiles(stocks, { aggregate: false });
+}
+
+export function fundTiles(funds) {
+  return buildTiles(funds, { aggregate: true });
 }
 
 function layoutTreemap(items, x, y, width, height, output) {
