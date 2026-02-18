@@ -201,6 +201,14 @@ export function pensionTiles(pensions) {
   return buildTiles(pensions, { aggregate: true });
 }
 
+export function allRiskTiles(holdings) {
+  const stocks = holdings?.stocks || [];
+  const funds = holdings?.funds || [];
+  const pensions = holdings?.pensions || [];
+  const combined = [...stocks, ...funds, ...pensions];
+  return buildTiles(combined, { aggregate: true });
+}
+
 function layoutTreemap(items, x, y, width, height, output) {
   if (items.length === 1) {
     output.push({ ...items[0], x, y, width, height });
