@@ -57,7 +57,7 @@ describe("holdings domain", () => {
       dailyChange: -1,
       isNegative: true,
     });
-    expect(tiles[0].fontScale).toBeGreaterThan(tiles[1].fontScale);
+    expect(tiles[0].width * tiles[0].height).toBeGreaterThan(tiles[1].width * tiles[1].height);
   });
 
   it("aggregates fund tiles by name", () => {

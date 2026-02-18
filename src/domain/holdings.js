@@ -175,17 +175,12 @@ function buildTiles(rows, { aggregate = false } = {}) {
     return [];
   }
 
-  const maxValue = prepared[0].value;
-  const minValue = prepared[prepared.length - 1].value;
-  const range = Math.max(1, maxValue - minValue);
-
   const layouted = [];
   layoutTreemap(prepared, 0, 0, 100, 100, layouted);
 
   return layouted.map((entry) => ({
     ...entry,
     isNegative: entry.dailyChange != null && entry.dailyChange < 0,
-    fontScale: 0.9 + ((entry.value - minValue) / range) * 0.9,
   }));
 }
 

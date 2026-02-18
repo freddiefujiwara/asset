@@ -2,10 +2,83 @@
 import { formatYen, formatSignedYen } from "@/domain/format";
 import { signedClass } from "@/domain/signed";
 
-defineProps({
+const props = defineProps({
   title: { type: String, required: true },
   tiles: { type: Array, required: true },
 });
+
+const MIN_FONT_SIZE_PX = 10;
+const MAX_FONT_SIZE_PX = 52;
+const AREA_LOG_WEIGHT = 0.78;
+const VALUE_WEIGHT = 0.22;
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function tileAreaRatio(tile) {
+  const areaPercent = (tile.width || 0) * (tile.height || 0);
+  return clamp(areaPercent / 10000, 0, 1);
+}
+
+function maxTileValue(tiles) {
+  if (!Array.isArray(tiles) || !tiles.length) {
+    return 1;
+  }
+  return Math.max(1, ...tiles.map(tile => tile.value || 0));
+}
+
+function tileFontSizePx(tile, tiles) {
+  const areaRatio = tileAreaRatio(tile);
+  const areaScale = Math.log1p(areaRatio * 50) / Math.log1p(50);
+  const valueScale = clamp((tile.value || 0) / maxTileValue(tiles), 0, 1);
+  const blendedScale = clamp((areaScale * AREA_LOG_WEIGHT) + (valueScale * VALUE_WEIGHT), 0, 1);
+  return MIN_FONT_SIZE_PX + (MAX_FONT_SIZE_PX - MIN_FONT_SIZE_PX) * blendedScale;
+}
+
+function tileLineClamp(tile) {
+  const areaRatio = tileAreaRatio(tile);
+  if (areaRatio > 0.18) return 4;
+  if (areaRatio > 0.09) return 3;
+  if (areaRatio > 0.03) return 2;
+  return 1;
+}
+
+function compactTileName(name, tile) {
+  const safeName = String(name || "名称未設定");
+  const areaRatio = tileAreaRatio(tile);
+
+  if (areaRatio < 0.006) {
+    return `${safeName.slice(0, 2)}…`;
+  }
+  if (areaRatio < 0.015) {
+    return `${safeName.slice(0, 4)}…`;
+  }
+  if (areaRatio < 0.03) {
+    return `${safeName.slice(0, 7)}…`;
+  }
+  return safeName;
+}
+
+function tilePaddingPx(tile) {
+  const areaRatio = tileAreaRatio(tile);
+  if (areaRatio < 0.01) return 2;
+  if (areaRatio < 0.025) return 4;
+  if (areaRatio < 0.08) return 6;
+  return 10;
+}
+
+function tileStyle(tile, tiles) {
+  return {
+    left: `${tile.x}%`,
+    top: `${tile.y}%`,
+    width: `${tile.width}%`,
+    height: `${tile.height}%`,
+    "--tile-font-size": `${tileFontSizePx(tile, tiles)}px`,
+    "--tile-line-clamp": tileLineClamp(tile),
+    "--tile-padding": `${tilePaddingPx(tile)}px`,
+  };
+}
 </script>
 
 <template>
@@ -19,15 +92,9 @@ defineProps({
         :class="tile.isNegative ? 'is-negative-box' : 'is-positive-box'"
         tabindex="0"
         :aria-label="`${tile.name} 評価額 ${formatYen(tile.value)}`"
-        :style="{
-          left: `${tile.x}%`,
-          top: `${tile.y}%`,
-          width: `${tile.width}%`,
-          height: `${tile.height}%`,
-          '--name-scale': tile.fontScale,
-        }"
+        :style="tileStyle(tile, props.tiles)"
       >
-        <p class="stock-tile-name" :title="tile.name">{{ tile.name }}</p>
+        <p class="stock-tile-name" :title="tile.name">{{ compactTileName(tile.name, tile) }}</p>
         <span class="stock-tile-tooltip" role="tooltip">
           <div class="tooltip-content">
             <strong>{{ tile.name }}</strong><br>
