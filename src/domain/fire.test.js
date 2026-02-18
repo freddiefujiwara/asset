@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import * as fireDomain from "./fire";
 import {
   calculateRiskAssets,
   calculateExcludedOwnerAssets,
@@ -20,6 +21,29 @@ import {
 } from "./fire";
 
 describe("fire domain", () => {
+  it("keeps expected exported functions on the fire barrel", () => {
+    expect(fireDomain).toMatchObject({
+      FIRE_ALGORITHM_CONSTANTS: expect.any(Object),
+      calculateMonthlyPension: expect.any(Function),
+      calculateRiskAssets: expect.any(Function),
+      calculateExcludedOwnerAssets: expect.any(Function),
+      calculateDaughterAssetsBreakdown: expect.any(Function),
+      generateAlgorithmExplanationSegments: expect.any(Function),
+      calculateFirePortfolio: expect.any(Function),
+      calculateCashAssets: expect.any(Function),
+      estimateMonthlyExpenses: expect.any(Function),
+      estimateMonthlyIncome: expect.any(Function),
+      estimateIncomeSplit: expect.any(Function),
+      getPast5MonthSummary: expect.any(Function),
+      estimateMortgageMonthlyPayment: expect.any(Function),
+      calculateLifestyleReduction: expect.any(Function),
+      normalizeFireParams: expect.any(Function),
+      performFireSimulation: expect.any(Function),
+      generateGrowthTable: expect.any(Function),
+      generateAnnualSimulation: expect.any(Function),
+      runMonteCarloSimulation: expect.any(Function),
+    });
+  });
   describe("normalizeFireParams", () => {
     it("returns default values for empty input", () => {
       const result = normalizeFireParams({});

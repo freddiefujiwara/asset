@@ -1,9 +1,24 @@
 import { toNumber, toPercent } from "./parse";
 
+/**
+ * normalize層: APIレスポンス契約をアプリ内部ドメイン形に変換する責務のみを持つ。
+ * - 文字列/数値の型正規化はparse層に委譲
+ * - 表示整形は行わない
+ */
+
+/**
+ * @param {unknown} value
+ * @returns {Array<unknown>}
+ */
 function asArray(value) {
   return Array.isArray(value) ? value : [];
 }
 
+/**
+ * 年金行で評価損益が欠落しているケースを補完する。
+ * @param {any} row
+ * @returns {any}
+ */
 function withDerivedPensionProfit(row) {
   if (!row || typeof row !== "object") {
     return row;
@@ -28,6 +43,9 @@ function withDerivedPensionProfit(row) {
   };
 }
 
+/**
+ * @param {any} api
+ */
 export function normalizePortfolio(api) {
   const safeApi = api ?? {};
 

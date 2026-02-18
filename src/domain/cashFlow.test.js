@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
+import * as cashFlowDomain from "./cashFlow";
 import {
   filterCashFlow,
   getKPIs,
@@ -28,6 +29,26 @@ const mockCashFlow = [
 ];
 
 describe("cashFlow domain", () => {
+
+  describe("public API safety net", () => {
+    it("keeps expected exported functions on the cashFlow barrel", () => {
+      expect(cashFlowDomain).toMatchObject({
+        getExpenseType: expect.any(Function),
+        filterCashFlow: expect.any(Function),
+        sortCashFlow: expect.any(Function),
+        getKPIs: expect.any(Function),
+        aggregateByMonth: expect.any(Function),
+        getRecentAverages: expect.any(Function),
+        aggregateByCategory: expect.any(Function),
+        aggregateByType: expect.any(Function),
+        getUniqueMonths: expect.any(Function),
+        getUniqueCategories: expect.any(Function),
+        getUniqueLargeCategories: expect.any(Function),
+        getUniqueSmallCategories: expect.any(Function),
+      });
+    });
+  });
+
   describe("getExpenseType", () => {
     it("classifies transfers as exclude", () => {
       expect(getExpenseType({ isTransfer: true })).toBe("exclude");
@@ -47,6 +68,11 @@ describe("cashFlow domain", () => {
     it("handles null or empty input", () => {
       expect(getExpenseType(null)).toBe("variable");
       expect(getExpenseType("")).toBe("variable");
+    });
+
+    it("handles non-string categories safely", () => {
+      expect(getExpenseType({ isTransfer: false, category: 1234 })).toBe("variable");
+      expect(getExpenseType(1234)).toBe("variable");
     });
 
     it("classifies fixed expenses", () => {
@@ -128,6 +154,15 @@ describe("cashFlow domain", () => {
       ];
 
       expect(filterCashFlow(rows, { search: "food" })).toHaveLength(1);
+    });
+
+    it("treats non-string category values as uncategorized", () => {
+      const rows = [
+        { date: "2026-02-01", amount: -1000, category: 0, isTransfer: false, name: "A" },
+      ];
+
+      expect(filterCashFlow(rows, { largeCategory: "未分類" })).toHaveLength(1);
+      expect(getUniqueCategories(rows)).toEqual(["未分類"]);
     });
 
     it("can exclude transfer rows", () => {

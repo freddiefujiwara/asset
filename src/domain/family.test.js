@@ -1,7 +1,22 @@
 import { describe, expect, it } from "vitest";
+import * as familyDomain from "./family";
 import { assetAmountYen, detectAssetOwner, summarizeFamilyAssets, assetDisplayName, ownerFromText, calculateAge } from "./family";
 
 describe("family domain", () => {
+  it("keeps expected exported functions on the family barrel", () => {
+    expect(familyDomain).toMatchObject({
+      USER_BIRTH_DATE: expect.any(String),
+      SPOUSE_BIRTH_DATE: expect.any(String),
+      DAUGHTER_BIRTH_DATE: expect.any(String),
+      calculateAge: expect.any(Function),
+      ownerFromText: expect.any(Function),
+      detectAssetOwner: expect.any(Function),
+      assetAmountYen: expect.any(Function),
+      assetDisplayName: expect.any(Function),
+      summarizeFamilyAssets: expect.any(Function),
+    });
+  });
+
   it("calculates age correctly", () => {
     // 1979-09-02 born. On 2024-09-01, should be 44. On 2024-09-02, should be 45.
     const birthDate = "1979-09-02";
