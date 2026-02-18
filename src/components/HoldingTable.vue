@@ -13,8 +13,8 @@ const props = defineProps({
 const safeRows = computed(() => (Array.isArray(props.rows) ? props.rows : []));
 
 const amountLikePattern = /金額|残高|評価額|価値|損益/i;
-const nonAmountPattern = /コード|率|割合/i;
-const percentPattern = /率|割合/i;
+const nonAmountPattern = /コード|率|割合|比/i;
+const percentPattern = /率|割合|比/i;
 const SORTABLE_COLUMN_KEYS = new Set([
   "評価額",
   "評価損益",
@@ -135,24 +135,31 @@ function isStockNameColumn(column, row) {
   return column.key === "銘柄名" && row?.["銘柄コード"];
 }
 
+function isNameColumn(column) {
+  return /銘柄名|名称/.test(column.label);
+}
+
 function cellClass(column, row) {
+  const classes = [];
+  if (isNameColumn(column)) {
+    classes.push("cell-name");
+  }
+
   if (column.key === "評価損益" || column.key === "評価損益率") {
     const value = toNumber(row?.[column.key]);
-    if (value == null || value === 0) return "";
-    return value > 0 ? "is-positive" : "is-negative";
-  }
-
-  if (column.key === "__dailyChange") {
+    if (value != null && value !== 0) {
+      classes.push(value > 0 ? "is-positive" : "is-negative");
+    }
+  } else if (column.key === "__dailyChange") {
     const value = dailyChangeYen(row);
-    if (value == null || value === 0) return "";
-    return value > 0 ? "is-positive" : "is-negative";
+    if (value != null && value !== 0) {
+      classes.push(value > 0 ? "is-positive" : "is-negative");
+    }
+  } else if (isAmountColumn(column)) {
+    classes.push(props.isLiability ? "is-negative" : "is-positive");
   }
 
-  if (isAmountColumn(column)) {
-    return props.isLiability ? "is-negative" : "is-positive";
-  }
-
-  return "";
+  return classes.join(" ");
 }
 </script>
 
@@ -182,6 +189,7 @@ function cellClass(column, row) {
             :key="column.key"
             :class="cellClass(column, row)"
             :data-label="column.label"
+            :title="isNameColumn(column) ? row[column.key] : null"
           >
             <a
               v-if="isStockNameColumn(column, row)"
@@ -199,3 +207,24 @@ function cellClass(column, row) {
     </table>
   </section>
 </template>
+
+<style scoped>
+.cell-name {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Override default white-space for name column to ensure ellipsis works */
+table td.cell-name {
+  white-space: nowrap;
+}
+
+@media (max-width: 700px) {
+  .cell-name {
+    max-width: none;
+    white-space: normal !important;
+  }
+}
+</style>
