@@ -13,7 +13,7 @@ import { formatSignedPercent, signedClass } from "@/domain/signed";
 import { usePortfolioData } from "@/composables/usePortfolioData";
 import { filterHoldingsByOwner, OWNER_FILTERS, summarizeByCategory } from "@/domain/assetOwners";
 import { assetAmountYen } from "@/domain/family";
-import { EMPTY_HOLDINGS, HOLDING_TABLE_CONFIGS, stockFundSummary, stockTiles as buildStockTiles, fundTiles as buildFundTiles } from "@/domain/holdings";
+import { EMPTY_HOLDINGS, HOLDING_TABLE_CONFIGS, stockFundSummary, stockTiles as buildStockTiles, fundTiles as buildFundTiles, pensionTiles as buildPensionTiles } from "@/domain/holdings";
 import { useInitialHashRestore } from "@/composables/useInitialHashRestore";
 
 const route = useRoute();
@@ -130,6 +130,7 @@ const totalProfitRatePct = computed(() => summary.value.totalProfitRatePct);
 
 const stockTiles = computed(() => buildStockTiles(filteredHoldings.value?.stocks || []));
 const fundTiles = computed(() => buildFundTiles(filteredHoldings.value?.funds || []));
+const pensionTiles = computed(() => buildPensionTiles(filteredHoldings.value?.pensions || []));
 
 const KEY_MAP = {
   breakdown: "asset_breakdown",
@@ -299,6 +300,11 @@ const copyToken = () => {
         v-if="config.key === 'funds' && fundTiles.length"
         title="保有銘柄（評価額）"
         :tiles="fundTiles"
+      />
+      <AssetTreemap
+        v-if="config.key === 'pensions' && pensionTiles.length"
+        title="保有銘柄（評価額）"
+        :tiles="pensionTiles"
       />
       <HoldingTable
         :title="config.title"
