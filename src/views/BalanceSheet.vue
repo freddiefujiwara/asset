@@ -13,7 +13,7 @@ import { formatSignedPercent, signedClass } from "@/domain/signed";
 import { usePortfolioData } from "@/composables/usePortfolioData";
 import { filterHoldingsByOwner, OWNER_FILTERS, summarizeByCategory } from "@/domain/assetOwners";
 import { assetAmountYen } from "@/domain/family";
-import { EMPTY_HOLDINGS, HOLDING_TABLE_CONFIGS, stockFundSummary, stockTiles as buildStockTiles, fundTiles as buildFundTiles, pensionTiles as buildPensionTiles } from "@/domain/holdings";
+import { EMPTY_HOLDINGS, HOLDING_TABLE_CONFIGS, stockFundSummary, stockTiles as buildStockTiles, fundTiles as buildFundTiles, pensionTiles as buildPensionTiles, allRiskTiles } from "@/domain/holdings";
 import { useInitialHashRestore } from "@/composables/useInitialHashRestore";
 
 const route = useRoute();
@@ -131,6 +131,7 @@ const totalProfitRatePct = computed(() => summary.value.totalProfitRatePct);
 const stockTiles = computed(() => buildStockTiles(filteredHoldings.value?.stocks || []));
 const fundTiles = computed(() => buildFundTiles(filteredHoldings.value?.funds || []));
 const pensionTiles = computed(() => buildPensionTiles(filteredHoldings.value?.pensions || []));
+const totalRiskTiles = computed(() => allRiskTiles(filteredHoldings.value));
 
 const KEY_MAP = {
   breakdown: "asset_breakdown",
@@ -285,6 +286,12 @@ const copyToken = () => {
       <PieChart title="資産内訳（円グラフ）" :data="assetPie" />
       <PieChart title="負債内訳（円グラフ）" :data="liabilityPie" />
     </div>
+
+    <AssetTreemap
+      v-if="totalRiskTiles.length"
+      title="総保有銘柄（評価額）"
+      :tiles="totalRiskTiles"
+    />
 
     <nav class="section-jump" aria-label="保有資産の小カテゴリ">
       <a v-for="config in configs" :key="`jump-${config.key}`" :href="`#section-${config.key}`">{{ config.title }}</a>

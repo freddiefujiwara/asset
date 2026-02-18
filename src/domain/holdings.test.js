@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EMPTY_HOLDINGS, HOLDING_TABLE_CONFIGS, stockFundSummary, stockTiles, fundTiles, pensionTiles, stockFundRows } from "./holdings";
+import { EMPTY_HOLDINGS, HOLDING_TABLE_CONFIGS, stockFundSummary, stockTiles, fundTiles, pensionTiles, stockFundRows, allRiskTiles } from "./holdings";
 
 describe("holdings domain", () => {
   it("provides stable default shape", () => {
@@ -204,5 +204,35 @@ describe("holdings domain", () => {
     expect(tiles[1].name).toBe("Pension A");
     expect(tiles[1].value).toBe(1000);
     expect(tiles[1].profit).toBe(100);
+  });
+
+  it("builds allRiskTiles by combining stocks, funds, and pensions", () => {
+    const holdings = {
+      stocks: [{ 銘柄名: "Asset A", 評価額: "100" }],
+      funds: [{ 銘柄名: "Asset A", 評価額: "200" }, { 銘柄名: "Asset B", 評価額: "500" }],
+      pensions: [{ 名称: "Asset B", 現在価値: "500" }, { 名称: "Asset C", 現在価値: "1100" }],
+    };
+
+    const tiles = allRiskTiles(holdings);
+
+    // Asset C: 1100
+    // Asset B: 1000 (500 + 500)
+    // Asset A: 300 (100 + 200)
+    expect(tiles).toHaveLength(3);
+    expect(tiles[0].name).toBe("Asset C");
+    expect(tiles[0].value).toBe(1100);
+    expect(tiles[1].name).toBe("Asset B");
+    expect(tiles[1].value).toBe(1000);
+    expect(tiles[2].name).toBe("Asset A");
+    expect(tiles[2].value).toBe(300);
+  });
+
+  it("handles null/missing categories in allRiskTiles", () => {
+    const tiles = allRiskTiles(null);
+    expect(tiles).toEqual([]);
+
+    const tiles2 = allRiskTiles({ stocks: [{ 銘柄名: "S", 評価額: "10" }] });
+    expect(tiles2).toHaveLength(1);
+    expect(tiles2[0].name).toBe("S");
   });
 });
