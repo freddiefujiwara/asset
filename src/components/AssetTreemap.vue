@@ -83,7 +83,9 @@ function tileStyle(tile, tiles) {
 
 <template>
   <section class="table-wrap">
-    <h3 class="section-title">{{ title }}</h3>
+    <h3 class="section-title">
+      <slot name="title">{{ title }}</slot>
+    </h3>
     <div class="stock-tile-grid">
       <article
         v-for="tile in tiles"
