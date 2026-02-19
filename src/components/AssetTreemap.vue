@@ -5,6 +5,7 @@ import { signedClass } from "@/domain/signed";
 const props = defineProps({
   title: { type: String, required: true },
   tiles: { type: Array, required: true },
+  showDailyChange: { type: Boolean, default: true },
 });
 
 const MIN_FONT_SIZE_PX = 10;
@@ -101,7 +102,7 @@ function tileStyle(tile, tiles) {
           <div class="tooltip-content">
             <strong>{{ tile.name }}</strong><br>
             評価額: <span class="amount-value">{{ formatYen(tile.value) }}</span>
-            <template v-if="tile.dailyChange != null">
+            <template v-if="props.showDailyChange && tile.dailyChange != null">
               <br>前日比: <span :class="signedClass(tile.dailyChange)">{{ formatSignedYen(tile.dailyChange) }}</span>
             </template>
             <template v-if="tile.profit != null">

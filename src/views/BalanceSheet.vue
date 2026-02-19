@@ -328,6 +328,7 @@ const copyToken = () => {
         v-if="config.key === 'pensions' && pensionTiles.length"
         title="保有銘柄（評価額）"
         :tiles="pensionTiles"
+        :show-daily-change="false"
       >
         <template #title>
           保有銘柄（評価額）: <span class="amount-value is-positive">{{ formatYen(getCategoryAmount('pensions')) }}</span>
