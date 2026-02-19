@@ -1,7 +1,6 @@
 <script setup>
-import { computed, ref, onMounted, watch } from "vue";
+import { computed, ref } from "vue";
 import { dailyChangeYen, formatSignedYen, formatYen, holdingRowKey } from "@/domain/format";
-import { useYahooFinanceTicker } from "@/composables/useYahooFinanceTicker";
 import { toNumber } from "@/domain/parse";
 
 const props = defineProps({
@@ -27,24 +26,6 @@ const SORTABLE_COLUMN_KEYS = new Set([
 
 const sortKey = ref("");
 const sortDirection = ref("asc");
-
-const { tickerMap, requestTicker } = useYahooFinanceTicker();
-
-function requestTickersForStocks(rows) {
-  rows.forEach((row) => {
-    if (row?.["銘柄コード"] && row?.["銘柄名"]) {
-      requestTicker(row["銘柄名"]);
-    }
-  });
-}
-
-onMounted(() => {
-  requestTickersForStocks(safeRows.value);
-});
-
-watch(safeRows, (newRows) => {
-  requestTickersForStocks(newRows);
-});
 
 function isAmountColumn(column) {
   if (column.key === "__dailyChange") {
@@ -146,10 +127,16 @@ function formatCell(column, row) {
   return props.isLiability ? `-${formatted}` : formatted;
 }
 
-function stockPriceUrl(name) {
-  const ticker = tickerMap[name];
-  if (ticker) {
-    return `https://finance.yahoo.com/quote/${encodeURIComponent(ticker)}/`;
+function stockPriceUrl(name, code) {
+  const sCode = String(code ?? "");
+  if (/^[0-9]{4}$/.test(sCode)) {
+    return `https://finance.yahoo.co.jp/quote/${sCode}.T?term=1d`;
+  }
+  if (/^[0-9]{5}$/.test(sCode)) {
+    return `https://finance.yahoo.co.jp/quote/${sCode.substring(0, 4)}.T?term=1d`;
+  }
+  if (/^[A-Z]+$/.test(sCode)) {
+    return `https://finance.yahoo.com/quote/${sCode}/`;
   }
   return `https://www.google.com/search?q=${encodeURIComponent(String(name ?? ""))}`;
 }
@@ -217,7 +204,7 @@ function cellClass(column, row) {
             <a
               v-if="isStockNameColumn(column, row)"
               class="stock-link"
-              :href="stockPriceUrl(row[column.key])"
+              :href="stockPriceUrl(row[column.key], row['銘柄コード'])"
               target="_blank"
               rel="noopener noreferrer"
             >
