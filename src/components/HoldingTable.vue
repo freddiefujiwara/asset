@@ -127,8 +127,18 @@ function formatCell(column, row) {
   return props.isLiability ? `-${formatted}` : formatted;
 }
 
-function stockPriceUrl(name) {
-  return `https://www.google.com/search?q=${encodeURIComponent(`${String(name ?? "")} 株価`)}`;
+function stockPriceUrl(name, code) {
+  const sCode = String(code ?? "");
+  if (/^[0-9]{4}$/.test(sCode)) {
+    return `https://finance.yahoo.co.jp/quote/${sCode}.T?term=1d`;
+  }
+  if (/^[0-9]{5}$/.test(sCode)) {
+    return `https://finance.yahoo.co.jp/quote/${sCode.substring(0, 4)}.T?term=1d`;
+  }
+  if (/^[A-Z]+$/.test(sCode)) {
+    return `https://finance.yahoo.com/quote/${sCode}/`;
+  }
+  return `https://www.google.com/search?q=${encodeURIComponent(String(name ?? ""))}`;
 }
 
 function isStockNameColumn(column, row) {
@@ -194,7 +204,7 @@ function cellClass(column, row) {
             <a
               v-if="isStockNameColumn(column, row)"
               class="stock-link"
-              :href="stockPriceUrl(row[column.key])"
+              :href="stockPriceUrl(row[column.key], row['銘柄コード'])"
               target="_blank"
               rel="noopener noreferrer"
             >
