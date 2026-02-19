@@ -13,7 +13,7 @@ import { formatSignedPercent, signedClass } from "@/domain/signed";
 import { usePortfolioData } from "@/composables/usePortfolioData";
 import { filterHoldingsByOwner, OWNER_FILTERS, summarizeByCategory } from "@/domain/assetOwners";
 import { assetAmountYen } from "@/domain/family";
-import { EMPTY_HOLDINGS, HOLDING_TABLE_CONFIGS, stockFundSummary, stockTiles as buildStockTiles, fundTiles as buildFundTiles, pensionTiles as buildPensionTiles, allRiskTiles } from "@/domain/holdings";
+import { EMPTY_HOLDINGS, HOLDING_TABLE_CONFIGS, riskAssetSummary, stockTiles as buildStockTiles, fundTiles as buildFundTiles, pensionTiles as buildPensionTiles, allRiskTiles } from "@/domain/holdings";
 import { useInitialHashRestore } from "@/composables/useInitialHashRestore";
 
 const route = useRoute();
@@ -119,8 +119,8 @@ const enrichedHoldings = computed(() => {
   return result;
 });
 
-const summary = computed(() => stockFundSummary(filteredHoldings.value));
-const stocksAndFundsTotal = computed(() => summary.value.totalYen);
+const summary = computed(() => riskAssetSummary(filteredHoldings.value));
+const riskAssetsTotal = computed(() => summary.value.totalYen);
 const dailyMoves = computed(() => summary.value.dailyMoves);
 const dailyMoveTotal = computed(() => summary.value.dailyMoveTotal);
 const dailyMoveClass = computed(() => signedClass(dailyMoveTotal.value));
@@ -209,7 +209,7 @@ const copyToken = () => {
 
     <section class="table-wrap">
       <div class="header-with-action">
-        <h2 class="section-title">資産管理（保有資産・家族別統合）</h2>
+        <h2 class="section-title">リスク資産管理（保有リスク資産・家族別統合）</h2>
         <CopyButton
           label="📋 資産状況をコピー"
           :copy-value="getMappedAssetStatusJson"
@@ -230,7 +230,7 @@ const copyToken = () => {
         </button>
       </div>
       <div class="summary-row">
-        <span>評価額合計: <strong class="amount-value is-positive">{{ formatYen(stocksAndFundsTotal) }}</strong></span>
+        <span>評価額合計: <strong class="amount-value is-positive">{{ formatYen(riskAssetsTotal) }}</strong></span>
         <span>
           評価損益合計:
           <strong :class="['amount-value', totalProfitClass]">{{ formatSignedYen(totalProfitYen) }}</strong>

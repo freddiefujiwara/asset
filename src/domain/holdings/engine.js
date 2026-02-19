@@ -94,12 +94,19 @@ export function stockFundRows(holdings) {
   return [...holdingRows(safe, "stocks"), ...holdingRows(safe, "funds")];
 }
 
-export function stockFundSummary(holdings) {
-  const rows = stockFundRows(holdings);
-  const totalYen = rows.reduce((sum, row) => sum + toNumber(row?.["評価額"]), 0);
-  const dailyMoves = rows.map((row) => dailyChangeYen(row)).filter((value) => value != null);
+export function riskAssetSummary(holdings) {
+  const sfRows = stockFundRows(holdings);
+  const safe = holdings ?? EMPTY_HOLDINGS;
+  const pRows = Array.isArray(safe.pensions) ? safe.pensions : [];
+  const allRows = [...sfRows, ...pRows];
+
+  const totalYen = allRows.reduce(
+    (sum, row) => sum + (toNumber(row?.["評価額"]) || toNumber(row?.["現在価値"])),
+    0,
+  );
+  const dailyMoves = sfRows.map((row) => dailyChangeYen(row)).filter((value) => value != null);
   const dailyMoveTotal = dailyMoves.reduce((sum, value) => sum + value, 0);
-  const totalProfitYen = rows.reduce((sum, row) => {
+  const totalProfitYen = allRows.reduce((sum, row) => {
     if (!row || !("評価損益" in row)) {
       return sum;
     }
@@ -108,7 +115,7 @@ export function stockFundSummary(holdings) {
   const totalProfitRatePct = totalProfitRate(totalYen, totalProfitYen);
 
   return {
-    rows,
+    rows: allRows,
     totalYen,
     dailyMoves,
     dailyMoveTotal,

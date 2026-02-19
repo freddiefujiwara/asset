@@ -2,7 +2,7 @@ export {
   EMPTY_HOLDINGS,
   HOLDING_TABLE_CONFIGS,
   stockFundRows,
-  stockFundSummary,
+  riskAssetSummary,
   stockTiles,
   fundTiles,
   pensionTiles,
