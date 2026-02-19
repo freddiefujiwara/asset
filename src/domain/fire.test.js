@@ -1024,6 +1024,26 @@ describe("fire domain", () => {
       expect(result.length).toBe(61);
       expect(result[0].age).toBe(40);
       expect(result[result.length - 1].age).toBe(100);
+      expect(result[0].assets).toEqual(expect.any(Number));
+      expect(result[0].assetsYearEnd).toEqual(expect.any(Number));
+      expect(result[0]).toHaveProperty("fireMonthInYear");
+    });
+
+    it("marks FIRE month in annual row and keeps monthly/start-vs-end separation", () => {
+      const result = generateAnnualSimulation({
+        initialAssets: 120000000,
+        riskAssets: 100000000,
+        annualReturnRate: 0.05,
+        monthlyExpense: 200000,
+        monthlyIncome: 300000,
+        currentAge: 50,
+        retirementLumpSumAtFire: 5000000,
+      });
+
+      const fireYear = result.find((row) => row.fireMonthInYear !== null);
+      expect(fireYear).toBeTruthy();
+      expect(fireYear.fireMonthInYear % 12).toBeGreaterThanOrEqual(0);
+      expect(fireYear.assetsYearEnd).not.toBe(fireYear.assets);
     });
 
     it("caps investment by available cash and keeps cashAssets non-negative", () => {

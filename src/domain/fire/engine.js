@@ -910,7 +910,7 @@ export function generateGrowthTable(params) {
  * Generate annual simulation data for a representative scenario until age 100.
  */
 export function generateAnnualSimulation(params) {
-  const { monthlyData } = performFireSimulation(params, { recordMonthly: true });
+  const { monthlyData, fireReachedMonth } = performFireSimulation(params, { recordMonthly: true });
   const yearlySummaries = [];
   for (let y = 0; y < Math.ceil(monthlyData.length / 12); y++) {
     const startIdx = y * 12;
@@ -922,7 +922,11 @@ export function generateAnnualSimulation(params) {
     const withdrawal = slice.reduce((sum, m) => sum + m.withdrawal, 0);
     const gain = slice.reduce((sum, m) => sum + m.investmentGain, 0);
     const firstMonth = monthlyData[startIdx];
+    const endMonth = (endIdx < monthlyData.length) ? monthlyData[endIdx] : monthlyData[endIdx - 1];
     const endCash = (endIdx < monthlyData.length) ? monthlyData[endIdx].cashAssets : monthlyData[endIdx - 1].cashAssets;
+    const fireMonthInYear = fireReachedMonth >= startIdx && fireReachedMonth < endIdx
+      ? fireReachedMonth
+      : null;
     yearlySummaries.push({
       age: Math.floor(firstMonth.age),
       income: Math.round(income),
@@ -931,9 +935,11 @@ export function generateAnnualSimulation(params) {
       withdrawal: Math.round(withdrawal),
       investmentGain: Math.round(gain),
       assets: Math.round(firstMonth.assets),
+      assetsYearEnd: Math.round(endMonth.assets),
       riskAssets: Math.round(firstMonth.riskAssets),
       cashAssets: Math.round(firstMonth.cashAssets),
       savings: Math.round(endCash - firstMonth.cashAssets),
+      fireMonthInYear,
     });
   }
   return yearlySummaries;
