@@ -37,6 +37,10 @@ function selectOwner(ownerId) {
 const filteredHoldings = computed(() => filterHoldingsByOwner(data.value?.holdings, selectedOwner.value) || EMPTY_HOLDINGS);
 const categoryCards = computed(() => summarizeByCategory(filteredHoldings.value));
 
+const getCategoryAmount = (key) => {
+  return categoryCards.value.find((c) => c.key === key)?.amountYen || 0;
+};
+
 const assetsByClass = computed(() => {
   const assets = categoryCards.value.filter((c) => !c.isLiability);
   const total = assets.reduce((sum, c) => sum + c.amountYen, 0);
@@ -291,7 +295,11 @@ const copyToken = () => {
       v-if="totalRiskTiles.length"
       title="総保有銘柄（評価額）"
       :tiles="totalRiskTiles"
-    />
+    >
+      <template #title>
+        総保有銘柄（評価額）: <span class="amount-value is-positive">{{ formatYen(riskAssetsTotal) }}</span>
+      </template>
+    </AssetTreemap>
 
     <nav class="section-jump" aria-label="保有資産の小カテゴリ">
       <a v-for="config in configs" :key="`jump-${config.key}`" :href="`#section-${config.key}`">{{ config.title }}</a>
@@ -302,17 +310,29 @@ const copyToken = () => {
         v-if="config.key === 'stocks' && stockTiles.length"
         title="保有銘柄（評価額）"
         :tiles="stockTiles"
-      />
+      >
+        <template #title>
+          保有銘柄（評価額）: <span class="amount-value is-positive">{{ formatYen(getCategoryAmount('stocks')) }}</span>
+        </template>
+      </AssetTreemap>
       <AssetTreemap
         v-if="config.key === 'funds' && fundTiles.length"
         title="保有銘柄（評価額）"
         :tiles="fundTiles"
-      />
+      >
+        <template #title>
+          保有銘柄（評価額）: <span class="amount-value is-positive">{{ formatYen(getCategoryAmount('funds')) }}</span>
+        </template>
+      </AssetTreemap>
       <AssetTreemap
         v-if="config.key === 'pensions' && pensionTiles.length"
         title="保有銘柄（評価額）"
         :tiles="pensionTiles"
-      />
+      >
+        <template #title>
+          保有銘柄（評価額）: <span class="amount-value is-positive">{{ formatYen(getCategoryAmount('pensions')) }}</span>
+        </template>
+      </AssetTreemap>
       <HoldingTable
         :title="config.title"
         :rows="enrichedHoldings[config.key]"
