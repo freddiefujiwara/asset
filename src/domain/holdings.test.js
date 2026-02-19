@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import * as holdingsDomain from "./holdings";
-import { EMPTY_HOLDINGS, HOLDING_TABLE_CONFIGS, stockFundSummary, stockTiles, fundTiles, pensionTiles, stockFundRows, allRiskTiles } from "./holdings";
+import { EMPTY_HOLDINGS, HOLDING_TABLE_CONFIGS, riskAssetSummary, stockTiles, fundTiles, pensionTiles, stockFundRows, allRiskTiles } from "./holdings";
 
 describe("holdings domain", () => {
   it("keeps expected exported functions on the holdings barrel", () => {
@@ -8,7 +8,7 @@ describe("holdings domain", () => {
       EMPTY_HOLDINGS: expect.any(Object),
       HOLDING_TABLE_CONFIGS: expect.any(Array),
       stockFundRows: expect.any(Function),
-      stockFundSummary: expect.any(Function),
+      riskAssetSummary: expect.any(Function),
       stockTiles: expect.any(Function),
       fundTiles: expect.any(Function),
       pensionTiles: expect.any(Function),
@@ -36,18 +36,23 @@ describe("holdings domain", () => {
     expect(pensions.columns.some((c) => c.key === "__totalAssetRatio")).toBe(true);
   });
 
-  it("computes stock/fund summary", () => {
-    const summary = stockFundSummary({
+  it("computes risk asset summary including pensions", () => {
+    const summary = riskAssetSummary({
       ...EMPTY_HOLDINGS,
       stocks: [{ 評価額: "100", 前日比: "10", 評価損益: "20" }],
       funds: [{ 評価額: "300", 前日比: "-20", 評価損益: "-30" }, { 評価額: "not number" }],
+      pensions: [{ 現在価値: "500", 評価損益: "50" }],
     });
 
-    expect(summary.totalYen).toBe(400);
+    // totalYen: 100 + 300 + 0 + 500 = 900
+    expect(summary.totalYen).toBe(900);
+    // dailyMoves: only stocks/funds [10, -20]
     expect(summary.dailyMoves).toEqual([10, -20]);
     expect(summary.dailyMoveTotal).toBe(-10);
-    expect(summary.totalProfitYen).toBe(-10);
-    expect(summary.totalProfitRatePct).toBeCloseTo(-2.44, 2);
+    // totalProfitYen: 20 + (-30) + 50 = 40
+    expect(summary.totalProfitYen).toBe(40);
+    // totalProfitRatePct: principal = 900 - 40 = 860. 40 / 860 * 100 = 4.651...
+    expect(summary.totalProfitRatePct).toBeCloseTo(4.65, 2);
   });
 
   it("builds stock tiles sorted by valuation", () => {
@@ -195,14 +200,15 @@ describe("holdings domain", () => {
     ).toEqual([{ 評価額: "100" }]);
   });
 
-  it("ignores malformed rows when calculating stock/fund profit totals", () => {
-    const summary = stockFundSummary({
+  it("ignores malformed rows when calculating risk asset profit totals", () => {
+    const summary = riskAssetSummary({
       ...EMPTY_HOLDINGS,
       stocks: [null, { 評価額: "100" }],
       funds: [{ 評価額: "200", 評価損益: "20" }],
+      pensions: [{ 現在価値: "500" }],
     });
 
-    expect(summary.totalYen).toBe(300);
+    expect(summary.totalYen).toBe(800);
     expect(summary.totalProfitYen).toBe(20);
   });
 
