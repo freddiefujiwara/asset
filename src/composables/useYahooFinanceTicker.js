@@ -63,3 +63,16 @@ export function useYahooFinanceTicker() {
     requestTicker,
   };
 }
+
+/**
+ * Reset internal state for testing purposes.
+ * @private
+ */
+export function _resetInternalState() {
+  for (const key in tickerMap) {
+    delete tickerMap[key];
+  }
+  fetchingSet.clear();
+  queue.length = 0;
+  isProcessing = false;
+}

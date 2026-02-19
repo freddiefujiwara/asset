@@ -20,6 +20,7 @@ export default defineConfig({
       include: [
         "src/domain/**/*.js",
         "src/stores/**/*.js",
+        "src/composables/useYahooFinanceTicker.js",
         "src/components/FireSimulationTable.vue",
         "src/components/FireSimulationChart.vue",
         "src/components/StackedBarChart.vue",
