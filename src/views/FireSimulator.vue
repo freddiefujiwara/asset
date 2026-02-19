@@ -274,7 +274,7 @@ const algorithmExplanationFull = computed(() => {
 
 const buildConditionsAndAlgorithmJson = () => ({
   conditions: {
-    currentNetAssetsYen: initialAssets.value,
+    totalFinancialAssetsYen: initialAssets.value,
     riskAssetsYen: riskAssets.value,
     cashAssetsYen: cashAssets.value,
     estimatedAnnualExpenseYen: monthlyExpense.value * 12,
@@ -531,7 +531,7 @@ const copyAnnualTable = () => JSON.stringify(buildAnnualTableJson(), null, 2);
           <summary>条件の確認</summary>
           <div class="initial-summary-grid">
             <div>
-              <span class="meta">現在の純資産:</span>
+              <span class="meta">総金融資産:</span>
               <span class="amount-value" style="margin-left: 8px;">{{ formatYen(initialAssets) }}</span>
             </div>
             <div>
