@@ -27,8 +27,8 @@ This project solves that fragmentation problem by loading one portfolio payload 
 The app gives one integrated personal finance dashboard with three major capabilities:
 
 1. **Balance sheet visualization** (assets, liabilities, net worth)
-2. **Cash flow analytics** (filters, KPIs, monthly/category aggregation)
-3. **FIRE simulation** (retirement timing and sustainability until age 100)
+2. **Cash flow analytics** (filters, KPIs, monthly/category aggregation, 3-type expense classification)
+3. **FIRE simulation** (deterministic and Monte Carlo sustainability analysis until age 100)
 
 The app is designed for direct practical use, not just static reporting. It supports:
 
@@ -44,7 +44,7 @@ The app is designed for direct practical use, not just static reporting. It supp
 - **Data inconsistency**: Input fields can include currency symbols, commas, or percent strings. Parsing/normalization layers standardize values.
 - **Resilience**: If API fails, app automatically falls back to mock data.
 - **Owner separation**: Holdings can be filtered by owner (self/spouse/daughter) through text-based owner detection rules.
-- **Financial planning complexity**: FIRE module includes inflation, tax, pension timing, mortgage payoff, and post-FIRE expense settings.
+- **Financial planning complexity**: FIRE module includes inflation, tax, pension timing, mortgage payoff, lifestyle reduction, and sequence-of-returns risk (Monte Carlo).
 
 ---
 
@@ -63,8 +63,8 @@ The app is designed for direct practical use, not just static reporting. It supp
 ### 2.2 High-Level Layer Design
 
 1. **UI/View Layer (`src/views`, `src/components`)**
-   - Presents charts/tables/forms.
-   - Handles user interactions and copy actions.
+   - Presents interactive charts (SVG-based) and tables.
+   - Handles user interactions, filtering, and copy actions.
 
 2. **State Layer (`src/stores`)**
    - `portfolio` store fetches + normalizes portfolio data.
@@ -285,57 +285,46 @@ Each transaction row is converted to:
 ### Functions
 
 1. Owner filter (`all`, `me`, `wife`, `daughter`) via query param.
-2. Category cards with per-category totals and counts.
+2. Category cards with per-category totals, counts, and privacy blurring.
 3. Balance sheet geometry (asset panel vs liability/net-worth split).
-4. Stock/Fund summary:
-   - total amount
-   - total daily change
-   - total profit
-   - total profit rate
-5. Treemap-like stock tiles.
-6. Detailed holding tables by category.
-7. Copy mapped raw asset JSON (excluding cash flow key).
+4. Risk Asset summary (Stocks, Investment Trusts, Pensions):
+   - Total valuation amount.
+   - Total daily change (calculates from Stocks and Investment Trusts, excluding Pensions).
+   - Total profit and profit rate.
+5. Integrated risk asset Treemap 「総保有銘柄（評価額）」 showing combined holdings.
+6. Individual category Treemaps for Stocks, Investment Trusts (aggregated by name), and Pensions (aggregated by name).
+7. Detailed holding tables with sortable risk/total asset ratios and CSS ellipsis for long names.
+8. Copy mapped raw asset JSON (excluding cash flow key) for external analysis.
 
 ### Input/Output
 
 - Input: normalized `data.holdings` + query param `owner`
 - Output: computed view data (cards, charts, tables, totals)
 
-### Edge Cases
-
-- Unknown owner query -> fallback `all`
-- Empty holdings -> empty cards/tables/charts (no crash)
-- Missing daily change field -> ignored in summary daily totals
-
 ---
 
 ## 4.5 Cash Flow Page
 
-### Filters
+### Filters and Interactivity
 
 - Month (`YYYY-MM`)
-- Large category
-- Small category (depends on selected large category)
-- Text search (name + category)
-- Include/exclude transfers
+- Large/Small category (synchronized with Pie Chart legend clicks for drill-down).
+- Type filter: **Fixed** (固定費), **Variable** (変動費), **Exclude** (除外).
+- Text search (name + category).
+- Include/exclude transfers (transfers are always categorized as 'Exclude' and omitted from lifestyle cost averages).
 
 ### Metrics and Aggregations
 
-- KPI: income, expense, net, transfers
-- Monthly aggregation (income/expense/net)
-- Expense category pie (5-month average option excluding current month)
-- Optional 6-month averages for monthly bars
+- KPI: income, expense, net, transfers.
+- Monthly Trends: Dual-axis chart showing income/expense bars (left) and deviation rates (right) for Total/Fixed/Variable costs.
+- Stacked Expense Bars: Visualizes Fixed (#38bdf8) at the bottom, Variable (#f59e0b) in the middle, and Exclude (#4b5563) at the top.
+- Expense category pie (interactive legend, 5-month average option).
+- 5-month summary including breakdown of fixed/variable averages synchronized with FIRE simulator.
 
 ### Copy Features
 
-- Per-month `mfcf` JSON snippets
-- Past-5-month summary JSON (for FIRE defaulting)
-
-### Edge Cases
-
-- Missing category -> treated as `未分類`
-- Missing/invalid date -> excluded from month-based ops
-- If filter active, monthly net aggregation behavior changes to avoid misleading global net line
+- Per-month `mfcf` JSON snippets.
+- Past-5-month summary JSON (for FIRE simulation parameters).
 
 ---
 
@@ -345,40 +334,30 @@ Each transaction row is converted to:
 
 User-adjustable parameters include:
 
-- `monthlyInvestment`
-- `annualReturnRate`
-- `currentAge`
-- `withdrawalRate`
-- `includeInflation`, `inflationRate`
-- `includeTax`, `taxRate`
-- `includePension`
-- `mortgageMonthlyPayment`
-- `mortgagePayoffDate`
-- `postFireExtraExpense`
-- Regular income / bonus / expense (manual or auto from 5-month history)
+- `monthlyInvestment`, `annualReturnRate`.
+- `currentAge`, `withdrawalRate`.
+- `includeInflation` / `inflationRate`.
+- `includeTax` / `taxRate` (Defaults to **enabled**).
+- `includePension` (Integrated household model based on 1979/1976/2013 birth dates).
+- `mortgageMonthlyPayment`, `mortgagePayoffDate` (Payments stop following the specified payoff month).
+- `postFireExtraExpense` (Covers National Health Insurance, Pension, Property Tax), `postFireFirstYearExtraExpense` (Social insurance spike).
+- `retirementLumpSumAtFire` (Retirement bonus).
+- **Monte Carlo Settings**: Trials count, annual volatility.
 
 ### 4.6.2 Auto-derived values
 
-- Initial assets / risk assets / cash assets from owner-scoped portfolio
-- Past-5-month summary for expense/income/bonus defaults
-- Mortgage payment estimate from category prefix `住宅/ローン返済`
+- Initial assets: Total Financial Assets (`totalFinancialAssetsYen`), risk assets, and cash assets from owner-scoped portfolio.
+- Past-5-month summary for expense/income/bonus defaults from Cash Flow history.
+- Mortgage payment estimate from category prefix `住宅/ローン返済`.
 
 ### 4.6.3 Outputs
 
-- Earliest FIRE month that survives to age 100
-- FIRE age/date and required assets at FIRE point
-- Monthly growth table for chart
-- Annual simulation summary table
-- Algorithm explanation segments for copy/export
-
-### 4.6.4 Exception / Edge Behavior
-
-- If no survivable month found in horizon -> "not achieved" style state
-- `monthlyExpense` fallback from `monthlyExpenses / 12` for backward compatibility
-- Month cap defaults to 1200
-- Investment per month is capped by available cash (no forced negative cash through investing)
-- Mortgage payoff month itself is still paid; drop starts from following month
-- Income is forced to zero after FIRE month
+- Earliest FIRE month/age that survives to age 100.
+- 'Required Assets for FIRE' (あといくら必要か calculation).
+- Interactive Chart: Asset growth paths, required assets line, and life event annotations (e.g., "Daughter's Independence" at April 2037).
+- **Monte Carlo Results**: Success rate and P10/P50/P90 percentile paths visualizing sequence-of-returns risk.
+- Annual simulation summary table.
+- Algorithm explanation with detailed breakdown of excluded assets and lifestyle reduction rules.
 
 ---
 
@@ -387,391 +366,123 @@ User-adjustable parameters include:
 ## 5.1 Parsing Algorithms
 
 ### `toNumber`
-1. If input is finite number -> return as-is.
-2. If non-string -> return 0.
-3. Remove yen symbols, commas, spaces, "円", and non-numeric punctuation except `+ - .`.
-4. Convert with `Number(...)`.
-5. If not finite -> 0.
-
-Time: **O(n)** on string length.
-Space: **O(n)** temporary normalized string.
-
-### `toPercent`
-Similar structure; removes `%` then number-converts.
+Robustly extracts numeric values from strings containing currency symbols, commas, and Japanese characters.
+Time: **O(n)**; Space: **O(n)**.
 
 ---
 
 ## 5.2 Balance Layout Algorithm (`balanceSheetLayout`)
-
-Input: assets/liabilities/net worth.
-
-1. Clamp negative values to zero for layout stability.
-2. Compute right side = liabilities + net worth.
-3. If total is zero -> fallback fixed rectangle ratios.
-4. Else compute proportional widths/heights.
-5. Clamp widths/heights into `[20, 80]` when both counterpart values are non-zero to avoid very thin visual blocks.
-
-Time: **O(1)**.
-Space: **O(1)**.
+Calculates proportional widths/heights for the visual balance sheet, clamping ratios to avoid invisible blocks.
 
 ---
 
 ## 5.3 Stock Treemap Algorithm (`layoutTreemap`)
-
-This is a recursive binary split algorithm:
-
-1. Sort entries by value descending before recursion.
-2. At each recursion:
-   - Compute total of segment.
-   - Find split index where left sum is close to half.
-3. Split along longer dimension:
-   - If width >= height: vertical split
-   - Else: horizontal split
-4. Recurse for left and right sublists.
-5. Base case: one item -> assign full rectangle.
-
-Time: approximately **O(n log n)** average due recursive partitioning with per-level scans.
-Space: **O(n)** output + recursion stack.
+Recursive binary split algorithm.
+- Aggregation: Investment Trusts and Pensions are aggregated by name across different institutions before layout.
+- Logic: Splits along the longer dimension to maintain aspect ratio.
+Time: **O(n log n)**; Space: **O(n)**.
 
 ---
 
 ## 5.4 Owner Detection Algorithm
-
-Owner is inferred from text suffix patterns inside any string field of a row:
-
-- contains `@sample-spouse` -> wife (sample data)
-- contains `@sample-child` -> daughter (sample data)
-- else -> me
-
-Used by:
-
-- owner-based holdings filter
-- family summary
-- FIRE owner isolation
-- daughter asset exclusion/breakdown
-
-Complexity per row: **O(k)** over merged text size.
+Inferred from string suffix patterns (e.g., `@chipop` for wife, `@aojiru.pudding` for daughter).
+Complexity: **O(k)** per row.
 
 ---
 
 ## 5.5 Cash Flow Aggregation Algorithms
 
-### `filterCashFlow`
-Checks each row against active filters (month, category, transfer, text).
+### `getExpenseType`
+Classifies expenses into 3 types:
+1. **Exclude**: `isTransfer` OR specific keywords (Special Expenses, Cash, Card).
+2. **Fixed**: Mortgage, Utilities, Insurance, Education, Health, certain Food categories.
+3. **Variable**: All other negative transactions.
 
-Time: **O(n)**.
-
-### `aggregateByMonth`
-Groups non-transfer rows by `YYYY-MM` key, sums income/expense/net.
-
-Time: **O(n)**.
-Space: **O(m)** for month map.
-
-### `aggregateByCategory`
-Groups negative non-transfer rows by category, optional averaging window.
-
-Time: **O(n log n)** due final sorting.
+### `getRecentAverages`
+Calculates 5-month historical averages (excluding current month) for all expense types to ensure consistency across pages.
 
 ---
 
 ## 5.6 FIRE Simulation Core Algorithm
 
-### 5.6.1 Parameter normalization
-`normalizeFireParams` converts all inputs to numbers/booleans, sets defaults, and applies backward compatibility for old field names.
+### 5.6.1 Monthly Simulation Logic
+Calculates monthly transitions considering:
+- **Taxes**: Tracks cost basis of risk assets; applies capital gains tax only to the profit portion of withdrawals.
+- **Investment Limits**: Monthly investment is capped by available cash to prevent negative cash positions.
+- **Retirement Events**: Injects a lump sum at FIRE and applies a social insurance "spike" in the first post-retirement year.
 
-### 5.6.2 Monthly simulation state
-At each month, state includes:
+### 5.6.2 Lifestyle Reduction
+Automatically reduces specific category expenses starting April 2037 (Daughter's independence):
+- **x2/3 Multiplier**: Food, Communication, Clothing/Beauty, Daily Goods.
+- **Zero**: Education.
 
-- `currentCash`
-- `currentRisk`
-- derived total assets
-- income / pension / expenses
-- withdrawal and investment gain
-- lifestyle reduction factor (applied after child independence)
+### 5.6.3 Monte Carlo Engine (`runMonteCarloSimulation`)
+Evaluates sequence-of-returns risk using stochastic trials:
+- **Randomness**: Mulberry32 seeded PRNG for reproducibility.
+- **Distribution**: Lognormal distribution via Box-Muller transform.
+- **Metrics**: Calculates success rate and percentile paths (P10, P50, P90).
 
-### 5.6.3 Monthly transition (pre-FIRE)
-
-1. Compute `netFlow = income + pension - expenses`.
-2. Update cash by net flow.
-3. If cash negative:
-   - Cover shortfall from risk assets.
-   - If tax enabled, gross-up sale amount.
-4. If cash positive:
-   - Invest up to `monthlyInvestment` but never more than available cash.
-5. Apply risk return for this month.
-
-### 5.6.4 Monthly transition (post-FIRE)
-
-1. Income is set to zero (pension may remain).
-2. Compute expense shortfall.
-3. Compute withdrawal target by rule:
-   - `max(expense shortfall, assets * withdrawalRate / 12)`
-4. Take from cash first, then risk assets (gross-up when tax enabled).
-5. Apply risk return.
-
-### 5.6.5 Required assets backward loop
-`calculateRequiredAssets` runs from end-of-life backward to present month:
-
-- Includes inflation growth of expenses.
-- Includes pension offset if enabled.
-- Considers withdrawal floor and tax gross-up.
-- Uses conservative max of two requirement formulas each month.
-
-### 5.6.6 Finding earliest FIRE month
-
-1. Coarse search by year (`m += 12`) to find first surviving year.
-2. Binary refinement inside that year window to find earliest successful month.
-
-This hybrid search greatly reduces computation versus full linear monthly scan.
-
-### 5.6.7 Lifestyle reduction after child independence
-The simulation automatically reduces monthly expenses when the daughter reaches independence (defined as April 2037).
-
-The reduction is calculated based on the following category multipliers:
-- **Food, Communication, Clothing/Beauty, Daily Goods**: Reduced by 1/3 (x2/3 multiplier).
-- **Education**: Reduced to zero.
-- **Other categories**: Unchanged.
-
-The overall reduction typically ranges from 15% to 23% depending on the user's expense breakdown.
-
-### Complexity
-Let `T = months until age 100`.
-
-- One simulation run: **O(T)**.
-- FIRE search: coarse `O(T/12)` + refinement `O(log 12)` runs, each run O(T), so practical upper bound roughly **O(T²/12)** in worst case with repeated full re-simulations.
-- Memory: **O(T)** only when recording monthly table.
+### 5.6.4 Required Assets backward loop
+Calculates target assets at each month from end-of-life backward, accounting for inflation-adjusted withdrawal needs and tax gross-up.
 
 ---
 
-## 6. Exception Handling and Edge-Case Matrix
+## 6. Technology Choices and Rationale
 
-## 6.1 Parsing and Normalization
-
-- Invalid numbers (`NaN`, `Infinity`, malformed text): safely become `0`.
-- Missing arrays: become `[]`.
-- Null API object: full-safe empty portfolio.
-- Pension profit derivation skipped on impossible denominator.
-
-## 6.2 Store / API
-
-- Double fetch calls while loading: second call ignored.
-- Auth failures: no mock fallback (intentional explicit auth handling).
-- CORS-like network failure with token: terminal guidance state to avoid spam retries.
-- Non-auth API failure: mock fallback for app continuity.
-
-## 6.3 Cash Flow
-
-- Missing date: excluded from date-window calculations.
-- Missing category: treated as uncategorized string.
-- Transfers optionally excluded from most analytics.
-
-## 6.4 FIRE
-
-- Negative total asset situations are clamped in charted asset representation via `Math.max(0, ...)` when read.
-- Mortgage cutoff uses strict `>` compare on month key to keep payoff month payment included.
-- If both cash and risk are insufficient, simulation still proceeds with zero-floor behavior; survival result reflects depletion.
+- **Vue 3 + Pinia**: Reactive state management and component-based UI.
+- **SVG Charts**: Custom implementation for performant, high-control financial visualizations (Dual-axis, Treemaps, Simulation paths).
+- **Domain-First Logic**: Core algorithms (Simulation, Aggregation) isolated from UI for 100% test coverage.
 
 ---
 
-## 7. Technology Choices and Rationale
+## 7. Setup and Development
 
-### 7.1 Vue 3 + Composition API
-Chosen for:
+### 7.1 Requirements
+- Node.js (LTS)
+- npm
 
-- Reactive computed modeling for finance dashboard state
-- Easy separation between UI and domain logic
-- Lightweight setup for single-page app
-
-### 7.2 Pinia
-Chosen for:
-
-- Simple store syntax
-- Test-friendly design
-- Native fit for Vue 3 ecosystem
-
-### 7.3 Vite
-Chosen for:
-
-- Fast local startup
-- Simple static build output
-- Good default DX for Vue projects
-
-### 7.4 Vitest
-Chosen for:
-
-- Fast ESM-native test runner
-- Compatible with Vite and Vue Test Utils
-- Good branch-level domain testing support
-
-### 7.5 Domain-First Functional Modules
-Business logic is mostly in pure JS functions under `src/domain`.
-
-Benefits:
-
-- High testability
-- Clear separation from UI rendering
-- Easy to re-use for copy/export features
-
----
-
-## 8. Setup, Configuration, and Deployment
-
-## 8.1 Requirements
-
-- Node.js (LTS recommended)
-- npm (comes with Node.js)
-
----
-
-## 8.2 Install
-
+### 7.2 Commands
 ```bash
-npm install
+npm install        # Install dependencies
+npm run dev        # Start development server (http://localhost:5173/asset/)
+npm run test       # Run unit tests (Vitest)
+npm run test:ui    # Run unit tests with UI
+npm run build      # Build for production (output to dist/)
+npm run preview    # Preview production build
 ```
 
 ---
 
-## 8.3 Run (Development)
+## 8. Deployment and Configuration
 
+### 8.1 Environment Variables
+Create `.env.local`:
 ```bash
-npm run dev
+VITE_GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
 ```
 
-Default Vite local URL is usually:
-
-- `http://localhost:5173`
-
----
-
-## 8.4 Build + Preview
-
-```bash
-npm run build
-npm run preview
-```
-
-Build output goes to `dist/`.
+### 8.2 Browser Local Storage Keys
+- `asset-theme`: `dark` | `light`
+- `asset-privacy`: `on` | `off`
+- `asset-google-id-token`: JWT token for GAS API authentication
 
 ---
 
-## 8.5 Test
+## 9. Module Reference
 
-```bash
-npm run test
-```
-
-Optional coverage:
-
-```bash
-npm run test:coverage
-```
-
----
-
-## 8.6 Environment Variables
-
-Create `.env.local` if Google login UI is used:
-
-```bash
-VITE_GOOGLE_CLIENT_ID=your-web-client-id.apps.googleusercontent.com
-```
-
-If this is missing, app still runs, but login gate cannot render a valid Google sign-in button.
+- `src/domain/parse.js`: Robust number/percent parsing.
+- `src/domain/format.js`: Currency and sign formatting.
+- `src/domain/normalize.js`: Canonical portfolio normalization.
+- `src/domain/holdings.js`: Holdings aggregation and treemap tile generation.
+- `src/domain/cashFlow.js`: 3-type classification and aggregation helpers.
+- `src/domain/fire.js`: FIRE simulation engine, Monte Carlo, and pension models.
+- `src/stores/portfolio.js`: Data fetch/auth/mock state machine.
+- `src/stores/ui.js`: Privacy mode and theme persistence.
 
 ---
 
-## 8.7 Browser Local Storage Keys
-
-- `asset-theme`: `dark` or `light`
-- `asset-privacy`: `on` or `off`
-- `asset-google-id-token`: Google ID token string
-
----
-
-## 8.8 Deployment Procedure (Static Hosting)
-
-This app is a client-side SPA and can be deployed to any static hosting service.
-
-### Standard steps
-
-1. Set build-time env vars (for example `VITE_GOOGLE_CLIENT_ID`).
-2. Run `npm ci` (or `npm install`).
-3. Run `npm run build`.
-4. Deploy `dist/` directory.
-5. Configure SPA fallback routing so direct path access resolves to `index.html`.
-
-### Examples of platforms
-
-- Vercel
-- Netlify
-- GitHub Pages (with SPA route fallback handling)
-- Nginx static host
-
----
-
-## 8.9 API / CORS Notes for Production
-
-Because browser directly calls Google Apps Script URL:
-
-- GAS must return proper CORS headers.
-- API must accept `id_token` as query parameter (`e.parameter.id_token`) per app expectation.
-
-If not configured correctly, app shows dedicated guidance for CORS/auth issues.
-
----
-
-## 9. Module-by-Module Technical Reference
-
-- `src/domain/parse.js`: robust number/percent parsing
-- `src/domain/format.js`: currency formatting, sign formatting helpers
-- `src/domain/normalize.js`: canonical portfolio normalization
-- `src/domain/dashboard.js`: balance-sheet rectangle ratio logic
-- `src/domain/holdings.js`: holdings table configs, stock/fund summary, treemap tile generation
-- `src/domain/assetOwners.js`: owner filter logic and category summarization
-- `src/domain/family.js`: owner detection, family aggregation, age calculation
-- `src/domain/cashFlow.js`: filtering/sorting/aggregation helpers
-- `src/domain/fire.js`: FIRE simulation engine and supporting estimation utilities
-- `src/stores/portfolio.js`: fetch/auth/fallback state machine
-- `src/stores/ui.js`: privacy mode persistence and HTML attribute sync
-- `src/composables/usePortfolioData.js`: view-level store access helper
-- `src/composables/useInitialHashRestore.js`: hash restore after async data readiness
-
----
-
-## 10. Test Coverage Summary (Conceptual)
-
-The existing test suite validates:
-
-- Parser robustness for malformed values
-- Portfolio normalization fallbacks and pension derivation
-- Dashboard geometry clamping behavior
-- Holdings summary and tile generation paths
-- Owner filtering and family aggregation
-- Cash flow filtering/aggregation edge cases
-- FIRE logic under pension/tax/inflation/mortgage/withdrawal conditions
-- Portfolio store retry/auth/CORS/mock fallback behavior
-- UI privacy mode persistence behavior
-
-This gives strong confidence that business logic behavior is intentional and stable across edge cases.
-
----
-
-## 11. Known Constraints and Assumptions
-
-1. Owner detection is rule-based using string suffix matching, so it depends on naming consistency in source data.
-2. FIRE simulation is deterministic by default (constant monthly return unless custom returns array provided).
-3. Pension model is a practical approximation with fixed constants and specific household assumptions.
-4. Child independence is fixed at April 2037 (assuming daughter born in Feb 2013 turns 24 and starts working).
-5. App expects Japanese category naming conventions in several places (for example pension/mortgage/income category prefixes).
-
----
-
-## 12. Quick Start for New Engineers
-
-1. Run app (`npm install && npm run dev`).
-2. Read `src/stores/portfolio.js` to understand external data lifecycle.
-3. Read `src/domain/normalize.js` for canonical data shape.
-4. Read `src/domain/fire.js` for simulation model and assumptions.
-5. Read tests (`src/domain/*.test.js`) to understand edge-case contracts.
-
-If you understand those files, you can safely extend most features without surprises.
+## 10. Known Constraints
+- Owner detection depends on naming consistency in source data.
+- Pension model uses fixed household constants (Birth dates: 1979/1976/2013).
+- Monte Carlo assumes lognormal returns without autocorrelation.
+- App expects Japanese category naming conventions for specific logic (pension/mortgage).
