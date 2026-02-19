@@ -1,6 +1,7 @@
 <script setup>
-import { computed, ref } from "vue";
+import { computed, ref, onMounted, watch } from "vue";
 import { dailyChangeYen, formatSignedYen, formatYen, holdingRowKey } from "@/domain/format";
+import { useYahooFinanceTicker } from "@/composables/useYahooFinanceTicker";
 import { toNumber } from "@/domain/parse";
 
 const props = defineProps({
@@ -26,6 +27,24 @@ const SORTABLE_COLUMN_KEYS = new Set([
 
 const sortKey = ref("");
 const sortDirection = ref("asc");
+
+const { tickerMap, requestTicker } = useYahooFinanceTicker();
+
+function requestTickersForStocks(rows) {
+  rows.forEach((row) => {
+    if (row?.["銘柄コード"] && row?.["銘柄名"]) {
+      requestTicker(row["銘柄名"]);
+    }
+  });
+}
+
+onMounted(() => {
+  requestTickersForStocks(safeRows.value);
+});
+
+watch(safeRows, (newRows) => {
+  requestTickersForStocks(newRows);
+});
 
 function isAmountColumn(column) {
   if (column.key === "__dailyChange") {
@@ -128,7 +147,11 @@ function formatCell(column, row) {
 }
 
 function stockPriceUrl(name) {
-  return `https://www.google.com/search?q=${encodeURIComponent(`${String(name ?? "")} 株価`)}`;
+  const ticker = tickerMap[name];
+  if (ticker) {
+    return `https://finance.yahoo.com/quote/${encodeURIComponent(ticker)}/`;
+  }
+  return `https://www.google.com/search?q=${encodeURIComponent(String(name ?? ""))}`;
 }
 
 function isStockNameColumn(column, row) {
