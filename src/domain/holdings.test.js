@@ -1,6 +1,18 @@
 import { describe, expect, it } from "vitest";
 import * as holdingsDomain from "./holdings";
-import { EMPTY_HOLDINGS, HOLDING_TABLE_CONFIGS, riskAssetSummary, stockTiles, fundTiles, pensionTiles, stockFundRows, allRiskTiles } from "./holdings";
+import {
+  EMPTY_HOLDINGS,
+  HOLDING_TABLE_CONFIGS,
+  riskAssetSummary,
+  stockTiles,
+  fundTiles,
+  pensionTiles,
+  stockFundRows,
+  allRiskTiles,
+  getYahooSymbol,
+  stockPriceUrl,
+  generateStockCsv,
+} from "./holdings";
 
 describe("holdings domain", () => {
   it("keeps expected exported functions on the holdings barrel", () => {
@@ -254,5 +266,63 @@ describe("holdings domain", () => {
     const tiles2 = allRiskTiles({ stocks: [{ 銘柄名: "S", 評価額: "10" }] });
     expect(tiles2).toHaveLength(1);
     expect(tiles2[0].name).toBe("S");
+  });
+
+  describe("getYahooSymbol", () => {
+    it("returns .T symbol for 4-digit code", () => {
+      expect(getYahooSymbol("5020")).toBe("5020.T");
+    });
+
+    it("returns .T symbol for 5-digit code (first 4 digits)", () => {
+      expect(getYahooSymbol("13570")).toBe("1357.T");
+    });
+
+    it("returns the same code if it is alphabetic (US stocks)", () => {
+      expect(getYahooSymbol("AAPL")).toBe("AAPL");
+    });
+
+    it("returns null for other patterns", () => {
+      expect(getYahooSymbol("123")).toBeNull();
+      expect(getYahooSymbol("ABC1")).toBeNull();
+      expect(getYahooSymbol(null)).toBeNull();
+    });
+  });
+
+  describe("stockPriceUrl", () => {
+    it("returns Yahoo Finance JP URL for numeric codes", () => {
+      expect(stockPriceUrl("Eneos", "5020")).toBe("https://finance.yahoo.co.jp/quote/5020.T?term=1d");
+    });
+
+    it("returns Yahoo Finance US URL for alphabetic symbols", () => {
+      expect(stockPriceUrl("Apple", "AAPL")).toBe("https://finance.yahoo.com/quote/AAPL/");
+    });
+
+    it("returns Google Search URL for unknown patterns", () => {
+      const url = stockPriceUrl("Custom Asset", "??");
+      expect(url).toContain("google.com/search");
+      expect(url).toContain("Custom%20Asset");
+    });
+  });
+
+  describe("generateStockCsv", () => {
+    it("generates CSV with Yahoo symbols and quantities", () => {
+      const stocks = [
+        { "銘柄コード": "5020", "保有数": "100" },
+        { "銘柄コード": "AAPL", "数量": "10" },
+        { "銘柄コード": "13570", "保有数": "5" },
+      ];
+      const csv = generateStockCsv(stocks);
+      expect(csv).toBe("5020.T,100\nAAPL,10\n1357.T,5");
+    });
+
+    it("uses raw code as fallback if it's not a Yahoo symbol", () => {
+      const stocks = [{ "銘柄コード": "UNKNOWN", "保有数": "1" }];
+      expect(generateStockCsv(stocks)).toBe("UNKNOWN,1");
+    });
+
+    it("returns empty string for empty input", () => {
+      expect(generateStockCsv([])).toBe("");
+      expect(generateStockCsv(null)).toBe("");
+    });
   });
 });

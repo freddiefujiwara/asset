@@ -2,6 +2,7 @@
 import { computed, ref } from "vue";
 import { dailyChangeYen, formatSignedYen, formatYen, holdingRowKey } from "@/domain/format";
 import { toNumber } from "@/domain/parse";
+import { stockPriceUrl } from "@/domain/holdings";
 
 const props = defineProps({
   rows: { type: Array, default: () => [] },
@@ -127,20 +128,6 @@ function formatCell(column, row) {
   return props.isLiability ? `-${formatted}` : formatted;
 }
 
-function stockPriceUrl(name, code) {
-  const sCode = String(code ?? "");
-  if (/^[0-9]{4}$/.test(sCode)) {
-    return `https://finance.yahoo.co.jp/quote/${sCode}.T?term=1d`;
-  }
-  if (/^[0-9]{5}$/.test(sCode)) {
-    return `https://finance.yahoo.co.jp/quote/${sCode.substring(0, 4)}.T?term=1d`;
-  }
-  if (/^[A-Z]+$/.test(sCode)) {
-    return `https://finance.yahoo.com/quote/${sCode}/`;
-  }
-  return `https://www.google.com/search?q=${encodeURIComponent(String(name ?? ""))}`;
-}
-
 function isStockNameColumn(column, row) {
   return column.key === "銘柄名" && row?.["銘柄コード"];
 }
@@ -175,7 +162,10 @@ function cellClass(column, row) {
 
 <template>
   <section class="table-wrap">
-    <h3 class="section-title">{{ title }}（{{ safeRows.length }}件）</h3>
+    <div class="header-with-action">
+      <h3 class="section-title">{{ title }}（{{ safeRows.length }}件）</h3>
+      <slot name="action"></slot>
+    </div>
     <table class="stack-table">
       <thead>
         <tr>
@@ -219,6 +209,17 @@ function cellClass(column, row) {
 </template>
 
 <style scoped>
+.header-with-action {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.header-with-action .section-title {
+  margin-bottom: 0;
+}
+
 .cell-name {
   max-width: 180px;
   overflow: hidden;

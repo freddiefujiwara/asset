@@ -13,7 +13,7 @@ import { formatSignedPercent, signedClass } from "@/domain/signed";
 import { usePortfolioData } from "@/composables/usePortfolioData";
 import { filterHoldingsByOwner, OWNER_FILTERS, summarizeByCategory } from "@/domain/assetOwners";
 import { assetAmountYen } from "@/domain/family";
-import { EMPTY_HOLDINGS, HOLDING_TABLE_CONFIGS, riskAssetSummary, stockTiles as buildStockTiles, fundTiles as buildFundTiles, pensionTiles as buildPensionTiles, allRiskTiles } from "@/domain/holdings";
+import { EMPTY_HOLDINGS, HOLDING_TABLE_CONFIGS, riskAssetSummary, stockTiles as buildStockTiles, fundTiles as buildFundTiles, pensionTiles as buildPensionTiles, allRiskTiles, generateStockCsv } from "@/domain/holdings";
 import { useInitialHashRestore } from "@/composables/useInitialHashRestore";
 
 const route = useRoute();
@@ -339,7 +339,15 @@ const copyToken = () => {
         :rows="enrichedHoldings[config.key]"
         :columns="config.columns"
         :is-liability="config.isLiability"
-      />
+      >
+        <template #action v-if="config.key === 'stocks'">
+          <CopyButton
+            label="📋 銘柄コードをコピー"
+            :copy-value="() => generateStockCsv(enrichedHoldings.stocks)"
+            disabled-on-privacy
+          />
+        </template>
+      </HoldingTable>
       <p class="back-top-wrap"><a href="#balance-sheet-top">↑ トップへ戻る</a></p>
     </section>
 
