@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from "vue";
+import { computed, watchEffect } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import HoldingTable from "@/components/HoldingTable.vue";
 import CopyButton from "@/components/CopyButton.vue";
@@ -13,8 +13,9 @@ import { formatSignedPercent, signedClass } from "@/domain/signed";
 import { usePortfolioData } from "@/composables/usePortfolioData";
 import { filterHoldingsByOwner, OWNER_FILTERS, summarizeByCategory } from "@/domain/assetOwners";
 import { assetAmountYen } from "@/domain/family";
-import { EMPTY_HOLDINGS, HOLDING_TABLE_CONFIGS, riskAssetSummary, stockTiles as buildStockTiles, fundTiles as buildFundTiles, pensionTiles as buildPensionTiles, allRiskTiles } from "@/domain/holdings";
+import { EMPTY_HOLDINGS, HOLDING_TABLE_CONFIGS, riskAssetSummary, stockTiles as buildStockTiles, fundTiles as buildFundTiles, pensionTiles as buildPensionTiles, allRiskTiles, realtimeStockTiles, getYahooSymbol } from "@/domain/holdings";
 import { useInitialHashRestore } from "@/composables/useInitialHashRestore";
+import { useRealtimeStore } from "@/stores/realtime";
 
 const route = useRoute();
 const router = useRouter();
@@ -121,6 +122,24 @@ const enrichedHoldings = computed(() => {
   });
 
   return result;
+});
+
+const realtimeStore = useRealtimeStore();
+
+watchEffect(() => {
+  const stocks = filteredHoldings.value?.stocks || [];
+  if (stocks.length > 0) {
+    const symbols = [...new Set(stocks
+      .map((s) => getYahooSymbol(s["銘柄コード"]))
+      .filter(Boolean))];
+    if (symbols.length > 0) {
+      realtimeStore.fetchQuotes(symbols);
+    }
+  }
+});
+
+const realtimeTiles = computed(() => {
+  return realtimeStockTiles(filteredHoldings.value?.stocks || [], realtimeStore.quotes);
 });
 
 const summary = computed(() => riskAssetSummary(filteredHoldings.value));
@@ -315,6 +334,11 @@ const copyToken = () => {
           保有銘柄（評価額）: <span class="amount-value is-positive">{{ formatYen(getCategoryAmount('stocks')) }}</span>
         </template>
       </AssetTreemap>
+      <AssetTreemap
+        v-if="config.key === 'stocks' && realtimeTiles.length"
+        title="保有銘柄（リアルタイム）"
+        :tiles="realtimeTiles"
+      />
       <AssetTreemap
         v-if="config.key === 'funds' && fundTiles.length"
         title="保有銘柄（評価額）"

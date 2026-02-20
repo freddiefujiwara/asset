@@ -195,6 +195,27 @@ export function stockTiles(stocks) {
   return buildTiles(stocks, { aggregate: false });
 }
 
+export function realtimeStockTiles(stocks, quoteMap) {
+  const tiles = buildTiles(stocks, { aggregate: false });
+  return tiles.map((tile) => {
+    const originalRow = stocks[tile.idx];
+    const symbol = getYahooSymbol(originalRow?.["銘柄コード"]);
+    const quoteEntry = quoteMap[symbol];
+
+    if (quoteEntry && quoteEntry.quote) {
+      const q = quoteEntry.quote;
+      // Prefer real-time change if available
+      const change = q.regularMarketChange;
+      return {
+        ...tile,
+        dailyChange: change,
+        isNegative: change < 0,
+      };
+    }
+    return tile;
+  });
+}
+
 export function fundTiles(funds) {
   return buildTiles(funds, { aggregate: true });
 }
@@ -209,6 +230,34 @@ export function allRiskTiles(holdings) {
   const pensions = holdings?.pensions || [];
   const combined = [...stocks, ...funds, ...pensions];
   return buildTiles(combined, { aggregate: true });
+}
+
+export function getYahooSymbol(code) {
+  const sCode = String(code ?? "");
+  if (/^[0-9]{4}$/.test(sCode)) {
+    return `${sCode}.T`;
+  }
+  if (/^[0-9]{5}$/.test(sCode)) {
+    return `${sCode.substring(0, 4)}.T`;
+  }
+  if (/^[A-Z]+$/.test(sCode)) {
+    return sCode;
+  }
+  return null;
+}
+
+export function stockPriceUrl(name, code) {
+  const symbol = getYahooSymbol(code);
+  const sCode = String(code ?? "");
+
+  if (symbol) {
+    if (/^[0-9]/.test(symbol)) {
+      return `https://finance.yahoo.co.jp/quote/${symbol}?term=1d`;
+    }
+    return `https://finance.yahoo.com/quote/${symbol}/`;
+  }
+
+  return `https://www.google.com/search?q=${encodeURIComponent(String(name ?? ""))}`;
 }
 
 function layoutTreemap(items, x, y, width, height, output) {
