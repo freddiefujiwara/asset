@@ -211,6 +211,52 @@ export function allRiskTiles(holdings) {
   return buildTiles(combined, { aggregate: true });
 }
 
+/**
+ * Returns Yahoo Finance symbol if applicable.
+ */
+export function getYahooSymbol(code) {
+  const sCode = String(code ?? "");
+  if (/^[0-9]{4}$/.test(sCode)) {
+    return `${sCode}.T`;
+  }
+  if (/^[0-9]{5}$/.test(sCode)) {
+    return `${sCode.substring(0, 4)}.T`;
+  }
+  if (/^[A-Z]+$/.test(sCode)) {
+    return sCode;
+  }
+  return null;
+}
+
+/**
+ * Returns external URL for stock price.
+ */
+export function stockPriceUrl(name, code) {
+  const symbol = getYahooSymbol(code);
+  if (symbol) {
+    if (/^[A-Z]+$/.test(symbol)) {
+      return `https://finance.yahoo.com/quote/${symbol}/`;
+    }
+    return `https://finance.yahoo.co.jp/quote/${symbol}?term=1d`;
+  }
+  return `https://www.google.com/search?q=${encodeURIComponent(String(name ?? ""))}`;
+}
+
+/**
+ * Generates CSV string for stocks (symbol,quantity).
+ */
+export function generateStockCsv(stocks) {
+  const rows = Array.isArray(stocks) ? stocks : [];
+  return rows
+    .map((row) => {
+      const code = row?.["銘柄コード"];
+      const symbol = getYahooSymbol(code) || String(code ?? "");
+      const quantity = toNumber(row?.["保有数"] || row?.["数量"]);
+      return `${symbol},${quantity}`;
+    })
+    .join("\n");
+}
+
 function layoutTreemap(items, x, y, width, height, output) {
   if (items.length === 1) {
     output.push({ ...items[0], x, y, width, height });
