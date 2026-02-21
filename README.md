@@ -481,6 +481,7 @@ VITE_GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
 - `src/domain/fire/portfolio.js`: Portfolio/owner-specific FIRE asset aggregation helpers.
 - `src/features/fireSimulator/useFireSimulatorViewModel.js`: FIRE page orchestration (state, computed values, copy payload composition).
 - `src/features/fireSimulator/formatters.js`: FIRE display/serialization helpers and export payload builders.
+- `src/lib/lzString.js`: URI-safe compressed string encoder used for external chart/data links.
 - `src/stores/portfolio.js`: Data fetch/auth/mock state machine.
 - `src/stores/ui.js`: Privacy mode and theme persistence.
 
