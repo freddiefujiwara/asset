@@ -269,7 +269,7 @@ const {
             <div>
               <span class="meta">うちリスク資産:</span>
               <span class="amount-value" style="margin-left: 8px;">{{ formatYen(riskAssets) }}</span>
-              <span class="meta"> ({{ (data?.totals?.assetsYen > 0) ? ((riskAssets / data.totals.assetsYen) * 100).toFixed(1) : 0 }}% / 総資産比)</span>
+              <span class="meta"> ({{ (initialAssets > 0) ? ((riskAssets / initialAssets) * 100).toFixed(1) : 0 }}% / 総資産比)</span>
             </div>
             <div>
               <span class="meta">現金資産:</span>
