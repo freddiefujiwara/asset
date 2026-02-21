@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { compressToEncodedURIComponent } from "@/lib/lzString";
 import HoldingTable from "@/components/HoldingTable.vue";
 import CopyButton from "@/components/CopyButton.vue";
 import AssetCategoryCard from "@/components/AssetCategoryCard.vue";
@@ -13,7 +14,7 @@ import { formatSignedPercent, signedClass } from "@/domain/signed";
 import { usePortfolioData } from "@/composables/usePortfolioData";
 import { filterHoldingsByOwner, OWNER_FILTERS, summarizeByCategory } from "@/domain/assetOwners";
 import { assetAmountYen } from "@/domain/family";
-import { EMPTY_HOLDINGS, HOLDING_TABLE_CONFIGS, riskAssetSummary, stockTiles as buildStockTiles, fundTiles as buildFundTiles, pensionTiles as buildPensionTiles, allRiskTiles, generateStockCsv } from "@/domain/holdings";
+import { EMPTY_HOLDINGS, HOLDING_TABLE_CONFIGS, riskAssetSummary, stockTiles as buildStockTiles, fundTiles as buildFundTiles, pensionTiles as buildPensionTiles, allRiskTiles, getYahooSymbol } from "@/domain/holdings";
 import { useInitialHashRestore } from "@/composables/useInitialHashRestore";
 
 const route = useRoute();
@@ -136,6 +137,31 @@ const stockTiles = computed(() => buildStockTiles(filteredHoldings.value?.stocks
 const fundTiles = computed(() => buildFundTiles(filteredHoldings.value?.funds || []));
 const pensionTiles = computed(() => buildPensionTiles(filteredHoldings.value?.pensions || []));
 const totalRiskTiles = computed(() => allRiskTiles(filteredHoldings.value));
+
+const stockTreemapUrl = computed(() => {
+  const stocks = (enrichedHoldings.value?.stocks || [])
+    .map((row) => {
+      const rawCode = String(row?.["銘柄コード"] || "").trim();
+      const symbol = getYahooSymbol(rawCode) || rawCode;
+      const quantity = toNumber(row?.["保有数"] ?? row?.["数量"]);
+      if (!symbol || quantity <= 0) {
+        return null;
+      }
+
+      return {
+        symbol,
+        quantity,
+      };
+    })
+    .filter(Boolean);
+
+  if (!stocks.length) {
+    return "";
+  }
+
+  const encoded = compressToEncodedURIComponent(JSON.stringify(stocks)).replace(/\+/g, "_");
+  return `https://freddiefujiwara.com/portfolio-treemap/${encoded}`;
+});
 
 const KEY_MAP = {
   breakdown: "asset_breakdown",
@@ -341,11 +367,15 @@ const copyToken = () => {
         :is-liability="config.isLiability"
       >
         <template #action v-if="config.key === 'stocks'">
-          <CopyButton
-            label="📋 銘柄コードをコピー"
-            :copy-value="() => generateStockCsv(enrichedHoldings.stocks)"
-            disabled-on-privacy
-          />
+          <a
+            v-if="stockTreemapUrl"
+            class="portfolio-treemap-link"
+            :href="stockTreemapUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            現在の株価
+          </a>
         </template>
       </HoldingTable>
       <p class="back-top-wrap"><a href="#balance-sheet-top">↑ トップへ戻る</a></p>
@@ -388,5 +418,9 @@ const copyToken = () => {
   margin-top: 24px;
   padding-top: 16px;
   border-top: 1px solid var(--border);
+}
+
+.portfolio-treemap-link {
+  font-size: 0.875rem;
 }
 </style>
