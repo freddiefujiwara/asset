@@ -1,15 +1,13 @@
 import { getUniqueMonths, getExpenseType } from "../cashFlow";
-import { assetAmountYen, detectAssetOwner, USER_BIRTH_DATE, SPOUSE_BIRTH_DATE, DAUGHTER_BIRTH_DATE } from "../family";
 import { formatYen } from "../format";
-
-const PENSION_USER_START_AGE = 60;
-const PENSION_SPOUSE_USER_AGE_START = 62; // Spouse (1976) age 65 when User (1979) is 62
-const PENSION_BASIC_FULL = 780000;
-const PENSION_BASIC_REDUCTION = 0.9; // 10% reduction for 4 years gap
-const PENSION_EARLY_REDUCTION = 0.76; // 24% reduction for starting at 60
-const PENSION_DATA_AGE = 44; // Age at which premium data was provided
-const PENSION_USER_KOSEN_ACCRUED_AT_44 = 892252; // Accrued Employees' Pension based on 14.9M premiums
-const PENSION_USER_KOSEN_FUTURE_FACTOR = 42000; // Estimated future accrual per year worked
+import { FIRE_ALGORITHM_CONSTANTS, calculateMonthlyPension } from "./pension";
+import {
+  calculateRiskAssets,
+  calculateExcludedOwnerAssets,
+  calculateDaughterAssetsBreakdown,
+  calculateFirePortfolio,
+  calculateCashAssets,
+} from "./portfolio";
 
 /**
  * Independence date for the daughter: born 2013-02-20, turns 24 in 2037-02.
@@ -17,145 +15,18 @@ const PENSION_USER_KOSEN_FUTURE_FACTOR = 42000; // Estimated future accrual per 
  */
 const INDEPENDENCE_MONTH_KEY = "2037-04";
 
-export const FIRE_ALGORITHM_CONSTANTS = {
-  pension: {
-    userStartAge: PENSION_USER_START_AGE,
-    spouseUserAgeStart: PENSION_SPOUSE_USER_AGE_START,
-    basicFullAnnualYen: PENSION_BASIC_FULL,
-    basicReduction: PENSION_BASIC_REDUCTION,
-    earlyReduction: PENSION_EARLY_REDUCTION,
-    pensionDataAge: PENSION_DATA_AGE,
-    userKoseiAccruedAt44AnnualYen: PENSION_USER_KOSEN_ACCRUED_AT_44,
-    userKoseiFutureFactorAnnualYenPerYear: PENSION_USER_KOSEN_FUTURE_FACTOR,
-  },
-  familyBirthDates: {
-    user: USER_BIRTH_DATE,
-    spouse: SPOUSE_BIRTH_DATE,
-    daughter: DAUGHTER_BIRTH_DATE,
-  },
+export {
+  FIRE_ALGORITHM_CONSTANTS,
+  calculateMonthlyPension,
+  calculateRiskAssets,
+  calculateExcludedOwnerAssets,
+  calculateDaughterAssetsBreakdown,
+  calculateFirePortfolio,
+  calculateCashAssets,
 };
 
 /**
- * Calculate pension monthly amount for the given age and FIRE age.
- * @param {number} age - Current age in simulation
- * @param {number} fireAge - Age at which user reaches FIRE
- */
-export function calculateMonthlyPension(age, fireAge) {
-  let totalAnnual = 0;
-
-  // User pension (starts at 60)
-  if (age >= PENSION_USER_START_AGE) {
-    const basicPart = PENSION_BASIC_FULL * PENSION_BASIC_REDUCTION * PENSION_EARLY_REDUCTION;
-    // Participation stops at FIRE or age 60 (whichever comes first, as pension starts at 60)
-    const participationEndAge = Math.min(60, fireAge);
-    const futureYears = Math.max(0, participationEndAge - PENSION_DATA_AGE);
-    const employeesPartAt65 = PENSION_USER_KOSEN_ACCRUED_AT_44 + futureYears * PENSION_USER_KOSEN_FUTURE_FACTOR;
-
-    totalAnnual += (basicPart + employeesPartAt65 * PENSION_EARLY_REDUCTION);
-  }
-
-  // Spouse pension (starts when User is 62, i.e., Spouse is 65)
-  if (age >= PENSION_SPOUSE_USER_AGE_START) {
-    totalAnnual += PENSION_BASIC_FULL;
-  }
-
-  return Math.round(totalAnnual / 12);
-}
-
-/**
- * Identify risk assets and sum their values.
- */
-export function calculateRiskAssets(portfolio) {
-  const riskCategories = [
-    "株式（現物）",
-    "株式（信用）",
-    "投資信託",
-    "年金",
-    "先物・オプション",
-    "外貨預金",
-    "債券",
-  ];
-  if (!portfolio?.summary?.assetsByClass) return 0;
-  return portfolio.summary.assetsByClass
-    .filter((item) => riskCategories.includes(item.name))
-    .reduce((sum, item) => sum + item.amountYen, 0);
-}
-
-/**
- * Sum excluded owner's assets from detailed holdings.
- * Used for FIRE simulation where specific family member assets should be omitted.
- */
-export function calculateExcludedOwnerAssets(portfolio, excludedOwnerId = "daughter") {
-  if (!portfolio?.holdings) {
-    return { totalAssetsYen: 0, riskAssetsYen: 0 };
-  }
-
-  const allAssetKeys = ["cashLike", "stocks", "funds", "pensions", "points"];
-  const riskAssetKeys = ["stocks", "funds", "pensions"];
-
-  const sumByKeys = (keys) => keys.reduce((sum, key) => {
-    const rows = Array.isArray(portfolio.holdings?.[key]) ? portfolio.holdings[key] : [];
-    const sectionTotal = rows.reduce((sectionSum, row) => {
-      const owner = detectAssetOwner(row);
-      if (owner.id !== excludedOwnerId) {
-        return sectionSum;
-      }
-      return sectionSum + assetAmountYen(row);
-    }, 0);
-
-    return sum + sectionTotal;
-  }, 0);
-
-  return {
-    totalAssetsYen: sumByKeys(allAssetKeys),
-    riskAssetsYen: sumByKeys(riskAssetKeys),
-  };
-}
-
-/**
- * Calculate detailed asset breakdown for the daughter.
- */
-export function calculateDaughterAssetsBreakdown(portfolio) {
-  const breakdown = {
-    cash: 0,
-    stocks: 0,
-    funds: 0,
-    pensions: 0,
-    points: 0,
-    liabilities: 0,
-  };
-
-  if (!portfolio?.holdings) return breakdown;
-
-  const map = {
-    cashLike: "cash",
-    stocks: "stocks",
-    funds: "funds",
-    pensions: "pensions",
-    points: "points",
-  };
-
-  Object.entries(map).forEach(([key, bKey]) => {
-    const rows = portfolio.holdings[key] || [];
-    rows.forEach((row) => {
-      if (detectAssetOwner(row).id === "daughter") {
-        breakdown[bKey] += assetAmountYen(row);
-      }
-    });
-  });
-
-  const liabRows = portfolio.holdings.liabilitiesDetail || [];
-  liabRows.forEach((row) => {
-    if (detectAssetOwner(row).id === "daughter") {
-      breakdown.liabilities += assetAmountYen(row);
-    }
-  });
-
-  return breakdown;
-}
-
-/**
- * Generate algorithm explanation segments for UI and export.
+ * Create text segments that explain the FIRE algorithm.
  */
 export function generateAlgorithmExplanationSegments(params) {
   const {
@@ -220,76 +91,12 @@ export function generateAlgorithmExplanationSegments(params) {
   return segments;
 }
 
-/**
- * Sum assets and liabilities for specific owners (Self and Spouse).
- * This ensures strict isolation for FIRE simulation.
- */
-export function calculateFirePortfolio(portfolio, includedOwnerIds = ["me", "wife"]) {
-  if (!portfolio?.holdings) {
-    return { totalAssetsYen: 0, riskAssetsYen: 0, cashAssetsYen: 0, liabilitiesYen: 0, netWorthYen: 0 };
-  }
-
-  const riskCategories = [
-    "株式（現物）",
-    "株式（信用）",
-    "投資信託",
-    "年金",
-    "先物・オプション",
-    "外貨預金",
-    "債券",
-  ];
-
-  const allAssetKeys = ["cashLike", "stocks", "funds", "pensions", "points"];
-  const riskAssetKeys = new Set(["stocks", "funds", "pensions"]);
-
-  let totalAssetsYen = 0;
-  let riskAssetsYen = 0;
-
-  allAssetKeys.forEach((key) => {
-    const rows = Array.isArray(portfolio.holdings?.[key]) ? portfolio.holdings[key] : [];
-    rows.forEach((row) => {
-      const owner = detectAssetOwner(row);
-      if (!includedOwnerIds.includes(owner.id)) return;
-
-      const amount = assetAmountYen(row);
-      totalAssetsYen += amount;
-
-      const category = row.category || "";
-      if (riskAssetKeys.has(key) || riskCategories.includes(category)) {
-        riskAssetsYen += amount;
-      }
-    });
-  });
-
-  const liabRows = Array.isArray(portfolio.holdings?.liabilitiesDetail)
-    ? portfolio.holdings.liabilitiesDetail
-    : [];
-  const liabilitiesYen = liabRows.reduce((sum, row) => {
-    const owner = detectAssetOwner(row);
-    if (!includedOwnerIds.includes(owner.id)) return sum;
-    return sum + assetAmountYen(row);
-  }, 0);
-
-  return {
-    totalAssetsYen,
-    riskAssetsYen,
-    cashAssetsYen: totalAssetsYen - riskAssetsYen,
-    liabilitiesYen,
-    netWorthYen: totalAssetsYen - liabilitiesYen,
-  };
-}
-
-/**
- * Calculate cash assets (Total Assets - Risk Assets).
- */
-export function calculateCashAssets(portfolio) {
-  const riskAssets = calculateRiskAssets(portfolio);
-  const totalAssets = portfolio?.totals?.assetsYen || 0;
-  return totalAssets - riskAssets;
-}
 
 const FIVE_MONTH_LOOKBACK_COUNT = 5;
 
+/**
+ * Return month keys for past months.
+ */
 function getPastMonths(now, count) {
   const months = [];
   for (let i = 1; i <= count; i++) {
@@ -299,6 +106,9 @@ function getPastMonths(now, count) {
   return months;
 }
 
+/**
+ * Loop past lookback rows and run callback.
+ */
 function processLookbackCashFlow(cashFlow, callback) {
   const now = new Date();
   const targetMonths = getPastMonths(now, FIVE_MONTH_LOOKBACK_COUNT);
@@ -316,6 +126,9 @@ function processLookbackCashFlow(cashFlow, callback) {
  * Estimate monthly basic expenses from cash flow.
  * Returns a breakdown by category and excludes special expenses.
  * Also excludes "Cash" and "Card" related categories as requested.
+ */
+/**
+ * Estimate monthly expenses from past cash flow rows.
  */
 export function estimateMonthlyExpenses(cashFlow) {
   const divisor = FIVE_MONTH_LOOKBACK_COUNT;
@@ -370,6 +183,9 @@ export function estimateMonthlyExpenses(cashFlow) {
 /**
  * Estimate monthly average income from cash flow (previous 5 months, excluding current month).
  */
+/**
+ * Estimate monthly income from past cash flow rows.
+ */
 export function estimateMonthlyIncome(cashFlow) {
   const divisor = FIVE_MONTH_LOOKBACK_COUNT;
   let totalIncome = 0;
@@ -386,6 +202,9 @@ export function estimateMonthlyIncome(cashFlow) {
  * Estimate income split by regular (給与等) and bonus (賞与/ボーナス) from cash flow.
  * - regularMonthly: average monthly regular income
  * - bonusAnnual: total annualized bonus estimated from the target window
+ */
+/**
+ * Split income into regular and bonus values.
  */
 export function estimateIncomeSplit(cashFlow) {
   const divisor = FIVE_MONTH_LOOKBACK_COUNT;
@@ -437,6 +256,9 @@ export function estimateIncomeSplit(cashFlow) {
 /**
  * Aggregate past 5 months summary (excluding current month) for copying and simulation.
  */
+/**
+ * Build one summary object for the past five months.
+ */
 export function getPast5MonthSummary(cashFlow) {
   const expenses = estimateMonthlyExpenses(cashFlow);
   const income = estimateIncomeSplit(cashFlow);
@@ -464,6 +286,9 @@ export function getPast5MonthSummary(cashFlow) {
 /**
  * Estimate mortgage monthly payment from category "住宅/ローン返済".
  */
+/**
+ * Estimate mortgage payment per month from cash flow.
+ */
 export function estimateMortgageMonthlyPayment(cashFlow) {
   const divisor = FIVE_MONTH_LOOKBACK_COUNT;
   let totalMortgage = 0;
@@ -482,6 +307,9 @@ export function estimateMortgageMonthlyPayment(cashFlow) {
  * Calculate required assets to last until age 100.
  * Account for inflation, pension, and the 4% withdrawal floor rule.
  * Uses a simplified numerical approximation for the target asset.
+ */
+/**
+ * Calculate required assets at one month by backward method.
  */
 function calculateRequiredAssets({
   monthlyExpense,
@@ -526,10 +354,16 @@ function calculateRequiredAssets({
   return Math.max(0, A);
 }
 
+/**
+ * Convert Date to YYYY-MM month key.
+ */
 function toMonthKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 }
 
+/**
+ * Calculate monthly expense with inflation and events.
+ */
 function calculateCurrentMonthlyExpense({
   baseMonthlyExpense,
   monthlyInflationRate,
@@ -573,6 +407,9 @@ function calculateCurrentMonthlyExpense({
  * - Daily goods (日用品): x2/3
  * - Others: No change
  */
+/**
+ * Compute lifestyle reduction factor after daughter independence.
+ */
 export function calculateLifestyleReduction(breakdown) {
   if (!breakdown || !Array.isArray(breakdown) || breakdown.length === 0) {
     return 1.0;
@@ -601,6 +438,9 @@ export function calculateLifestyleReduction(breakdown) {
 
 /**
  * Normalizes and validates simulation parameters.
+ */
+/**
+ * Normalize user params and apply defaults.
  */
 export function normalizeFireParams(params) {
   if (!params) return normalizeFireParams({});
@@ -631,6 +471,9 @@ export function normalizeFireParams(params) {
 
 /**
  * Internal simulation engine.
+ */
+/**
+ * Run core month-by-month FIRE simulation.
  */
 function _runCoreSimulation(params, { recordMonthly = false, fireMonth = -1, returnsArray = null } = {}) {
   const {
@@ -824,6 +667,9 @@ function _runCoreSimulation(params, { recordMonthly = false, fireMonth = -1, ret
 /**
  * Find the earliest retirement month that survives until age 100.
  */
+/**
+ * Find first month where assets reach zero.
+ */
 function findSurvivalMonth(params, returnsArray = null) {
   const { currentAge, maxMonths } = params;
   const totalMonthsLimit = Math.min(maxMonths, (100 - currentAge) * 12);
@@ -861,6 +707,9 @@ function findSurvivalMonth(params, returnsArray = null) {
 /**
  * Core simulation engine. Finds survival month if not forced.
  */
+/**
+ * Execute FIRE simulation and return summary.
+ */
 export function performFireSimulation(inputParams, options = {}) {
   const params = normalizeFireParams(inputParams);
   const { forceFireMonth = null, returnsArray = null, recordMonthly = false } = options;
@@ -892,6 +741,9 @@ export function performFireSimulation(inputParams, options = {}) {
 /**
  * Generate a deterministic growth table for charting.
  */
+/**
+ * Generate monthly growth table for chart use.
+ */
 export function generateGrowthTable(params) {
   const { monthlyData, fireReachedMonth } = performFireSimulation(params, { recordMonthly: true });
   return {
@@ -908,6 +760,9 @@ export function generateGrowthTable(params) {
 
 /**
  * Generate annual simulation data for a representative scenario until age 100.
+ */
+/**
+ * Convert monthly simulation rows to annual rows.
  */
 export function generateAnnualSimulation(params) {
   const { monthlyData, fireReachedMonth } = performFireSimulation(params, { recordMonthly: true });
@@ -948,6 +803,9 @@ export function generateAnnualSimulation(params) {
 /**
  * Seeded random number generator (Mulberry32).
  */
+/**
+ * Create deterministic pseudo random generator.
+ */
 function createRandom(seed) {
   return function() {
     let t = seed += 0x6D2B79F5;
@@ -960,6 +818,9 @@ function createRandom(seed) {
 /**
  * Standard Normal Random Variable using Box-Muller transform.
  */
+/**
+ * Generate normal random value from uniform random input.
+ */
 function nextGaussian(rand) {
   let u = 0, v = 0;
   while(u === 0) u = rand();
@@ -969,6 +830,9 @@ function nextGaussian(rand) {
 
 /**
  * Execute Monte Carlo simulation.
+ */
+/**
+ * Run Monte Carlo trials and return percentiles.
  */
 export function runMonteCarloSimulation(inputParams, { trials = 1000, annualVolatility = 0.15, seed = 123 } = {}) {
   const params = normalizeFireParams(inputParams);
@@ -1028,6 +892,9 @@ export function runMonteCarloSimulation(inputParams, { trials = 1000, annualVola
 
   finalAssetsList.sort((a, b) => a - b);
 
+  /**
+   * Interpolate one percentile from sorted values.
+   */
   const interpolatePercentile = (sortedValues, p) => {
     if (sortedValues.length === 1) return sortedValues[0];
 
@@ -1043,6 +910,9 @@ export function runMonteCarloSimulation(inputParams, { trials = 1000, annualVola
     return sortedValues[lowerIndex] + (sortedValues[upperIndex] - sortedValues[lowerIndex]) * weight;
   };
 
+  /**
+   * Get percentile helper for final asset list.
+   */
   const getPercentile = (p) => interpolatePercentile(finalAssetsList, p);
 
   const p10Path = [];

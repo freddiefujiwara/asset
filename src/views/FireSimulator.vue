@@ -1,336 +1,68 @@
 <script setup>
-import { computed, ref, watch, watchEffect } from "vue";
-import { usePortfolioData } from "@/composables/usePortfolioData";
-import { formatYen } from "@/domain/format";
-import { detectAssetOwner, assetAmountYen, calculateAge, USER_BIRTH_DATE } from "@/domain/family";
-import CopyButton from "@/components/CopyButton.vue";
-import {
-  calculateFirePortfolio,
-  generateGrowthTable,
-  generateAnnualSimulation,
-  estimateMortgageMonthlyPayment,
-  calculateMonthlyPension,
-  FIRE_ALGORITHM_CONSTANTS,
-  calculateDaughterAssetsBreakdown,
-  generateAlgorithmExplanationSegments,
-  getPast5MonthSummary,
-  runMonteCarloSimulation,
-} from "@/domain/fire";
-import FireSimulationTable from "@/components/FireSimulationTable.vue";
-import FireSimulationChart from "@/components/FireSimulationChart.vue";
+import { useFireSimulatorViewModel } from "@/features/fireSimulator/useFireSimulatorViewModel";
 
-const { data, loading, error } = usePortfolioData();
-
-// Input parameters
-const monthlyInvestment = ref(423000);
-const annualReturnRate = ref(5);
-const currentAge = ref(calculateAge(USER_BIRTH_DATE));
-const includeInflation = ref(true);
-const inflationRate = ref(2);
-const includeTax = ref(true);
-const taxRate = ref(20.315);
-const postFireExtraExpense = ref(60000);
-const retirementLumpSumAtFire = ref(5000000);
-const manualPostFireFirstYearExtraExpense = ref(0);
-const useAutoFirstYearExtra = ref(true);
-
-const withdrawalRate = ref(4);
-const includeBonus = ref(true);
-
-// Monte Carlo
-const useMonteCarlo = ref(false);
-const monteCarloTrials = ref(1000);
-const monteCarloVolatility = ref(15);
-const monteCarloSeed = ref(123);
-
-// Data-derived parameters
-const firePortfolio = computed(() =>
-  data.value
-    ? calculateFirePortfolio(data.value)
-    : { totalAssetsYen: 0, riskAssetsYen: 0, cashAssetsYen: 0, liabilitiesYen: 0, netWorthYen: 0 },
-);
-const initialAssets = computed(() => firePortfolio.value.totalAssetsYen);
-const riskAssets = computed(() => firePortfolio.value.riskAssetsYen);
-const cashAssets = computed(() => firePortfolio.value.cashAssetsYen);
-const monthsOfCash = computed(() => (monthlyExpense.value > 0 ? cashAssets.value / monthlyExpense.value : 0));
-
-const past5MonthSummary = computed(() =>
-  data.value?.cashFlow
-    ? getPast5MonthSummary(data.value.cashFlow)
-    : {
-        monthlyLivingExpenses: { average: 0, breakdown: [], averageSpecial: 0 },
-        monthlyRegularIncome: { average: 0, breakdown: [] },
-        annualBonus: { average: 0, breakdown: [] },
-        avgFixedMonthly: 0,
-        avgVariableMonthly: 0,
-        monthCount: 0,
-      },
-);
-
-const autoMonthlyExpense = computed(() => past5MonthSummary.value.monthlyLivingExpenses.average);
-const autoRegularMonthlyIncome = computed(() => past5MonthSummary.value.monthlyRegularIncome.average);
-const autoAnnualBonus = computed(() => past5MonthSummary.value.annualBonus.average);
-const autoMortgageMonthlyPayment = computed(() =>
-  data.value?.cashFlow ? estimateMortgageMonthlyPayment(data.value.cashFlow) : 0,
-);
-
-const manualMonthlyExpense = ref(0);
-const useAutoExpense = ref(true);
-const manualRegularMonthlyIncome = ref(0);
-const manualAnnualBonus = ref(0);
-const useAutoIncome = ref(true);
-const useAutoBonus = ref(true);
-const mortgageMonthlyPayment = ref(0);
-const mortgagePayoffDate = ref("2042-05");
-
-const simulationParams = computed(() => ({
-  initialAssets: initialAssets.value,
-  riskAssets: riskAssets.value,
-  annualReturnRate: annualReturnRate.value / 100,
-  monthlyExpense: monthlyExpense.value,
-  monthlyIncome: monthlyIncome.value,
-  currentAge: currentAge.value,
-  includeInflation: includeInflation.value,
-  inflationRate: inflationRate.value / 100,
-  includeTax: includeTax.value,
-  taxRate: taxRate.value / 100,
-  withdrawalRate: withdrawalRate.value / 100,
-  mortgageMonthlyPayment: mortgageMonthlyPayment.value,
-  mortgagePayoffDate: mortgagePayoffDate.value || null,
-  postFireExtraExpense: postFireExtraExpense.value,
-  postFireFirstYearExtraExpense: postFireFirstYearExtraExpense.value,
-  retirementLumpSumAtFire: retirementLumpSumAtFire.value,
-  includePension: true,
-  monthlyInvestment: monthlyInvestment.value,
-  expenseBreakdown: past5MonthSummary.value.monthlyLivingExpenses.breakdown,
-}));
-
-const mortgageOptions = computed(() => {
-  const options = [];
-  const start = new Date();
-  for (let i = 0; i <= 420; i++) {
-    const d = new Date(start.getFullYear(), start.getMonth() + i, 1);
-    const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    const label = `${d.getFullYear()}年${d.getMonth() + 1}月`;
-    options.push({ val, label });
-  }
-  return options;
-});
-
-const monthlyExpense = computed(() => (useAutoExpense.value ? autoMonthlyExpense.value : manualMonthlyExpense.value));
-const regularMonthlyIncome = computed(() =>
-  useAutoIncome.value ? autoRegularMonthlyIncome.value : manualRegularMonthlyIncome.value,
-);
-const annualBonus = computed(() =>
-  includeBonus.value ? (useAutoBonus.value ? autoAnnualBonus.value : manualAnnualBonus.value) : 0,
-);
-const monthlyIncome = computed(() => regularMonthlyIncome.value + annualBonus.value / 12);
-const annualInvestment = computed(() => monthlyInvestment.value * 12);
-const annualSavings = computed(() => Math.max(0, (monthlyIncome.value - monthlyExpense.value - monthlyInvestment.value) * 12));
-
-const autoPostFireFirstYearExtraExpense = computed(() => {
-  const annualIncome = monthlyIncome.value * 12;
-  return Math.round((annualIncome * 0.15) / 10000) * 10000;
-});
-const postFireFirstYearExtraExpense = computed(() =>
-  useAutoFirstYearExtra.value ? autoPostFireFirstYearExtraExpense.value : manualPostFireFirstYearExtraExpense.value
-);
-
-watchEffect(() => {
-  if (autoMonthlyExpense.value && useAutoExpense.value) {
-    manualMonthlyExpense.value = autoMonthlyExpense.value;
-  }
-  if (useAutoIncome.value) {
-    manualRegularMonthlyIncome.value = autoRegularMonthlyIncome.value;
-  }
-  if (useAutoBonus.value) {
-    manualAnnualBonus.value = autoAnnualBonus.value;
-  }
-  if (autoMortgageMonthlyPayment.value > 0 && mortgageMonthlyPayment.value === 0) {
-    mortgageMonthlyPayment.value = autoMortgageMonthlyPayment.value;
-  }
-  if (useAutoFirstYearExtra.value) {
-    manualPostFireFirstYearExtraExpense.value = autoPostFireFirstYearExtraExpense.value;
-  }
-});
-
-const growthData = computed(() => generateGrowthTable(simulationParams.value));
-
-const monteCarloResults = ref(null);
-const isCalculatingMonteCarlo = ref(false);
-
-const runMonteCarlo = () => {
-  if (!useMonteCarlo.value) return;
-  isCalculatingMonteCarlo.value = true;
-  // Give UI a chance to show loading state
-  setTimeout(() => {
-    monteCarloResults.value = runMonteCarloSimulation(simulationParams.value, {
-      trials: monteCarloTrials.value,
-      annualVolatility: monteCarloVolatility.value / 100,
-      seed: monteCarloSeed.value,
-    });
-    isCalculatingMonteCarlo.value = false;
-  }, 10);
-};
-
-watch(useMonteCarlo, (val) => {
-  if (!val) {
-    monteCarloResults.value = null;
-  }
-});
-
-const annualSimulationData = computed(() => generateAnnualSimulation(simulationParams.value));
-
-const fireAchievementMonth = computed(() => growthData.value.fireReachedMonth);
-const fireAchievementAge = computed(() => Math.floor(currentAge.value + fireAchievementMonth.value / 12));
-const pensionAnnualAtFire = computed(() => calculateMonthlyPension(60, fireAchievementAge.value) * 12);
-const estimatedMonthlyPensionAt60 = computed(() => calculateMonthlyPension(60, fireAchievementAge.value));
-
-const requiredAssetsAtFire = computed(() => {
-  const fireMonth = fireAchievementMonth.value;
-  if (fireMonth < 0 || fireMonth >= 1200) return 0;
-  const firePoint = growthData.value.table.find((row) => row.month === fireMonth);
-  return Math.round(firePoint?.assets ?? 0);
-});
-
-const mortgagePayoffAge = computed(() => {
-  if (!mortgagePayoffDate.value) return null;
-  const payoff = new Date(mortgagePayoffDate.value + "-01");
-  return calculateAge(USER_BIRTH_DATE, payoff);
-});
-
-const daughterIndependenceAge = computed(() => {
-  return calculateAge(USER_BIRTH_DATE, new Date("2037-04-01"));
-});
-
-const chartAnnotations = computed(() => {
-  const list = [];
-  if (fireAchievementMonth.value > 0 && fireAchievementMonth.value < 1200) {
-    list.push({ age: fireAchievementAge.value, label: "FIRE達成" });
-  }
-  list.push({ age: 60, label: "年金開始(本人)" });
-  list.push({ age: 62, label: "年金開始(妻)" });
-  list.push({ age: daughterIndependenceAge.value, label: "娘の独立" });
-  if (mortgagePayoffAge.value) {
-    list.push({ age: mortgagePayoffAge.value, label: "ローン完済" });
-  }
-  return list;
-});
-
-const fireDate = (months) => {
-  if (months >= 1200 || months < 0) return "未達成 (100年以上)";
-  const now = new Date();
-  now.setMonth(now.getMonth() + months);
-  return `${now.getFullYear()}年${now.getMonth() + 1}月`;
-};
-
-const formatMonths = (m) => {
-  if (m >= 1200 || m < 0) return "100年以上";
-  const years = Math.floor(m / 12);
-  const months = m % 12;
-  if (years === 0) return `${months}ヶ月`;
-  return `${years}年${months}ヶ月`;
-};
-
-const copyText = async (text) => {
-  if (navigator?.clipboard?.writeText) {
-    await navigator.clipboard.writeText(text);
-    return;
-  }
-
-  const textArea = document.createElement("textarea");
-  textArea.value = text;
-  textArea.setAttribute("readonly", "");
-  textArea.style.position = "absolute";
-  textArea.style.left = "-9999px";
-  document.body.appendChild(textArea);
-  textArea.select();
-  document.execCommand("copy");
-  document.body.removeChild(textArea);
-};
-
-const daughterBreakdown = computed(() => calculateDaughterAssetsBreakdown(data.value));
-
-const algorithmExplanationSegments = computed(() => {
-  return generateAlgorithmExplanationSegments({
-    daughterBreakdown: daughterBreakdown.value,
-    fireAchievementAge: fireAchievementAge.value,
-    pensionAnnualAtFire: pensionAnnualAtFire.value,
-    withdrawalRatePct: withdrawalRate.value,
-    postFireExtraExpenseMonthly: postFireExtraExpense.value,
-    postFireFirstYearExtraExpense: postFireFirstYearExtraExpense.value,
-    retirementLumpSumAtFire: retirementLumpSumAtFire.value,
-    useMonteCarlo: useMonteCarlo.value,
-    monteCarloTrials: monteCarloTrials.value,
-    monteCarloVolatilityPct: monteCarloVolatility.value,
-  });
-});
-
-const algorithmExplanationFull = computed(() => {
-  return algorithmExplanationSegments.value
-    .map((seg) => seg.value)
-    .join("");
-});
-
-const buildConditionsAndAlgorithmJson = () => ({
-  conditions: {
-    totalFinancialAssetsYen: initialAssets.value,
-    riskAssetsYen: riskAssets.value,
-    cashAssetsYen: cashAssets.value,
-    estimatedAnnualExpenseYen: monthlyExpense.value * 12,
-    estimatedAnnualIncomeYen: monthlyIncome.value * 12,
-    annualInvestmentYen: annualInvestment.value,
-    annualSavingsYen: annualSavings.value,
-    annualBonusYen: annualBonus.value,
-    requiredAssetsAtFireYen: requiredAssetsAtFire.value,
-    fireAchievementMonth: fireAchievementMonth.value,
-    fireAchievementAge: fireAchievementAge.value,
-    mortgagePayoffDate: mortgagePayoffDate.value || null,
-    expectedAnnualReturnRatePercent: annualReturnRate.value,
-    includeInflation: includeInflation.value,
-    inflationRatePercent: inflationRate.value,
-    includeTax: includeTax.value,
-    taxRatePercent: taxRate.value,
-    withdrawalRatePercent: withdrawalRate.value,
-    postFireExtraExpenseMonthlyYen: postFireExtraExpense.value,
-    postFireFirstYearExtraExpenseYen: postFireFirstYearExtraExpense.value,
-    retirementLumpSumAtFireYen: retirementLumpSumAtFire.value,
-  },
-  monteCarlo: monteCarloResults.value ? {
-    successRatePercent: (monteCarloResults.value.successRate * 100).toFixed(1),
-    p10Yen: monteCarloResults.value.p10,
-    p50Yen: monteCarloResults.value.p50,
-    p90Yen: monteCarloResults.value.p90,
-    trials: monteCarloResults.value.trials,
-    volatilityPercent: monteCarloVolatility.value,
-    seed: monteCarloSeed.value
-  } : null,
-  pensionEstimates: {
-    householdMonthlyAtUserAge60Yen: estimatedMonthlyPensionAt60.value,
-    householdAnnualAtUserAge60Yen: pensionAnnualAtFire.value,
-    userMonthlyAtAge60Yen: calculateMonthlyPension(60, fireAchievementAge.value),
-    spouseMonthlyAtUserAge62Yen: Math.round(FIRE_ALGORITHM_CONSTANTS.pension.basicFullAnnualYen / 12),
-    spousePensionStartWhenUserAge: FIRE_ALGORITHM_CONSTANTS.pension.spouseUserAgeStart,
-  },
-  algorithmConstants: FIRE_ALGORITHM_CONSTANTS,
-  algorithmExplanation: algorithmExplanationFull.value,
-});
-
-const buildAnnualTableJson = () => annualSimulationData.value.map((row) => ({
-  age: row.age,
-  incomeWithPensionYen: row.income + row.pension,
-  expensesYen: row.expenses,
-  investmentGainYen: row.investmentGain,
-  withdrawalYen: row.withdrawal,
-  totalAssetsYen: row.assets,
-  savingsCashYen: row.cashAssets,
-  riskAssetsYen: row.riskAssets,
-}));
-
-const copyConditionsAndAlgorithm = () => JSON.stringify(buildConditionsAndAlgorithmJson(), null, 2);
-
-const copyAnnualTable = () => JSON.stringify(buildAnnualTableJson(), null, 2);
-
+const {
+  loading,
+  error,
+  formatYen,
+  CopyButton,
+  FireSimulationTable,
+  FireSimulationChart,
+  monthlyInvestment,
+  annualReturnRate,
+  currentAge,
+  includeInflation,
+  inflationRate,
+  includeTax,
+  taxRate,
+  postFireExtraExpense,
+  retirementLumpSumAtFire,
+  manualPostFireFirstYearExtraExpense,
+  useAutoFirstYearExtra,
+  withdrawalRate,
+  includeBonus,
+  useMonteCarlo,
+  monteCarloTrials,
+  monteCarloVolatility,
+  monteCarloSeed,
+  firePortfolio,
+  initialAssets,
+  riskAssets,
+  cashAssets,
+  monthsOfCash,
+  past5MonthSummary,
+  manualMonthlyExpense,
+  useAutoExpense,
+  manualRegularMonthlyIncome,
+  manualAnnualBonus,
+  useAutoIncome,
+  useAutoBonus,
+  mortgageMonthlyPayment,
+  mortgagePayoffDate,
+  monthlyExpense,
+  monthlyIncome,
+  annualInvestment,
+  annualSavings,
+  postFireFirstYearExtraExpense,
+  growthData,
+  annualSimulationData,
+  fireAchievementMonth,
+  fireAchievementAge,
+  pensionAnnualAtFire,
+  estimatedMonthlyPensionAt60,
+  requiredAssetsAtFire,
+  chartAnnotations,
+  fireDate,
+  formatMonths,
+  isCalculatingMonteCarlo,
+  runMonteCarlo,
+  monteCarloResults,
+  algorithmExplanationSegments,
+  copyConditionsAndAlgorithm,
+  copyAnnualTable,
+  copyText,
+  mortgageOptions,
+} = useFireSimulatorViewModel();
 </script>
 
 <template>
