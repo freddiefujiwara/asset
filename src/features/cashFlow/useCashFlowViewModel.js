@@ -13,6 +13,10 @@ import {
 } from "@/domain/cashFlow";
 import { getPast5MonthSummary } from "@/domain/fire";
 
+/**
+ * Manage state and actions for the Cash Flow page.
+ * This keeps the Vue view simple.
+ */
 export function useCashFlowViewModel() {
   const { data, loading, error, rawResponse } = usePortfolioData();
 
@@ -61,11 +65,17 @@ export function useCashFlowViewModel() {
   const uniqueLargeCategories = computed(() => getUniqueLargeCategories(cashFlowRaw.value));
   const uniqueSmallCategories = computed(() => getUniqueSmallCategories(cashFlowRaw.value, largeCategoryFilter.value));
 
+  /**
+   * Update sort key and order from table event.
+   */
   const handleSort = ({ key, order }) => {
     sortKey.value = key;
     sortOrder.value = order;
   };
 
+  /**
+   * Toggle category filters from pie chart label.
+   */
   const handleCategorySelect = (label) => {
     const [large, small = ""] = label.split("/");
     if (largeCategoryFilter.value === large && smallCategoryFilter.value === small) {
@@ -77,6 +87,9 @@ export function useCashFlowViewModel() {
     }
   };
 
+  /**
+   * Read raw API object and split mfcf and other fields.
+   */
   const getSplitResponse = () => {
     if (!rawResponse.value || typeof rawResponse.value !== "object") return null;
     const root = rawResponse.value;
@@ -86,6 +99,9 @@ export function useCashFlowViewModel() {
     return { mfcf, others };
   };
 
+  /**
+   * Build monthly mfcf JSON text for copy action.
+   */
   const getMonthlyMfcfJson = (month) => {
     const split = getSplitResponse();
     if (!split) return "[]";
@@ -93,8 +109,14 @@ export function useCashFlowViewModel() {
     return JSON.stringify(mfcfRows.filter((item) => item?.date?.startsWith(month)), null, 2);
   };
 
+  /**
+   * Build past 5 month summary JSON text for copy action.
+   */
   const getPast5MonthSummaryJson = () => JSON.stringify(getPast5MonthSummary(cashFlowRaw.value), null, 2);
 
+  /**
+   * Reset all filters to default values.
+   */
   const resetFilters = () => {
     monthFilter.value = "";
     typeFilter.value = "";

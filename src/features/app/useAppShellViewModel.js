@@ -5,6 +5,9 @@ import { useUiStore } from "@/stores/ui";
 const THEME_STORAGE_KEY = "asset-theme";
 const ID_TOKEN_STORAGE_KEY = "asset-google-id-token";
 
+/**
+ * Manage app shell state for auth, theme, and privacy.
+ */
 export function useAppShellViewModel() {
   const theme = ref("dark");
   const idToken = ref("");
@@ -26,28 +29,46 @@ export function useAppShellViewModel() {
   const canUseApp = computed(() => hasData.value || Boolean(idToken.value));
   const showLoginGate = computed(() => !initialLoading.value && !idToken.value && (portfolioStore.source !== "live" || !hasData.value));
 
+  /**
+   * Apply theme to document root.
+   */
   const applyTheme = (nextTheme) => {
     document.documentElement.setAttribute("data-theme", nextTheme);
   };
 
+  /**
+   * Toggle between dark and light theme.
+   */
   const toggleTheme = () => {
     theme.value = isDark.value ? "light" : "dark";
   };
 
+  /**
+   * Toggle privacy mode in UI store.
+   */
   const togglePrivacy = () => {
     uiStore.togglePrivacy();
   };
 
+  /**
+   * Read id token from local storage.
+   */
   const readSavedToken = () => {
     idToken.value = localStorage.getItem(ID_TOKEN_STORAGE_KEY) || "";
   };
 
+  /**
+   * Clear portfolio state before refetch.
+   */
   const clearPortfolioState = () => {
     portfolioStore.data = null;
     portfolioStore.error = "";
     portfolioStore.source = "";
   };
 
+  /**
+   * Log out and refresh data without token.
+   */
   const logout = () => {
     localStorage.removeItem(ID_TOKEN_STORAGE_KEY);
     idToken.value = "";
@@ -55,6 +76,9 @@ export function useAppShellViewModel() {
     portfolioStore.fetchPortfolio();
   };
 
+  /**
+   * Save Google credential and fetch live data.
+   */
   const handleGoogleCredential = (response) => {
     const credential = response?.credential;
     if (!credential) return;
@@ -63,6 +87,9 @@ export function useAppShellViewModel() {
     portfolioStore.fetchPortfolio(credential);
   };
 
+  /**
+   * Render Google sign-in button.
+   */
   const renderGoogleButton = () => {
     if (!googleReady.value || !googleButtonRoot.value) return;
     if (!googleClientId || !window.google?.accounts?.id) return;
@@ -77,6 +104,9 @@ export function useAppShellViewModel() {
     });
   };
 
+  /**
+   * Load Google login script once.
+   */
   const loadGoogleScript = () => {
     if (window.google?.accounts?.id) {
       googleReady.value = true;

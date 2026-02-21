@@ -27,6 +27,9 @@ export const FIRE_ALGORITHM_CONSTANTS = {
   },
 };
 
+/**
+ * Calculate monthly pension amount for one user age.
+ */
 export function calculateMonthlyPension(age, fireAge) {
   let totalAnnual = 0;
 

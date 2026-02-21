@@ -1,9 +1,15 @@
 import { nextTick, onMounted, watch } from "vue";
 
+/**
+ * Restore location hash after first data render.
+ */
 export function useInitialHashRestore({ route, router, loading, isReady }) {
   let pendingInitialHash = "";
   let restoredInitialHash = false;
 
+  /**
+   * Scroll to pending hash target when element exists.
+   */
   function scrollToPendingHash() {
     if (!pendingInitialHash) {
       return;
@@ -15,6 +21,9 @@ export function useInitialHashRestore({ route, router, loading, isReady }) {
     }
   }
 
+  /**
+   * Wait for view readiness and then restore hash.
+   */
   async function restoreInitialHashIfReady() {
     if (restoredInitialHash || !pendingInitialHash || loading.value || !isReady.value) {
       return;

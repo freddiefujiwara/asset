@@ -1,5 +1,8 @@
 const KEY_STR_URI_SAFE = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-$";
 
+/**
+ * Compress a string with LZ-style dictionary logic.
+ */
 function compress(uncompressed, bitsPerChar, getCharFromInt) {
   if (uncompressed == null) {
     return "";
@@ -18,6 +21,9 @@ function compress(uncompressed, bitsPerChar, getCharFromInt) {
   let contextDataVal = 0;
   let contextDataPosition = 0;
 
+  /**
+   * Write bits into output buffer.
+   */
   const writeBits = (numBits, val) => {
     for (let j = 0; j < numBits; j += 1) {
       contextDataVal = (contextDataVal << 1) | (val & 1);
@@ -32,6 +38,9 @@ function compress(uncompressed, bitsPerChar, getCharFromInt) {
     }
   };
 
+  /**
+   * Emit current token from dictionary state.
+   */
   const produceW = () => {
     if (Object.prototype.hasOwnProperty.call(contextDictionaryToCreate, contextW)) {
       if (contextW.charCodeAt(0) < 256) {
@@ -95,6 +104,9 @@ function compress(uncompressed, bitsPerChar, getCharFromInt) {
   return contextData.join("");
 }
 
+/**
+ * Compress input and return URI-safe text.
+ */
 export function compressToEncodedURIComponent(input) {
   if (input == null) {
     return "";

@@ -7,20 +7,32 @@ const nonAmountPattern = /コード|率|割合|比/i;
 const percentPattern = /率|割合|比/i;
 const SORTABLE_COLUMN_KEYS = new Set(["評価額", "評価損益", "評価損益率", "__dailyChange", "__riskAssetRatio", "__totalAssetRatio"]);
 
+/**
+ * Manage sort and cell view logic for HoldingTable.
+ */
 export function useHoldingTableViewModel(props) {
   const sortKey = ref("");
   const sortDirection = ref("asc");
 
   const safeRows = computed(() => (Array.isArray(props.rows) ? props.rows : []));
 
+  /**
+   * Check if a column is money-like.
+   */
   const isAmountColumn = (column) => {
     if (column.key === "__dailyChange") return false;
     const keyLabel = `${column.key}${column.label}`;
     return amountLikePattern.test(keyLabel) && !nonAmountPattern.test(keyLabel);
   };
 
+  /**
+   * Check if a column can be sorted.
+   */
   const isSortableColumn = (column) => SORTABLE_COLUMN_KEYS.has(column.key);
 
+  /**
+   * Change sort state for one column.
+   */
   const toggleSort = (column) => {
     if (!isSortableColumn(column)) return;
     if (sortKey.value !== column.key) {
@@ -31,11 +43,17 @@ export function useHoldingTableViewModel(props) {
     sortDirection.value = sortDirection.value === "asc" ? "desc" : "asc";
   };
 
+  /**
+   * Return visual marker for current sort state.
+   */
   const sortMarker = (column) => {
     if (sortKey.value !== column.key) return "";
     return sortDirection.value === "asc" ? " ↑" : " ↓";
   };
 
+  /**
+   * Read sort value from one row and key.
+   */
   const sortValue = (row, key) => {
     if (key === "__dailyChange") {
       const daily = dailyChangeYen(row);
@@ -61,6 +79,9 @@ export function useHoldingTableViewModel(props) {
       .map((entry) => entry.row);
   });
 
+  /**
+   * Convert raw row value to view text.
+   */
   const formatCell = (column, row) => {
     if (column.key === "__dailyChange") {
       const daily = dailyChangeYen(row);
@@ -82,9 +103,18 @@ export function useHoldingTableViewModel(props) {
     return props.isLiability ? `-${formatted}` : formatted;
   };
 
+  /**
+   * Check if this cell should be a stock link.
+   */
   const isStockNameColumn = (column, row) => column.key === "銘柄名" && row?.["銘柄コード"];
+  /**
+   * Check if this column is a name column.
+   */
   const isNameColumn = (column) => /銘柄名|名称/.test(column.label);
 
+  /**
+   * Build css classes for one table cell.
+   */
   const cellClass = (column, row) => {
     const classes = [];
     if (isNameColumn(column)) classes.push("cell-name");

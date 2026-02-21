@@ -31,6 +31,9 @@ const KEY_MAP = {
   "details__liability_det__t0-liability": "liability_details",
 };
 
+/**
+ * Manage data and actions for the Balance Sheet page.
+ */
 export function useBalanceSheetViewModel() {
   const route = useRoute();
   const router = useRouter();
@@ -41,12 +44,18 @@ export function useBalanceSheetViewModel() {
     return OWNER_FILTERS.some((owner) => owner.id === ownerFromQuery) ? ownerFromQuery : "all";
   });
 
+  /**
+   * Update owner query in URL.
+   */
   const selectOwner = (ownerId) => {
     router.replace({ query: { ...route.query, owner: ownerId } });
   };
 
   const filteredHoldings = computed(() => filterHoldingsByOwner(data.value?.holdings, selectedOwner.value) || EMPTY_HOLDINGS);
   const categoryCards = computed(() => summarizeByCategory(filteredHoldings.value));
+  /**
+   * Get amount for one card key.
+   */
   const getCategoryAmount = (key) => categoryCards.value.find((c) => c.key === key)?.amountYen || 0;
 
   const assetsByClass = computed(() => {
@@ -144,6 +153,9 @@ export function useBalanceSheetViewModel() {
     return `https://freddiefujiwara.com/portfolio-treemap/${encoded}`;
   });
 
+  /**
+   * Build mapped raw asset JSON for copy.
+   */
   const getMappedAssetStatusJson = () => {
     if (!rawResponse.value || typeof rawResponse.value !== "object") return "{}";
     const root = rawResponse.value;
@@ -166,6 +178,9 @@ export function useBalanceSheetViewModel() {
   const assetPie = computed(() => assetsByClass.value.map((item) => ({ label: item.name, value: item.amountYen })));
   const liabilityPie = computed(() => liabilitiesByCategory.value.map((item) => ({ label: item.category, value: item.amountYen })));
 
+  /**
+   * Read auth token for copy button.
+   */
   const copyToken = () => {
     const token = localStorage.getItem("asset-google-id-token");
     if (!token) {

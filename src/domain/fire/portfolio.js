@@ -1,5 +1,8 @@
 import { assetAmountYen, detectAssetOwner } from "../family";
 
+/**
+ * Sum only risk asset classes from summary data.
+ */
 export function calculateRiskAssets(portfolio) {
   const riskCategories = [
     "株式（現物）",
@@ -16,6 +19,9 @@ export function calculateRiskAssets(portfolio) {
     .reduce((sum, item) => sum + item.amountYen, 0);
 }
 
+/**
+ * Sum assets for one excluded owner id.
+ */
 export function calculateExcludedOwnerAssets(portfolio, excludedOwnerId = "daughter") {
   if (!portfolio?.holdings) {
     return { totalAssetsYen: 0, riskAssetsYen: 0 };
@@ -24,6 +30,9 @@ export function calculateExcludedOwnerAssets(portfolio, excludedOwnerId = "daugh
   const allAssetKeys = ["cashLike", "stocks", "funds", "pensions", "points"];
   const riskAssetKeys = ["stocks", "funds", "pensions"];
 
+  /**
+   * Sum amount by selected holdings keys.
+   */
   const sumByKeys = (keys) =>
     keys.reduce((sum, key) => {
       const rows = Array.isArray(portfolio.holdings?.[key]) ? portfolio.holdings[key] : [];
@@ -44,6 +53,9 @@ export function calculateExcludedOwnerAssets(portfolio, excludedOwnerId = "daugh
   };
 }
 
+/**
+ * Build daughter asset/liability breakdown by type.
+ */
 export function calculateDaughterAssetsBreakdown(portfolio) {
   const breakdown = {
     cash: 0,
@@ -83,6 +95,9 @@ export function calculateDaughterAssetsBreakdown(portfolio) {
   return breakdown;
 }
 
+/**
+ * Build FIRE portfolio values for selected owners.
+ */
 export function calculateFirePortfolio(portfolio, includedOwnerIds = ["me", "wife"]) {
   if (!portfolio?.holdings) {
     return { totalAssetsYen: 0, riskAssetsYen: 0, cashAssetsYen: 0, liabilitiesYen: 0, netWorthYen: 0 };
@@ -135,6 +150,9 @@ export function calculateFirePortfolio(portfolio, includedOwnerIds = ["me", "wif
   return { totalAssetsYen, riskAssetsYen, cashAssetsYen, liabilitiesYen, netWorthYen };
 }
 
+/**
+ * Calculate cash assets as total minus risk assets.
+ */
 export function calculateCashAssets(portfolio) {
   const riskAssets = calculateRiskAssets(portfolio);
   const totalAssets = portfolio?.totals?.assetsYen || 0;

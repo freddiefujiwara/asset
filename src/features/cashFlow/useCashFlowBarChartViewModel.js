@@ -1,5 +1,8 @@
 import { computed, ref } from "vue";
 
+/**
+ * Manage chart math and tooltip state for CashFlowBarChart.
+ */
 export function useCashFlowBarChartViewModel(props) {
   const chartContainerRef = ref(null);
   const activeTooltip = ref(null);
@@ -28,6 +31,9 @@ export function useCashFlowBarChartViewModel(props) {
     };
   });
 
+  /**
+   * Convert left axis value to chart y position.
+   */
   const yScale = (val) => {
     const { min, max } = range.value;
     const total = max - min || 1;
@@ -55,12 +61,18 @@ export function useCashFlowBarChartViewModel(props) {
     return { min: -niceMax, max: niceMax };
   });
 
+  /**
+   * Convert right axis value to chart y position.
+   */
   const yScaleRight = (val) => {
     const { min, max } = devRange.value;
     const total = max - min || 1;
     return innerHeight - ((val - min) / total) * innerHeight;
   };
 
+  /**
+   * Convert item index to chart x position.
+   */
   const xScale = (i) => (i * innerWidth) / Math.max(props.data.length, 1);
 
   const bars = computed(() => {
@@ -144,8 +156,14 @@ export function useCashFlowBarChartViewModel(props) {
     }));
   });
 
+  /**
+   * Format number as yen text.
+   */
   const formatYen = (value) => `¥${Math.round(value).toLocaleString()}`;
 
+  /**
+   * Show tooltip near pointer position.
+   */
   const showTooltip = (event, item) => {
     const container = chartContainerRef.value;
     if (!container) return;
@@ -159,11 +177,17 @@ export function useCashFlowBarChartViewModel(props) {
     };
   };
 
+  /**
+   * Hide tooltip for mouse leave events.
+   */
   const hideTooltip = (event) => {
     if (event?.pointerType && event.pointerType !== "mouse") return;
     activeTooltip.value = null;
   };
 
+  /**
+   * Force hide tooltip.
+   */
   const clearTooltip = () => {
     activeTooltip.value = null;
   };
