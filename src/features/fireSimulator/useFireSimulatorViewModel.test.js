@@ -37,6 +37,7 @@ describe("useFireSimulatorViewModel", () => {
 
   it("derives key values and export text", () => {
     const vm = useFireSimulatorViewModel();
+    expect(vm.firePortfolio.value.totalAssetsYen).toBe(1000);
     expect(vm.initialAssets.value).toBe(1000);
     expect(vm.monthlyExpense.value).toBe(100);
     expect(vm.requiredAssetsAtFire.value).toBe(777);

@@ -300,6 +300,7 @@ export function useFireSimulatorViewModel() {
     monteCarloTrials,
     monteCarloVolatility,
     monteCarloSeed,
+    firePortfolio,
     initialAssets,
     riskAssets,
     cashAssets,

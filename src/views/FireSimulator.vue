@@ -25,6 +25,7 @@ const {
   monteCarloTrials,
   monteCarloVolatility,
   monteCarloSeed,
+  firePortfolio,
   initialAssets,
   riskAssets,
   cashAssets,
