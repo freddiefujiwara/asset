@@ -228,6 +228,13 @@ const {
 }
 
 .portfolio-treemap-link {
-  font-size: 0.875rem;
+  display: inline-block;
+  text-decoration: none;
+  color: var(--link);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: var(--surface-elevated);
+  font-size: 0.9rem;
 }
 </style>
