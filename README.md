@@ -475,7 +475,10 @@ VITE_GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
 - `src/domain/normalize.js`: Canonical portfolio normalization.
 - `src/domain/holdings.js`: Holdings aggregation and treemap tile generation.
 - `src/domain/cashFlow.js`: 3-type classification and aggregation helpers.
-- `src/domain/fire.js`: FIRE simulation engine, Monte Carlo, and pension models.
+- `src/domain/fire.js`: FIRE domain facade that re-exports FIRE modules.
+- `src/domain/fire/engine.js`: FIRE simulation engine, cashflow projections, and Monte Carlo core.
+- `src/domain/fire/pension.js`: Pension constants and pension amount calculations.
+- `src/domain/fire/portfolio.js`: Portfolio/owner-specific FIRE asset aggregation helpers.
 - `src/features/fireSimulator/useFireSimulatorViewModel.js`: FIRE page orchestration (state, computed values, copy payload composition).
 - `src/features/fireSimulator/formatters.js`: FIRE display/serialization helpers and export payload builders.
 - `src/stores/portfolio.js`: Data fetch/auth/mock state machine.

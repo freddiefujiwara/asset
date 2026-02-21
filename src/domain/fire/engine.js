@@ -1,15 +1,13 @@
 import { getUniqueMonths, getExpenseType } from "../cashFlow";
-import { assetAmountYen, detectAssetOwner, USER_BIRTH_DATE, SPOUSE_BIRTH_DATE, DAUGHTER_BIRTH_DATE } from "../family";
 import { formatYen } from "../format";
-
-const PENSION_USER_START_AGE = 60;
-const PENSION_SPOUSE_USER_AGE_START = 62; // Spouse (1976) age 65 when User (1979) is 62
-const PENSION_BASIC_FULL = 780000;
-const PENSION_BASIC_REDUCTION = 0.9; // 10% reduction for 4 years gap
-const PENSION_EARLY_REDUCTION = 0.76; // 24% reduction for starting at 60
-const PENSION_DATA_AGE = 44; // Age at which premium data was provided
-const PENSION_USER_KOSEN_ACCRUED_AT_44 = 892252; // Accrued Employees' Pension based on 14.9M premiums
-const PENSION_USER_KOSEN_FUTURE_FACTOR = 42000; // Estimated future accrual per year worked
+import { FIRE_ALGORITHM_CONSTANTS, calculateMonthlyPension } from "./pension";
+import {
+  calculateRiskAssets,
+  calculateExcludedOwnerAssets,
+  calculateDaughterAssetsBreakdown,
+  calculateFirePortfolio,
+  calculateCashAssets,
+} from "./portfolio";
 
 /**
  * Independence date for the daughter: born 2013-02-20, turns 24 in 2037-02.
@@ -17,146 +15,16 @@ const PENSION_USER_KOSEN_FUTURE_FACTOR = 42000; // Estimated future accrual per 
  */
 const INDEPENDENCE_MONTH_KEY = "2037-04";
 
-export const FIRE_ALGORITHM_CONSTANTS = {
-  pension: {
-    userStartAge: PENSION_USER_START_AGE,
-    spouseUserAgeStart: PENSION_SPOUSE_USER_AGE_START,
-    basicFullAnnualYen: PENSION_BASIC_FULL,
-    basicReduction: PENSION_BASIC_REDUCTION,
-    earlyReduction: PENSION_EARLY_REDUCTION,
-    pensionDataAge: PENSION_DATA_AGE,
-    userKoseiAccruedAt44AnnualYen: PENSION_USER_KOSEN_ACCRUED_AT_44,
-    userKoseiFutureFactorAnnualYenPerYear: PENSION_USER_KOSEN_FUTURE_FACTOR,
-  },
-  familyBirthDates: {
-    user: USER_BIRTH_DATE,
-    spouse: SPOUSE_BIRTH_DATE,
-    daughter: DAUGHTER_BIRTH_DATE,
-  },
+export {
+  FIRE_ALGORITHM_CONSTANTS,
+  calculateMonthlyPension,
+  calculateRiskAssets,
+  calculateExcludedOwnerAssets,
+  calculateDaughterAssetsBreakdown,
+  calculateFirePortfolio,
+  calculateCashAssets,
 };
 
-/**
- * Calculate pension monthly amount for the given age and FIRE age.
- * @param {number} age - Current age in simulation
- * @param {number} fireAge - Age at which user reaches FIRE
- */
-export function calculateMonthlyPension(age, fireAge) {
-  let totalAnnual = 0;
-
-  // User pension (starts at 60)
-  if (age >= PENSION_USER_START_AGE) {
-    const basicPart = PENSION_BASIC_FULL * PENSION_BASIC_REDUCTION * PENSION_EARLY_REDUCTION;
-    // Participation stops at FIRE or age 60 (whichever comes first, as pension starts at 60)
-    const participationEndAge = Math.min(60, fireAge);
-    const futureYears = Math.max(0, participationEndAge - PENSION_DATA_AGE);
-    const employeesPartAt65 = PENSION_USER_KOSEN_ACCRUED_AT_44 + futureYears * PENSION_USER_KOSEN_FUTURE_FACTOR;
-
-    totalAnnual += (basicPart + employeesPartAt65 * PENSION_EARLY_REDUCTION);
-  }
-
-  // Spouse pension (starts when User is 62, i.e., Spouse is 65)
-  if (age >= PENSION_SPOUSE_USER_AGE_START) {
-    totalAnnual += PENSION_BASIC_FULL;
-  }
-
-  return Math.round(totalAnnual / 12);
-}
-
-/**
- * Identify risk assets and sum their values.
- */
-export function calculateRiskAssets(portfolio) {
-  const riskCategories = [
-    "株式（現物）",
-    "株式（信用）",
-    "投資信託",
-    "年金",
-    "先物・オプション",
-    "外貨預金",
-    "債券",
-  ];
-  if (!portfolio?.summary?.assetsByClass) return 0;
-  return portfolio.summary.assetsByClass
-    .filter((item) => riskCategories.includes(item.name))
-    .reduce((sum, item) => sum + item.amountYen, 0);
-}
-
-/**
- * Sum excluded owner's assets from detailed holdings.
- * Used for FIRE simulation where specific family member assets should be omitted.
- */
-export function calculateExcludedOwnerAssets(portfolio, excludedOwnerId = "daughter") {
-  if (!portfolio?.holdings) {
-    return { totalAssetsYen: 0, riskAssetsYen: 0 };
-  }
-
-  const allAssetKeys = ["cashLike", "stocks", "funds", "pensions", "points"];
-  const riskAssetKeys = ["stocks", "funds", "pensions"];
-
-  const sumByKeys = (keys) => keys.reduce((sum, key) => {
-    const rows = Array.isArray(portfolio.holdings?.[key]) ? portfolio.holdings[key] : [];
-    const sectionTotal = rows.reduce((sectionSum, row) => {
-      const owner = detectAssetOwner(row);
-      if (owner.id !== excludedOwnerId) {
-        return sectionSum;
-      }
-      return sectionSum + assetAmountYen(row);
-    }, 0);
-
-    return sum + sectionTotal;
-  }, 0);
-
-  return {
-    totalAssetsYen: sumByKeys(allAssetKeys),
-    riskAssetsYen: sumByKeys(riskAssetKeys),
-  };
-}
-
-/**
- * Calculate detailed asset breakdown for the daughter.
- */
-export function calculateDaughterAssetsBreakdown(portfolio) {
-  const breakdown = {
-    cash: 0,
-    stocks: 0,
-    funds: 0,
-    pensions: 0,
-    points: 0,
-    liabilities: 0,
-  };
-
-  if (!portfolio?.holdings) return breakdown;
-
-  const map = {
-    cashLike: "cash",
-    stocks: "stocks",
-    funds: "funds",
-    pensions: "pensions",
-    points: "points",
-  };
-
-  Object.entries(map).forEach(([key, bKey]) => {
-    const rows = portfolio.holdings[key] || [];
-    rows.forEach((row) => {
-      if (detectAssetOwner(row).id === "daughter") {
-        breakdown[bKey] += assetAmountYen(row);
-      }
-    });
-  });
-
-  const liabRows = portfolio.holdings.liabilitiesDetail || [];
-  liabRows.forEach((row) => {
-    if (detectAssetOwner(row).id === "daughter") {
-      breakdown.liabilities += assetAmountYen(row);
-    }
-  });
-
-  return breakdown;
-}
-
-/**
- * Generate algorithm explanation segments for UI and export.
- */
 export function generateAlgorithmExplanationSegments(params) {
   const {
     daughterBreakdown,
@@ -220,73 +88,6 @@ export function generateAlgorithmExplanationSegments(params) {
   return segments;
 }
 
-/**
- * Sum assets and liabilities for specific owners (Self and Spouse).
- * This ensures strict isolation for FIRE simulation.
- */
-export function calculateFirePortfolio(portfolio, includedOwnerIds = ["me", "wife"]) {
-  if (!portfolio?.holdings) {
-    return { totalAssetsYen: 0, riskAssetsYen: 0, cashAssetsYen: 0, liabilitiesYen: 0, netWorthYen: 0 };
-  }
-
-  const riskCategories = [
-    "株式（現物）",
-    "株式（信用）",
-    "投資信託",
-    "年金",
-    "先物・オプション",
-    "外貨預金",
-    "債券",
-  ];
-
-  const allAssetKeys = ["cashLike", "stocks", "funds", "pensions", "points"];
-  const riskAssetKeys = new Set(["stocks", "funds", "pensions"]);
-
-  let totalAssetsYen = 0;
-  let riskAssetsYen = 0;
-
-  allAssetKeys.forEach((key) => {
-    const rows = Array.isArray(portfolio.holdings?.[key]) ? portfolio.holdings[key] : [];
-    rows.forEach((row) => {
-      const owner = detectAssetOwner(row);
-      if (!includedOwnerIds.includes(owner.id)) return;
-
-      const amount = assetAmountYen(row);
-      totalAssetsYen += amount;
-
-      const category = row.category || "";
-      if (riskAssetKeys.has(key) || riskCategories.includes(category)) {
-        riskAssetsYen += amount;
-      }
-    });
-  });
-
-  const liabRows = Array.isArray(portfolio.holdings?.liabilitiesDetail)
-    ? portfolio.holdings.liabilitiesDetail
-    : [];
-  const liabilitiesYen = liabRows.reduce((sum, row) => {
-    const owner = detectAssetOwner(row);
-    if (!includedOwnerIds.includes(owner.id)) return sum;
-    return sum + assetAmountYen(row);
-  }, 0);
-
-  return {
-    totalAssetsYen,
-    riskAssetsYen,
-    cashAssetsYen: totalAssetsYen - riskAssetsYen,
-    liabilitiesYen,
-    netWorthYen: totalAssetsYen - liabilitiesYen,
-  };
-}
-
-/**
- * Calculate cash assets (Total Assets - Risk Assets).
- */
-export function calculateCashAssets(portfolio) {
-  const riskAssets = calculateRiskAssets(portfolio);
-  const totalAssets = portfolio?.totals?.assetsYen || 0;
-  return totalAssets - riskAssets;
-}
 
 const FIVE_MONTH_LOOKBACK_COUNT = 5;
 
