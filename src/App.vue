@@ -1,159 +1,22 @@
 <script setup>
 import { RouterLink, RouterView } from "vue-router";
-import { computed, nextTick, onMounted, ref, watch } from "vue";
-import { usePortfolioStore } from "@/stores/portfolio";
-import { useUiStore } from "@/stores/ui";
+import { useAppShellViewModel } from "@/features/app/useAppShellViewModel";
 
-const THEME_STORAGE_KEY = "asset-theme";
-const ID_TOKEN_STORAGE_KEY = "asset-google-id-token";
-
-const theme = ref("dark");
-const idToken = ref("");
-const googleReady = ref(false);
-const googleScriptError = ref(false);
-const googleButtonRoot = ref(null);
-
-const portfolioStore = usePortfolioStore();
-const uiStore = useUiStore();
-
-const isDark = computed(() => theme.value === "dark");
-const themeLabel = computed(() => (isDark.value ? "ライト" : "ダーク"));
-const privacyLabel = computed(() => (uiStore.privacyMode ? "金額表示" : "金額モザイク"));
-const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
-const hasGoogleClientId = computed(() => Boolean(googleClientId));
-const authError = computed(() => portfolioStore.error.startsWith("AUTH "));
-const hasData = computed(() => Boolean(portfolioStore.data));
-const initialLoading = computed(() => portfolioStore.loading && !hasData.value);
-const canUseApp = computed(() => hasData.value || Boolean(idToken.value));
-const needsLogin = computed(() => !initialLoading.value && !canUseApp.value && authError.value);
-const showLoginGate = computed(() => !initialLoading.value && !idToken.value && (portfolioStore.source !== "live" || !hasData.value));
-
-const applyTheme = (nextTheme) => {
-  document.documentElement.setAttribute("data-theme", nextTheme);
-};
-
-const toggleTheme = () => {
-  theme.value = isDark.value ? "light" : "dark";
-};
-
-const togglePrivacy = () => {
-  uiStore.togglePrivacy();
-};
-
-function readSavedToken() {
-  idToken.value = localStorage.getItem(ID_TOKEN_STORAGE_KEY) || "";
-}
-
-function clearPortfolioState() {
-  portfolioStore.data = null;
-  portfolioStore.error = "";
-  portfolioStore.source = "";
-}
-
-function logout() {
-  localStorage.removeItem(ID_TOKEN_STORAGE_KEY);
-  idToken.value = "";
-  clearPortfolioState();
-  portfolioStore.fetchPortfolio();
-}
-
-function handleGoogleCredential(response) {
-  const credential = response?.credential;
-  if (!credential) {
-    return;
-  }
-
-  // 1. メモリ(ref)とストレージを即時更新
-  idToken.value = credential;
-  localStorage.setItem(ID_TOKEN_STORAGE_KEY, credential);
-
-  // 2. ストアに直接トークンを渡してフェッチ開始（これが重要！）
-  portfolioStore.fetchPortfolio(credential);
-}
-
-function renderGoogleButton() {
-  if (!googleReady.value || !googleButtonRoot.value) {
-    return;
-  }
-
-  if (!googleClientId || !window.google?.accounts?.id) {
-    return;
-  }
-
-  googleButtonRoot.value.innerHTML = "";
-  window.google.accounts.id.initialize({
-    client_id: googleClientId,
-    callback: handleGoogleCredential,
-  });
-  window.google.accounts.id.renderButton(googleButtonRoot.value, {
-    theme: "outline",
-    size: "large",
-    text: "signin_with",
-    shape: "pill",
-  });
-}
-
-function loadGoogleScript() {
-  if (window.google?.accounts?.id) {
-    googleReady.value = true;
-    return;
-  }
-
-  const script = document.createElement("script");
-  script.src = "https://accounts.google.com/gsi/client";
-  script.async = true;
-  script.defer = true;
-  script.onload = () => {
-    googleReady.value = true;
-  };
-  script.onerror = () => {
-    googleScriptError.value = true;
-  };
-  document.head.appendChild(script);
-}
-
-onMounted(() => {
-  const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
-  if (savedTheme === "light" || savedTheme === "dark") {
-    theme.value = savedTheme;
-  }
-
-  readSavedToken();
-  loadGoogleScript();
-
-  // 初回読み込み時は localStorage のトークンを使って自動フェッチ
-  if (!portfolioStore.data && !portfolioStore.error) {
-    portfolioStore.fetchPortfolio();
-  }
-
-  applyTheme(theme.value);
-  document.documentElement.setAttribute("data-private", uiStore.privacyMode ? "on" : "off");
-});
-
-watch(theme, (nextTheme) => {
-  localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
-  applyTheme(nextTheme);
-});
-
-watch(
-  () => portfolioStore.error,
-  (newError) => {
-    if (newError.startsWith("AUTH ") && idToken.value) {
-      logout();
-    }
-  },
-);
-
-watch(
-  () => [googleReady.value, showLoginGate.value],
-  async () => {
-    await nextTick();
-    if (showLoginGate.value) {
-      renderGoogleButton();
-    }
-  },
-  { immediate: true },
-);
+const {
+  portfolioStore,
+  themeLabel,
+  privacyLabel,
+  hasGoogleClientId,
+  authError,
+  initialLoading,
+  showLoginGate,
+  googleScriptError,
+  googleButtonRoot,
+  idToken,
+  togglePrivacy,
+  toggleTheme,
+  logout,
+} = useAppShellViewModel();
 </script>
 
 <template>

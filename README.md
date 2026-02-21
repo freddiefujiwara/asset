@@ -483,6 +483,9 @@ VITE_GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
 - `src/features/fireSimulator/formatters.js`: FIRE display/serialization helpers and export payload builders.
 - `src/features/balanceSheet/useBalanceSheetViewModel.js`: Balance Sheet page orchestration and derived portfolio metrics.
 - `src/features/cashFlow/useCashFlowBarChartViewModel.js`: Cash flow bar chart rendering/view-state calculations.
+- `src/features/cashFlow/useCashFlowViewModel.js`: Cash Flow page filters, KPI derivations, and copy/export helpers.
+- `src/features/holdings/useHoldingTableViewModel.js`: Holding table sorting and cell-format view logic.
+- `src/features/app/useAppShellViewModel.js`: App shell login/theme/privacy orchestration.
 - `src/lib/lzString.js`: URI-safe compressed string encoder used for external chart/data links.
 - `src/stores/portfolio.js`: Data fetch/auth/mock state machine.
 - `src/stores/ui.js`: Privacy mode and theme persistence.
