@@ -64,7 +64,7 @@ The app is designed for direct practical use, not just static reporting. It supp
 
 1. **UI/View Layer (`src/views`, `src/components`)**
    - Presents interactive charts (SVG-based) and tables.
-   - Handles user interactions, filtering, and copy actions.
+   - Kept logic-light: views mainly bind UI and delegate orchestration to feature composables.
 
 2. **State Layer (`src/stores`)**
    - `portfolio` store fetches + normalizes portfolio data.
@@ -74,9 +74,9 @@ The app is designed for direct practical use, not just static reporting. It supp
    - Pure logic modules for parsing, formatting, aggregation, owner detection, and simulation.
    - Business rules are intentionally concentrated here.
 
-4. **Composable Layer (`src/composables`)**
-   - Reusable view orchestration (data loading, hash-restore behavior).
-
+4. **Composable Layer (`src/composables`, `src/features/*`)**
+   - Reusable orchestration (data loading, hash-restore behavior).
+   - Feature-specific view models (e.g. `src/features/fireSimulator/useFireSimulatorViewModel.js`) isolate simulation behavior from `.vue` templates.
 ---
 
 ### 2.3 Route Map
@@ -446,7 +446,7 @@ Calculates target assets at each month from end-of-life backward, accounting for
 npm install        # Install dependencies
 npm run dev        # Start development server (http://localhost:5173/asset/)
 npm run test       # Run unit tests (Vitest)
-npm run test:ui    # Run unit tests with UI
+npm run test:coverage # Run unit tests with coverage report
 npm run build      # Build for production (output to dist/)
 npm run preview    # Preview production build
 ```
@@ -476,6 +476,8 @@ VITE_GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
 - `src/domain/holdings.js`: Holdings aggregation and treemap tile generation.
 - `src/domain/cashFlow.js`: 3-type classification and aggregation helpers.
 - `src/domain/fire.js`: FIRE simulation engine, Monte Carlo, and pension models.
+- `src/features/fireSimulator/useFireSimulatorViewModel.js`: FIRE page orchestration (state, computed values, copy payload composition).
+- `src/features/fireSimulator/formatters.js`: FIRE display/serialization helpers and export payload builders.
 - `src/stores/portfolio.js`: Data fetch/auth/mock state machine.
 - `src/stores/ui.js`: Privacy mode and theme persistence.
 
