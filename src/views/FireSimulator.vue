@@ -62,6 +62,7 @@ const {
   copyAnnualTable,
   copyText,
   mortgageOptions,
+  externalSimulatorUrl,
 } = useFireSimulatorViewModel();
 </script>
 
@@ -71,7 +72,17 @@ const {
     <p v-if="error" class="error">{{ error }}</p>
 
     <div class="filter-section table-wrap">
-      <h3 class="section-title">シミュレーション引数</h3>
+      <div class="header-with-action">
+        <h3 class="section-title">シミュレーション引数</h3>
+        <a
+          class="portfolio-treemap-link"
+          :href="externalSimulatorUrl"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          外部シミュレータ
+        </a>
+      </div>
       <div class="fire-form-grid">
         <div class="filter-item">
           <label>毎月の投資額 (円)</label>
@@ -421,6 +432,25 @@ const {
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 16px;
   align-items: flex-end;
+}
+.header-with-action {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.header-with-action .section-title {
+  margin-bottom: 0;
+}
+.portfolio-treemap-link {
+  display: inline-block;
+  text-decoration: none;
+  color: var(--link);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: var(--surface-elevated);
+  font-size: 0.9rem;
 }
 .filter-item {
   display: flex;
