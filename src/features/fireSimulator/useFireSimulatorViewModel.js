@@ -239,6 +239,7 @@ export function useFireSimulatorViewModel() {
     postFireExtraExpenseMonthlyYen: postFireExtraExpense.value,
     postFireFirstYearExtraExpenseYen: postFireFirstYearExtraExpense.value,
     retirementLumpSumAtFireYen: retirementLumpSumAtFire.value,
+    mortgageMonthlyPaymentYen: mortgageMonthlyPayment.value,
   }));
 
   const copyConditionsAndAlgorithm = () =>

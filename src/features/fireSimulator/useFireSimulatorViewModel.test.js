@@ -43,6 +43,7 @@ describe("useFireSimulatorViewModel", () => {
     expect(vm.requiredAssetsAtFire.value).toBe(777);
     expect(vm.copyAnnualTable()).toContain("incomeWithPensionYen");
     expect(vm.copyConditionsAndAlgorithm()).toContain("algorithmConstants");
+    expect(vm.copyConditionsAndAlgorithm()).toContain("mortgageMonthlyPaymentYen");
   });
 
   it("runs monte carlo only when enabled and clears results when disabled", async () => {
