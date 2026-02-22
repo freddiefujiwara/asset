@@ -290,6 +290,7 @@ export function useFireSimulatorViewModel() {
       pfee: postFireExtraExpense.value,
       rlsaf: retirementLumpSumAtFire.value,
       mpffyee: manualPostFireFirstYearExtraExpense.value,
+      mpffyeem: true,
       wr: withdrawalRate.value,
       ib: includeBonus.value,
       umc: useMonteCarlo.value,
@@ -299,6 +300,7 @@ export function useFireSimulatorViewModel() {
       mme: manualMonthlyExpense.value,
       mrmi: manualRegularMonthlyIncome.value,
       mab: manualAnnualBonus.value,
+      mabm: true,
       mmp: mortgageMonthlyPayment.value,
       mpd: mortgagePayoffDate.value || "",
     };
