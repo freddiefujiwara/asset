@@ -51,7 +51,7 @@ describe("useFireSimulatorViewModel", () => {
     expect(vm.copyConditionsAndAlgorithm()).toContain("mortgageMonthlyPaymentYen");
   });
 
-  it("includes mpffyeem and mabm in externalSimulatorUrl payload", () => {
+  it("includes required fixed flags in externalSimulatorUrl payload", () => {
     const vm = useFireSimulatorViewModel();
     const url = vm.externalSimulatorUrl.value;
 
@@ -61,6 +61,7 @@ describe("useFireSimulatorViewModel", () => {
 
     expect(payload.mpffyeem).toBe(true);
     expect(payload.mabm).toBe(true);
+    expect(payload.sea).toBe(100);
     expect(compressToEncodedURIComponent).toHaveBeenCalled();
   });
 

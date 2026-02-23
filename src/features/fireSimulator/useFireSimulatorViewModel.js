@@ -265,6 +265,7 @@ export function useFireSimulatorViewModel() {
   const externalSimulatorUrl = computed(() => {
     const payload = {
       ht: "family",
+      sea: 100,
       ubd: USER_BIRTH_DATE,
       sbd: SPOUSE_BIRTH_DATE,
       dbds: [DAUGHTER_BIRTH_DATE],
