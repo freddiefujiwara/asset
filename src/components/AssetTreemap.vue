@@ -50,7 +50,8 @@ const getFontSize = (leaf) => {
   const w = leaf.x1 - leaf.x0;
   const h = leaf.y1 - leaf.y0;
   const side = Math.min(w, h);
-  return Math.max(8, Math.min(side / 4.5, w / 8, 36));
+  // Slightly more generous font scaling for small to medium tiles
+  return Math.max(8, Math.min(side / 3.5, w / 6, 36));
 };
 
 const getTileColor = (changeRate) => {
@@ -127,12 +128,12 @@ onUnmounted(() => {
         @mousemove="showTooltip($event, leaf)"
         @mouseleave="hideTooltip"
       >
-        <div v-if="(leaf.x1 - leaf.x0) >= 30 && (leaf.y1 - leaf.y0) >= 20" class="tile-label-container">
+        <div v-if="(leaf.x1 - leaf.x0) >= 16 && (leaf.y1 - leaf.y0) >= 16" class="tile-label-container">
           <div class="stock-tile-name" :title="leaf.data.name">{{ leaf.data.name }}</div>
-          <div v-if="leaf.data.symbol" class="tile-symbol" :style="{ fontSize: (getFontSize(leaf) * 0.7) + 'px' }">
+          <div v-if="leaf.data.symbol && (leaf.y1 - leaf.y0) >= 30" class="tile-symbol" :style="{ fontSize: (getFontSize(leaf) * 0.7) + 'px' }">
             {{ leaf.data.symbol }}
           </div>
-          <div v-if="props.showDailyChange && leaf.data.changeRate !== undefined" class="tile-change" :style="{ fontSize: (getFontSize(leaf) * 0.8) + 'px' }">
+          <div v-if="props.showDailyChange && leaf.data.changeRate !== undefined && (leaf.y1 - leaf.y0) >= 24" class="tile-change" :style="{ fontSize: (getFontSize(leaf) * 0.8) + 'px' }">
             {{ leaf.data.changeRate > 0 ? '+' : '' }}{{ leaf.data.changeRate.toFixed(2) }}%
           </div>
         </div>
@@ -203,7 +204,7 @@ onUnmounted(() => {
 .stock-tile {
   position: absolute;
   box-sizing: border-box;
-  padding: 4px;
+  padding: 2px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -213,8 +214,9 @@ onUnmounted(() => {
   cursor: help;
   transition: filter 0.2s;
   color: #fff;
-  text-shadow: 0 1px 2px rgb(2 6 23 / 0.28);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  /* Stronger text shadow for better readability on bright colors */
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.6), 0 0 2px rgb(0 0 0 / 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .stock-tile:hover {
