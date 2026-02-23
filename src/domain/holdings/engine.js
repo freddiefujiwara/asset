@@ -133,20 +133,22 @@ function buildTiles(rows, { aggregate = false } = {}) {
   let processedRows = safeRows;
   if (aggregate) {
     const map = new Map();
-    safeRows.forEach(row => {
+    safeRows.forEach((row) => {
       const name = row?.["銘柄名"] || row?.["名称"] || "名称未設定";
       const value = toNumber(row?.["評価額"]) || toNumber(row?.["現在価値"]) || 0;
       const profit = toNumber(row?.["評価損益"]) || 0;
       const dailyChange = dailyChangeYen(row) || 0;
       const institution = row?.["保有金融機関"] || "不明";
+      const code = row?.["銘柄コード"] || "";
 
       if (!map.has(name)) {
         map.set(name, {
           name,
+          symbol: code,
           value: 0,
           profit: 0,
           dailyChange: 0,
-          details: []
+          details: [],
         });
       }
       const entry = map.get(name);
@@ -154,6 +156,9 @@ function buildTiles(rows, { aggregate = false } = {}) {
       entry.profit += profit;
       entry.dailyChange += dailyChange;
       entry.details.push({ institution, value });
+      if (!entry.symbol && code) {
+        entry.symbol = code;
+      }
     });
     processedRows = Array.from(map.values());
   } else {
@@ -161,34 +166,32 @@ function buildTiles(rows, { aggregate = false } = {}) {
       const value = toNumber(row?.["評価額"]) || toNumber(row?.["現在価値"]) || 0;
       return {
         name: row?.["銘柄名"] ?? row?.["銘柄コード"] ?? row?.["名称"] ?? "名称未設定",
+        symbol: row?.["銘柄コード"] ?? "",
         value,
         profit: toNumber(row?.["評価損益"]),
         dailyChange: dailyChangeYen(row),
-        idx
+        idx,
       };
     });
   }
 
-  const prepared = processedRows
+  return processedRows
     .filter((entry) => entry.value > 0)
     .sort((a, b) => {
       if (a.value === b.value) {
         return (a.idx ?? 0) - (b.idx ?? 0);
       }
       return b.value - a.value;
+    })
+    .map((entry) => {
+      const prevValue = entry.value - (entry.dailyChange || 0);
+      const changeRate = prevValue > 0 ? (entry.dailyChange / prevValue) * 100 : 0;
+      return {
+        ...entry,
+        changeRate,
+        isNegative: entry.dailyChange != null && entry.dailyChange < 0,
+      };
     });
-
-  if (!prepared.length) {
-    return [];
-  }
-
-  const layouted = [];
-  layoutTreemap(prepared, 0, 0, 100, 100, layouted);
-
-  return layouted.map((entry) => ({
-    ...entry,
-    isNegative: entry.dailyChange != null && entry.dailyChange < 0,
-  }));
 }
 
 export function stockTiles(stocks) {
@@ -257,34 +260,3 @@ export function generateStockCsv(stocks) {
     .join("\n");
 }
 
-function layoutTreemap(items, x, y, width, height, output) {
-  if (items.length === 1) {
-    output.push({ ...items[0], x, y, width, height });
-    return;
-  }
-
-  const total = items.reduce((sum, item) => sum + item.value, 0);
-  const target = total / 2;
-
-  let splitIndex = 1;
-  let leftSum = items[0].value;
-  while (splitIndex < items.length - 1 && leftSum < target) {
-    leftSum += items[splitIndex].value;
-    splitIndex += 1;
-  }
-
-  const leftItems = items.slice(0, splitIndex);
-  const rightItems = items.slice(splitIndex);
-  const leftRatio = leftSum / total;
-
-  if (width >= height) {
-    const leftWidth = width * leftRatio;
-    layoutTreemap(leftItems, x, y, leftWidth, height, output);
-    layoutTreemap(rightItems, x + leftWidth, y, width - leftWidth, height, output);
-    return;
-  }
-
-  const topHeight = height * leftRatio;
-  layoutTreemap(leftItems, x, y, width, topHeight, output);
-  layoutTreemap(rightItems, x, y + topHeight, width, height - topHeight, output);
-}

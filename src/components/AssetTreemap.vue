@@ -1,4 +1,6 @@
 <script setup>
+import { ref, onMounted, watch, onUnmounted, computed } from 'vue';
+import * as d3 from 'd3';
 import { formatYen, formatSignedYen } from "@/domain/format";
 import { signedClass } from "@/domain/signed";
 
@@ -8,78 +10,97 @@ const props = defineProps({
   showDailyChange: { type: Boolean, default: true },
 });
 
-const MIN_FONT_SIZE_PX = 10;
-const MAX_FONT_SIZE_PX = 52;
-const AREA_LOG_WEIGHT = 0.78;
-const VALUE_WEIGHT = 0.22;
+const container = ref(null);
+const width = ref(800);
+const height = ref(400);
+const tooltip = ref({
+  show: false,
+  x: 0,
+  y: 0,
+  data: {}
+});
 
-function clamp(value, min, max) {
-  return Math.min(max, Math.max(min, value));
-}
-
-function tileAreaRatio(tile) {
-  const areaPercent = (tile.width || 0) * (tile.height || 0);
-  return clamp(areaPercent / 10000, 0, 1);
-}
-
-function maxTileValue(tiles) {
-  if (!Array.isArray(tiles) || !tiles.length) {
-    return 1;
+const updateDimensions = () => {
+  if (container.value) {
+    const newWidth = container.value.clientWidth;
+    if (newWidth > 0) {
+      width.value = newWidth;
+    }
+    // Adjust height based on window height to follow target look & feel
+    height.value = Math.min(600, Math.max(300, window.innerHeight * 0.4));
   }
-  return Math.max(1, ...tiles.map(tile => tile.value || 0));
-}
+};
 
-function tileFontSizePx(tile, tiles) {
-  const areaRatio = tileAreaRatio(tile);
-  const areaScale = Math.log1p(areaRatio * 50) / Math.log1p(50);
-  const valueScale = clamp((tile.value || 0) / maxTileValue(tiles), 0, 1);
-  const blendedScale = clamp((areaScale * AREA_LOG_WEIGHT) + (valueScale * VALUE_WEIGHT), 0, 1);
-  return MIN_FONT_SIZE_PX + (MAX_FONT_SIZE_PX - MIN_FONT_SIZE_PX) * blendedScale;
-}
+const layoutNodes = computed(() => {
+  if (!props.tiles || props.tiles.length === 0) return [];
 
-function tileLineClamp(tile) {
-  const areaRatio = tileAreaRatio(tile);
-  if (areaRatio > 0.18) return 4;
-  if (areaRatio > 0.09) return 3;
-  if (areaRatio > 0.03) return 2;
-  return 1;
-}
+  const root = d3.hierarchy({ children: props.tiles })
+    .sum(d => d.value)
+    .sort((a, b) => b.value - a.value);
 
-function compactTileName(name, tile) {
-  const safeName = String(name || "名称未設定");
-  const areaRatio = tileAreaRatio(tile);
+  d3.treemap()
+    .size([width.value, height.value])
+    .padding(1)
+    (root);
 
-  if (areaRatio < 0.006) {
-    return `${safeName.slice(0, 2)}…`;
+  return root.leaves();
+});
+
+const getFontSize = (leaf) => {
+  const w = leaf.x1 - leaf.x0;
+  const h = leaf.y1 - leaf.y0;
+  const side = Math.min(w, h);
+  return Math.max(8, Math.min(side / 4.5, w / 8, 36));
+};
+
+const getTileColor = (changeRate) => {
+  const neutral = "#1f2937"; // --surface-elevated
+  const positive = "#22c55e";
+  const negative = "#ef4444";
+
+  if (!props.showDailyChange) return neutral;
+
+  if (changeRate > 0) {
+    const intensity = Math.min(changeRate / 5, 1);
+    return d3.interpolateRgb(neutral, positive)(intensity);
+  } else if (changeRate < 0) {
+    const intensity = Math.min(Math.abs(changeRate) / 5, 1);
+    return d3.interpolateRgb(neutral, negative)(intensity);
   }
-  if (areaRatio < 0.015) {
-    return `${safeName.slice(0, 4)}…`;
-  }
-  if (areaRatio < 0.03) {
-    return `${safeName.slice(0, 7)}…`;
-  }
-  return safeName;
-}
+  return neutral;
+};
 
-function tilePaddingPx(tile) {
-  const areaRatio = tileAreaRatio(tile);
-  if (areaRatio < 0.01) return 2;
-  if (areaRatio < 0.025) return 4;
-  if (areaRatio < 0.08) return 6;
-  return 10;
-}
-
-function tileStyle(tile, tiles) {
-  return {
-    left: `${tile.x}%`,
-    top: `${tile.y}%`,
-    width: `${tile.width}%`,
-    height: `${tile.height}%`,
-    "--tile-font-size": `${tileFontSizePx(tile, tiles)}px`,
-    "--tile-line-clamp": tileLineClamp(tile),
-    "--tile-padding": `${tilePaddingPx(tile)}px`,
+const showTooltip = (event, leaf) => {
+  const totalValuation = props.tiles.reduce((sum, d) => sum + d.value, 0);
+  tooltip.value = {
+    show: true,
+    x: event.clientX + 10,
+    y: event.clientY + 10,
+    data: {
+      ...leaf.data,
+      ratio: totalValuation > 0 ? (leaf.data.value / totalValuation) * 100 : 0
+    }
   };
-}
+};
+
+const hideTooltip = () => {
+  tooltip.value.show = false;
+};
+
+let ro;
+onMounted(() => {
+  updateDimensions();
+  ro = new ResizeObserver(() => {
+    updateDimensions();
+  });
+  if (container.value) {
+    ro.observe(container.value);
+  }
+});
+
+onUnmounted(() => {
+  if (ro) ro.disconnect();
+});
 </script>
 
 <template>
@@ -87,51 +108,183 @@ function tileStyle(tile, tiles) {
     <h3 class="section-title">
       <slot name="title">{{ title }}</slot>
     </h3>
-    <div class="stock-tile-grid">
+    <div ref="container" class="treemap-container" :style="{ height: height + 'px' }">
+      <div v-if="layoutNodes.length === 0" class="empty-treemap-message">
+        有効なデータがありません。
+      </div>
       <article
-        v-for="tile in tiles"
-        :key="`${tile.name}-${tile.value}`"
+        v-for="leaf in layoutNodes"
+        :key="`${leaf.data.name}-${leaf.data.value}`"
         class="stock-tile"
-        :class="tile.isNegative ? 'is-negative-box' : 'is-positive-box'"
-        tabindex="0"
-        :aria-label="`${tile.name} 評価額 ${formatYen(tile.value)}`"
-        :style="tileStyle(tile, props.tiles)"
+        :style="{
+          left: leaf.x0 + 'px',
+          top: leaf.y0 + 'px',
+          width: (leaf.x1 - leaf.x0) + 'px',
+          height: (leaf.y1 - leaf.y0) + 'px',
+          fontSize: getFontSize(leaf) + 'px',
+          backgroundColor: getTileColor(leaf.data.changeRate)
+        }"
+        @mousemove="showTooltip($event, leaf)"
+        @mouseleave="hideTooltip"
       >
-        <p class="stock-tile-name" :title="tile.name">{{ compactTileName(tile.name, tile) }}</p>
-        <span class="stock-tile-tooltip" role="tooltip">
-          <div class="tooltip-content">
-            <strong>{{ tile.name }}</strong><br>
-            評価額: <span class="amount-value">{{ formatYen(tile.value) }}</span>
-            <template v-if="props.showDailyChange && tile.dailyChange != null">
-              <br>前日比: <span :class="signedClass(tile.dailyChange)">{{ formatSignedYen(tile.dailyChange) }}</span>
-            </template>
-            <template v-if="tile.profit != null">
-              <br>評価損益: <span :class="signedClass(tile.profit)">{{ formatSignedYen(tile.profit) }}</span>
-            </template>
-            <template v-if="tile.details && tile.details.length > 1">
-              <hr class="tooltip-divider">
-              <div class="tooltip-details">
-                <div v-for="(detail, idx) in tile.details" :key="idx" class="detail-row">
-                  <small>{{ detail.institution }}: {{ formatYen(detail.value) }}</small>
-                </div>
-              </div>
-            </template>
+        <div v-if="(leaf.x1 - leaf.x0) >= 30 && (leaf.y1 - leaf.y0) >= 20" class="tile-label-container">
+          <div class="stock-tile-name" :title="leaf.data.name">{{ leaf.data.name }}</div>
+          <div v-if="leaf.data.symbol" class="tile-symbol" :style="{ fontSize: (getFontSize(leaf) * 0.7) + 'px' }">
+            {{ leaf.data.symbol }}
           </div>
-        </span>
+          <div v-if="props.showDailyChange && leaf.data.changeRate !== undefined" class="tile-change" :style="{ fontSize: (getFontSize(leaf) * 0.8) + 'px' }">
+            {{ leaf.data.changeRate > 0 ? '+' : '' }}{{ leaf.data.changeRate.toFixed(2) }}%
+          </div>
+        </div>
       </article>
+
+      <Teleport to="body">
+        <div v-if="tooltip.show" class="stock-tile-tooltip" :style="{ left: tooltip.x + 'px', top: tooltip.y + 'px' }">
+          <div class="tooltip-header">
+            <strong>{{ tooltip.data.name }}</strong>
+            <span v-if="tooltip.data.symbol"> ({{ tooltip.data.symbol }})</span>
+          </div>
+          <div class="tooltip-row">
+            <span>評価額:</span>
+            <span class="amount-value">{{ formatYen(tooltip.data.value) }}</span>
+          </div>
+          <div class="tooltip-row">
+            <span>比率:</span>
+            <span>{{ tooltip.data.ratio.toFixed(2) }}%</span>
+          </div>
+          <template v-if="props.showDailyChange && tooltip.data.dailyChange != null">
+            <div class="tooltip-row">
+              <span>前日比:</span>
+              <span :class="signedClass(tooltip.data.dailyChange)">
+                {{ formatSignedYen(tooltip.data.dailyChange) }} ({{ tooltip.data.changeRate > 0 ? '+' : '' }}{{ tooltip.data.changeRate.toFixed(2) }}%)
+              </span>
+            </div>
+          </template>
+          <template v-if="tooltip.data.profit != null">
+            <div class="tooltip-row">
+              <span>評価損益:</span>
+              <span :class="signedClass(tooltip.data.profit)">{{ formatSignedYen(tooltip.data.profit) }}</span>
+            </div>
+          </template>
+          <template v-if="tooltip.data.details && tooltip.data.details.length > 1">
+            <hr class="tooltip-divider">
+            <div class="tooltip-details">
+              <div v-for="(detail, idx) in tooltip.data.details" :key="idx" class="detail-row">
+                <small>{{ detail.institution }}: {{ formatYen(detail.value) }}</small>
+              </div>
+            </div>
+          </template>
+        </div>
+      </Teleport>
     </div>
   </section>
 </template>
 
 <style scoped>
-.tooltip-content {
-  text-align: left;
+.treemap-container {
+  width: 100%;
+  position: relative;
+  background: var(--surface-elevated);
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
 }
+
+.empty-treemap-message {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--muted);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.stock-tile {
+  position: absolute;
+  box-sizing: border-box;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  overflow: hidden;
+  cursor: help;
+  transition: filter 0.2s;
+  color: #fff;
+  text-shadow: 0 1px 2px rgb(2 6 23 / 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.stock-tile:hover {
+  filter: brightness(1.2);
+  z-index: 1;
+}
+
+.tile-label-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+}
+
+.stock-tile-name {
+  width: 100%;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tile-symbol {
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.8;
+}
+
+.tile-change {
+  font-weight: bold;
+}
+
+.stock-tile-tooltip {
+  position: fixed;
+  z-index: 1000;
+  pointer-events: none;
+  background: color-mix(in oklab, #020617 90%, var(--surface));
+  color: #f8fafc;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 0.85rem;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  min-width: 200px;
+}
+
+.tooltip-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 6px;
+  margin-bottom: 6px;
+}
+
+.tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 2px;
+}
+
 .tooltip-divider {
   border: 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.2);
-  margin: 4px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin: 6px 0;
 }
+
 .detail-row {
   white-space: nowrap;
 }
