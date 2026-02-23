@@ -406,9 +406,6 @@ td {
     height: 140px;
   }
 
-  .stock-tile-grid {
-    aspect-ratio: 4 / 3;
-  }
 }
 
 
@@ -493,84 +490,6 @@ td {
   margin: 8px 0 2px;
 }
 
-.stock-tile-grid {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 16 / 5;
-  min-height: 260px;
-  overflow: hidden;
-  border-radius: 10px;
-  background: var(--surface-elevated);
-}
-
-.stock-tile {
-  position: absolute;
-  border: 1px solid color-mix(in oklab, var(--border), #ffffff 14%);
-  padding: var(--tile-padding, 10px);
-  cursor: help;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  overflow: visible;
-  color: color-mix(in oklab, var(--text), #ffffff 12%);
-}
-
-.stock-tile:focus-visible {
-  outline: 2px solid color-mix(in oklab, var(--link), #ffffff 25%);
-  outline-offset: -2px;
-}
-
-.stock-tile-name {
-  margin: 0;
-}
-
-.stock-tile-name {
-  font-weight: 600;
-  font-size: clamp(0.58rem, var(--tile-font-size, 0.95rem), 3.3rem);
-  line-height: 1.15;
-  display: -webkit-box;
-  -webkit-line-clamp: var(--tile-line-clamp, 2);
-  line-clamp: var(--tile-line-clamp, 2);
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  word-break: break-word;
-  text-wrap: balance;
-  text-shadow: 0 1px 2px rgb(2 6 23 / 0.28);
-}
-
-.stock-tile-tooltip {
-  position: absolute;
-  left: 8px;
-  bottom: 8px;
-  z-index: 2;
-  max-width: min(320px, calc(100vw - 32px));
-  padding: 6px 8px;
-  border-radius: 6px;
-  background: color-mix(in oklab, #020617 88%, var(--surface));
-  color: #f8fafc;
-  border: 1px solid color-mix(in oklab, #ffffff 18%, transparent);
-  font-size: 0.78rem;
-  line-height: 1.35;
-  box-shadow: 0 4px 14px rgb(2 6 23 / 0.35);
-  opacity: 0;
-  pointer-events: none;
-  transform: translateY(4px);
-  transition: opacity 120ms ease, transform 120ms ease;
-}
-
-.stock-tile:hover .stock-tile-tooltip,
-.stock-tile:focus-visible .stock-tile-tooltip {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.is-positive-box {
-  background: color-mix(in oklab, #22c55e 35%, var(--surface));
-}
-
-.is-negative-box {
-  background: color-mix(in oklab, #ef4444 35%, var(--surface));
-}
 
 .auth-gate {
   max-width: 520px;

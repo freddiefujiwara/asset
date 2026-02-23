@@ -87,8 +87,10 @@ describe("holdings domain", () => {
       value: 100,
       dailyChange: -1,
       isNegative: true,
+      changeRate: expect.any(Number),
     });
-    expect(tiles[0].width * tiles[0].height).toBeGreaterThan(tiles[1].width * tiles[1].height);
+    // changeRate for B: prevValue = 100 - (-1) = 101. -1 / 101 * 100 = -0.990099...
+    expect(tiles[1].changeRate).toBeCloseTo(-0.99, 2);
   });
 
   it("aggregates fund tiles by name", () => {
@@ -127,32 +129,27 @@ describe("holdings domain", () => {
     expect(tiles[1].name).toBe("A");
   });
 
-  it("triggers vertical split and deep treemap layout", () => {
+  it("includes symbol and changeRate in tiles", () => {
     const manyStocks = [
-      { 銘柄名: "A", 評価額: "1000" },
-      { 銘柄名: "B", 評価額: "1000" },
+      { 銘柄名: "A", 評価額: "1000", 銘柄コード: "A-CODE" },
+      { 銘柄名: "B", 評価額: "1000", 前日比: "50" },
       { 銘柄名: "C", 評価額: "1000" },
       { 銘柄コード: "D-CODE", 評価額: "1000" },
     ];
     const tiles = stockTiles(manyStocks);
     expect(tiles).toHaveLength(4);
-    expect(tiles.every(t => t.width > 0 && t.height > 0)).toBe(true);
 
     // D should have name from code
-    expect(tiles.find(t => t.value === 1000 && t.name === "D-CODE")).toBeDefined();
-  });
+    const d = tiles.find((t) => t.name === "D-CODE");
+    expect(d).toBeDefined();
+    expect(d.symbol).toBe("D-CODE");
 
-  it("exercises complex treemap splitting logic", () => {
-    const stocks = [
-      { 銘柄名: "A", 評価額: "10" },
-      { 銘柄名: "B", 評価額: "10" },
-      { 銘柄名: "C", 評価額: "10" },
-      { 銘柄名: "D", 評価額: "10" },
-      { 銘柄名: "E", 評価額: "10" },
-      { 銘柄名: "F", 評価額: "100" },
-    ];
-    const tiles = stockTiles(stocks);
-    expect(tiles).toHaveLength(6);
+    const a = tiles.find((t) => t.name === "A");
+    expect(a.symbol).toBe("A-CODE");
+
+    const b = tiles.find((t) => t.name === "B");
+    // changeRate for B: prevValue = 1000 - 50 = 950. 50 / 950 * 100 = 5.263...
+    expect(b.changeRate).toBeCloseTo(5.26, 2);
   });
 
   it("handles aggregation with missing optional fields", () => {
@@ -257,6 +254,30 @@ describe("holdings domain", () => {
     expect(tiles[1].value).toBe(1000);
     expect(tiles[2].name).toBe("Asset A");
     expect(tiles[2].value).toBe(300);
+  });
+
+  it("calculates changeRate based on profit for pensions", () => {
+    const pensions = [
+      { 名称: "Pension A", 現在価値: "1000", 評価損益: "100" },
+    ];
+    const tiles = pensionTiles(pensions);
+    expect(tiles).toHaveLength(1);
+    expect(tiles[0].useProfitRate).toBe(true);
+    // cost = 1000 - 100 = 900. rate = 100 / 900 * 100 = 11.111...
+    expect(tiles[0].changeRate).toBeCloseTo(11.11, 2);
+    expect(tiles[0].isNegative).toBe(false);
+  });
+
+  it("calculates profit from profitRate if missing", () => {
+    const pensions = [
+      { 名称: "Pension B", 現在価値: "1125", 評価損益率: "12.5" },
+    ];
+    const tiles = pensionTiles(pensions);
+    expect(tiles).toHaveLength(1);
+    expect(tiles[0].useProfitRate).toBe(true);
+    // profit should be (12.5 * 1125) / 112.5 = 125
+    expect(tiles[0].profit).toBeCloseTo(125, 2);
+    expect(tiles[0].changeRate).toBeCloseTo(12.5, 2);
   });
 
   it("handles null/missing categories in allRiskTiles", () => {
