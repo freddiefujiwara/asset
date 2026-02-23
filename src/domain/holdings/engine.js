@@ -136,8 +136,13 @@ function buildTiles(rows, { aggregate = false } = {}) {
     safeRows.forEach((row) => {
       const name = row?.["銘柄名"] || row?.["名称"] || "名称未設定";
       const value = toNumber(row?.["評価額"]) || toNumber(row?.["現在価値"]) || 0;
-      const profit = toNumber(row?.["評価損益"]) || 0;
+      let profit = toNumber(row?.["評価損益"]) || 0;
+      const profitRate = toNumber(row?.["評価損益率"]);
+      if (!profit && profitRate && value > 0) {
+        profit = (profitRate * value) / (100 + profitRate);
+      }
       const dailyChange = dailyChangeYen(row) || 0;
+      const useProfitRate = !!row?.__useProfitRate;
       const institution = row?.["保有金融機関"] || "不明";
       const code = row?.["銘柄コード"] || "";
 
@@ -148,6 +153,7 @@ function buildTiles(rows, { aggregate = false } = {}) {
           value: 0,
           profit: 0,
           dailyChange: 0,
+          useProfitRate: false,
           details: [],
         });
       }
@@ -155,6 +161,7 @@ function buildTiles(rows, { aggregate = false } = {}) {
       entry.value += value;
       entry.profit += profit;
       entry.dailyChange += dailyChange;
+      if (useProfitRate) entry.useProfitRate = true;
       entry.details.push({ institution, value });
       if (!entry.symbol && code) {
         entry.symbol = code;
@@ -164,12 +171,18 @@ function buildTiles(rows, { aggregate = false } = {}) {
   } else {
     processedRows = safeRows.map((row, idx) => {
       const value = toNumber(row?.["評価額"]) || toNumber(row?.["現在価値"]) || 0;
+      let profit = toNumber(row?.["評価損益"]) || 0;
+      const profitRate = toNumber(row?.["評価損益率"]);
+      if (!profit && profitRate && value > 0) {
+        profit = (profitRate * value) / (100 + profitRate);
+      }
       return {
         name: row?.["銘柄名"] ?? row?.["銘柄コード"] ?? row?.["名称"] ?? "名称未設定",
         symbol: row?.["銘柄コード"] ?? "",
         value,
-        profit: toNumber(row?.["評価損益"]),
+        profit,
         dailyChange: dailyChangeYen(row),
+        useProfitRate: !!row?.__useProfitRate,
         idx,
       };
     });
@@ -184,12 +197,23 @@ function buildTiles(rows, { aggregate = false } = {}) {
       return b.value - a.value;
     })
     .map((entry) => {
-      const prevValue = entry.value - (entry.dailyChange || 0);
-      const changeRate = prevValue > 0 ? (entry.dailyChange / prevValue) * 100 : 0;
+      let changeRate = 0;
+      let isNegative = false;
+
+      if (entry.useProfitRate) {
+        const cost = entry.value - (entry.profit || 0);
+        changeRate = cost > 0 ? (entry.profit / cost) * 100 : 0;
+        isNegative = (entry.profit || 0) < 0;
+      } else {
+        const prevValue = entry.value - (entry.dailyChange || 0);
+        changeRate = prevValue > 0 ? (entry.dailyChange / prevValue) * 100 : 0;
+        isNegative = (entry.dailyChange || 0) < 0;
+      }
+
       return {
         ...entry,
         changeRate,
-        isNegative: entry.dailyChange != null && entry.dailyChange < 0,
+        isNegative,
       };
     });
 }
@@ -203,13 +227,14 @@ export function fundTiles(funds) {
 }
 
 export function pensionTiles(pensions) {
-  return buildTiles(pensions, { aggregate: true });
+  const processed = (pensions || []).map((p) => ({ ...p, __useProfitRate: true }));
+  return buildTiles(processed, { aggregate: true });
 }
 
 export function allRiskTiles(holdings) {
   const stocks = holdings?.stocks || [];
   const funds = holdings?.funds || [];
-  const pensions = holdings?.pensions || [];
+  const pensions = (holdings?.pensions || []).map((p) => ({ ...p, __useProfitRate: true }));
   const combined = [...stocks, ...funds, ...pensions];
   return buildTiles(combined, { aggregate: true });
 }

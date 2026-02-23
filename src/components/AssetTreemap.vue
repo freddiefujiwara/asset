@@ -154,8 +154,14 @@ onUnmounted(() => {
             <span>比率:</span>
             <span>{{ tooltip.data.ratio.toFixed(2) }}%</span>
           </div>
-          <template v-if="props.showDailyChange && tooltip.data.dailyChange != null">
-            <div class="tooltip-row">
+          <template v-if="props.showDailyChange">
+            <div v-if="tooltip.data.useProfitRate" class="tooltip-row">
+              <span>評価損益率:</span>
+              <span :class="signedClass(tooltip.data.changeRate)">
+                {{ tooltip.data.changeRate > 0 ? '+' : '' }}{{ tooltip.data.changeRate.toFixed(2) }}%
+              </span>
+            </div>
+            <div v-else-if="tooltip.data.dailyChange != null" class="tooltip-row">
               <span>前日比:</span>
               <span :class="signedClass(tooltip.data.dailyChange)">
                 {{ formatSignedYen(tooltip.data.dailyChange) }} ({{ tooltip.data.changeRate > 0 ? '+' : '' }}{{ tooltip.data.changeRate.toFixed(2) }}%)

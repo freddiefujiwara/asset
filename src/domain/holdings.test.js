@@ -256,6 +256,30 @@ describe("holdings domain", () => {
     expect(tiles[2].value).toBe(300);
   });
 
+  it("calculates changeRate based on profit for pensions", () => {
+    const pensions = [
+      { 名称: "Pension A", 現在価値: "1000", 評価損益: "100" },
+    ];
+    const tiles = pensionTiles(pensions);
+    expect(tiles).toHaveLength(1);
+    expect(tiles[0].useProfitRate).toBe(true);
+    // cost = 1000 - 100 = 900. rate = 100 / 900 * 100 = 11.111...
+    expect(tiles[0].changeRate).toBeCloseTo(11.11, 2);
+    expect(tiles[0].isNegative).toBe(false);
+  });
+
+  it("calculates profit from profitRate if missing", () => {
+    const pensions = [
+      { 名称: "Pension B", 現在価値: "1125", 評価損益率: "12.5" },
+    ];
+    const tiles = pensionTiles(pensions);
+    expect(tiles).toHaveLength(1);
+    expect(tiles[0].useProfitRate).toBe(true);
+    // profit should be (12.5 * 1125) / 112.5 = 125
+    expect(tiles[0].profit).toBeCloseTo(125, 2);
+    expect(tiles[0].changeRate).toBeCloseTo(12.5, 2);
+  });
+
   it("handles null/missing categories in allRiskTiles", () => {
     const tiles = allRiskTiles(null);
     expect(tiles).toEqual([]);
