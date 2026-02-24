@@ -292,6 +292,7 @@ export function useFireSimulatorViewModel() {
       rlsaf: retirementLumpSumAtFire.value,
       mpffyee: manualPostFireFirstYearExtraExpense.value,
       mpffyeem: true,
+      mctsr: 80,
       wr: withdrawalRate.value,
       ib: includeBonus.value,
       umc: useMonteCarlo.value,
