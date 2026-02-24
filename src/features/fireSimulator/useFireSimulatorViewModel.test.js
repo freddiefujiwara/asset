@@ -61,6 +61,7 @@ describe("useFireSimulatorViewModel", () => {
 
     expect(payload.mpffyeem).toBe(true);
     expect(payload.mabm).toBe(true);
+    expect(payload.mctsr).toBe(80);
     expect(payload.sea).toBe(100);
     expect(compressToEncodedURIComponent).toHaveBeenCalled();
   });
