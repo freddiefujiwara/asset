@@ -269,6 +269,7 @@ export function useFireSimulatorViewModel() {
     initialAssets,
     riskAssets,
     cashAssets,
+    monthsOfCash,
     past5MonthSummary,
     manualMonthlyExpense,
     useAutoExpense,

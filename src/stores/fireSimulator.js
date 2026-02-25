@@ -51,11 +51,8 @@ export const useFireSimulatorStore = defineStore("fireSimulator", () => {
       : { totalAssetsYen: 0, riskAssetsYen: 0, cashAssetsYen: 0, liabilitiesYen: 0, netWorthYen: 0 },
   );
   const initialAssets = computed(() => firePortfolio.value.totalAssetsYen);
-  const riskAssets = computed(() => fireSimulatorStore.firePortfolio.riskAssetsYen); // Wait, this is wrong, should be firePortfolio.value
-
-  // Correction:
-  const riskAssetsVal = computed(() => firePortfolio.value.riskAssetsYen);
-  const cashAssetsVal = computed(() => firePortfolio.value.cashAssetsYen);
+  const riskAssets = computed(() => firePortfolio.value.riskAssetsYen);
+  const cashAssets = computed(() => firePortfolio.value.cashAssetsYen);
 
   const past5MonthSummary = computed(() =>
     data.value?.cashFlow ? getPast5MonthSummary(data.value.cashFlow) : EMPTY_SUMMARY,
@@ -119,8 +116,8 @@ export const useFireSimulatorStore = defineStore("fireSimulator", () => {
         userKoseiAccruedAtDataAgeAnnualYen: FIRE_ALGORITHM_CONSTANTS.pension.userKoseiAccruedAt44AnnualYen,
         userKoseiFutureFactorAnnualYenPerYear: FIRE_ALGORITHM_CONSTANTS.pension.userKoseiFutureFactorAnnualYenPerYear,
       },
-      mira: riskAssetsVal.value,
-      mica: cashAssetsVal.value,
+      mira: riskAssets.value,
+      mica: cashAssets.value,
       mi: monthlyInvestment.value,
       arr: annualReturnRate.value,
       ii: includeInflation.value,
@@ -143,6 +140,7 @@ export const useFireSimulatorStore = defineStore("fireSimulator", () => {
       mab: manualAnnualBonus.value,
       mabm: true,
       mmp: mortgageMonthlyPayment.value,
+      mmpm: true, // Should we have this?
       mpd: mortgagePayoffDate.value || "",
     };
 
@@ -178,8 +176,8 @@ export const useFireSimulatorStore = defineStore("fireSimulator", () => {
     mortgagePayoffDate,
     firePortfolio,
     initialAssets,
-    riskAssets: riskAssetsVal,
-    cashAssets: cashAssetsVal,
+    riskAssets,
+    cashAssets,
     past5MonthSummary,
     autoMonthlyExpense,
     autoRegularMonthlyIncome,
