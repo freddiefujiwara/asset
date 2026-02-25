@@ -1,6 +1,9 @@
 <script setup>
 import { RouterLink, RouterView } from "vue-router";
+import { storeToRefs } from "pinia";
 import { useAppShellViewModel } from "@/features/app/useAppShellViewModel";
+import { useFireSimulatorStore } from "@/stores/fireSimulator";
+import ExternalLinkIcon from "@/components/ExternalLinkIcon.vue";
 
 const {
   portfolioStore,
@@ -17,6 +20,9 @@ const {
   toggleTheme,
   logout,
 } = useAppShellViewModel();
+
+const fireSimulatorStore = useFireSimulatorStore();
+const { externalSimulatorUrl } = storeToRefs(fireSimulatorStore);
 </script>
 
 <template>
@@ -27,7 +33,14 @@ const {
         <nav class="nav" aria-label="Primary">
           <RouterLink to="/balance-sheet">バランスシート</RouterLink>
           <RouterLink to="/cash-flow">キャッシュフロー</RouterLink>
-          <RouterLink to="/fire">FIRE</RouterLink>
+          <a v-if="idToken" :href="externalSimulatorUrl" target="_blank" rel="noopener noreferrer">
+            FIRE
+            <ExternalLinkIcon />
+          </a>
+          <span v-else class="is-disabled">
+            FIRE
+            <ExternalLinkIcon />
+          </span>
         </nav>
         <div class="header-buttons">
           <button class="theme-toggle" type="button" @click="togglePrivacy">
