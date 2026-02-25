@@ -1,10 +1,20 @@
-import { nextTick, ref } from "vue";
+import { nextTick, ref, reactive } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createPinia, setActivePinia } from "pinia";
 
 const mockData = ref({ cashFlow: [] });
 
 vi.mock("@/composables/usePortfolioData", () => ({
   usePortfolioData: () => ({ data: mockData, loading: ref(false), error: ref(null) }),
+}));
+
+vi.mock("@/stores/portfolio", () => ({
+  usePortfolioStore: () => reactive({
+    data: mockData,
+    loading: false,
+    error: "",
+    fetchPortfolio: vi.fn(),
+  }),
 }));
 
 vi.mock("@/lib/lzString", () => ({
@@ -36,6 +46,7 @@ import { compressToEncodedURIComponent } from "@/lib/lzString";
 
 describe("useFireSimulatorViewModel", () => {
   beforeEach(() => {
+    setActivePinia(createPinia());
     vi.useFakeTimers();
     mockData.value = { cashFlow: [] };
   });

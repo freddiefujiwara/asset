@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createRouter, createMemoryHistory } from "vue-router";
-import { defineComponent, reactive, nextTick } from "vue";
+import { defineComponent, reactive, nextTick, ref } from "vue";
 import App from "@/App.vue";
 
 let portfolioStore;
 let uiStore;
+let fireSimulatorStore;
 let fetchPortfolioMock;
 
 vi.mock("@/stores/portfolio", () => ({
@@ -14,6 +15,10 @@ vi.mock("@/stores/portfolio", () => ({
 
 vi.mock("@/stores/ui", () => ({
   useUiStore: () => uiStore,
+}));
+
+vi.mock("@/stores/fireSimulator", () => ({
+  useFireSimulatorStore: () => fireSimulatorStore,
 }));
 
 function makeRouter(initialPath = "/") {
@@ -46,6 +51,10 @@ describe("App cross-screen integration", () => {
     uiStore = reactive({
       privacyMode: false,
       togglePrivacy: vi.fn(),
+    });
+
+    fireSimulatorStore = reactive({
+      externalSimulatorUrl: ref("https://example.com/fire"),
     });
 
     localStorage.clear();
