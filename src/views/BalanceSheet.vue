@@ -1,6 +1,7 @@
 <script setup>
 import HoldingTable from "@/components/HoldingTable.vue";
 import CopyButton from "@/components/CopyButton.vue";
+import ExternalLinkIcon from "@/components/ExternalLinkIcon.vue";
 import AssetCategoryCard from "@/components/AssetCategoryCard.vue";
 import AssetTreemap from "@/components/AssetTreemap.vue";
 import PieChart from "@/components/PieChart.vue";
@@ -181,6 +182,7 @@ const {
             rel="noopener noreferrer"
           >
             現在の株価
+            <ExternalLinkIcon />
           </a>
         </template>
       </HoldingTable>

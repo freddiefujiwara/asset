@@ -89,6 +89,14 @@ body {
   color: var(--link-active);
 }
 
+.nav .is-disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+}
+
 
 .stock-link {
   color: var(--link);

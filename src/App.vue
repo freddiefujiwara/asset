@@ -3,6 +3,7 @@ import { RouterLink, RouterView } from "vue-router";
 import { storeToRefs } from "pinia";
 import { useAppShellViewModel } from "@/features/app/useAppShellViewModel";
 import { useFireSimulatorStore } from "@/stores/fireSimulator";
+import ExternalLinkIcon from "@/components/ExternalLinkIcon.vue";
 
 const {
   portfolioStore,
@@ -32,25 +33,14 @@ const { externalSimulatorUrl } = storeToRefs(fireSimulatorStore);
         <nav class="nav" aria-label="Primary">
           <RouterLink to="/balance-sheet">バランスシート</RouterLink>
           <RouterLink to="/cash-flow">キャッシュフロー</RouterLink>
-          <a :href="externalSimulatorUrl" target="_blank" rel="noopener noreferrer">
+          <a v-if="idToken" :href="externalSimulatorUrl" target="_blank" rel="noopener noreferrer">
             FIRE
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="12"
-              height="12"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              style="margin-left: 2px; vertical-align: middle; opacity: 0.8;"
-            >
-              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-              <polyline points="15 3 21 3 21 9"></polyline>
-              <line x1="10" y1="14" x2="21" y2="3"></line>
-            </svg>
+            <ExternalLinkIcon />
           </a>
+          <span v-else class="is-disabled">
+            FIRE
+            <ExternalLinkIcon />
+          </span>
         </nav>
         <div class="header-buttons">
           <button class="theme-toggle" type="button" @click="togglePrivacy">
