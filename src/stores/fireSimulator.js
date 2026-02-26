@@ -111,7 +111,6 @@ export const useFireSimulatorStore = defineStore("fireSimulator", () => {
         spouseUserAgeStart: FIRE_ALGORITHM_CONSTANTS.pension.spouseUserAgeStart,
         basicFullAnnualYen: FIRE_ALGORITHM_CONSTANTS.pension.basicFullAnnualYen,
         basicReduction: FIRE_ALGORITHM_CONSTANTS.pension.basicReduction,
-        earlyReduction: FIRE_ALGORITHM_CONSTANTS.pension.earlyReduction,
         pensionDataAge: FIRE_ALGORITHM_CONSTANTS.pension.pensionDataAge,
         userKoseiAccruedAtDataAgeAnnualYen: FIRE_ALGORITHM_CONSTANTS.pension.userKoseiAccruedAt44AnnualYen,
         userKoseiFutureFactorAnnualYenPerYear: FIRE_ALGORITHM_CONSTANTS.pension.userKoseiFutureFactorAnnualYenPerYear,
