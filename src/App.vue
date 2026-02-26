@@ -13,6 +13,7 @@ const {
   authError,
   initialLoading,
   showLoginGate,
+  isFireEnabled,
   googleScriptError,
   googleButtonRoot,
   idToken,
@@ -33,11 +34,11 @@ const { externalSimulatorUrl } = storeToRefs(fireSimulatorStore);
         <nav class="nav" aria-label="Primary">
           <RouterLink to="/balance-sheet">バランスシート</RouterLink>
           <RouterLink to="/cash-flow">キャッシュフロー</RouterLink>
-          <a v-if="idToken" :href="externalSimulatorUrl" target="_blank" rel="noopener noreferrer">
+          <a v-if="isFireEnabled" :href="externalSimulatorUrl" target="_blank" rel="noopener noreferrer">
             FIRE
             <ExternalLinkIcon />
           </a>
-          <span v-else class="is-disabled">
+          <span v-else class="is-disabled" title="APIから正常にデータを取得した後に利用可能です">
             FIRE
             <ExternalLinkIcon />
           </span>

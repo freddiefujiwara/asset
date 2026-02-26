@@ -28,6 +28,9 @@ export function useAppShellViewModel() {
   const initialLoading = computed(() => portfolioStore.loading && !hasData.value);
   const canUseApp = computed(() => hasData.value || Boolean(idToken.value));
   const showLoginGate = computed(() => !initialLoading.value && !idToken.value && (portfolioStore.source !== "live" || !hasData.value));
+  const isFireEnabled = computed(() => {
+    return Boolean(idToken.value) && portfolioStore.source === "live" && !portfolioStore.rawResponse?.error;
+  });
 
   /**
    * Apply theme to document root.
@@ -174,6 +177,7 @@ export function useAppShellViewModel() {
     authError,
     initialLoading,
     showLoginGate,
+    isFireEnabled,
     googleScriptError,
     googleButtonRoot,
     idToken,
