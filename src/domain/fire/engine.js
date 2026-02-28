@@ -209,25 +209,41 @@ export function estimateMonthlyIncome(cashFlow) {
 export function estimateIncomeSplit(cashFlow) {
   const divisor = FIVE_MONTH_LOOKBACK_COUNT;
   let totalRegularIncome = 0;
-  let totalBonusIncome = 0;
   const regularBreakdownMap = {};
-  const bonusBreakdownMap = {};
+  const monthlyTotals = {}; // { 'YYYY-MM': { totalIncome: 0, bonusSum: 0 } }
 
   processLookbackCashFlow(cashFlow, (item) => {
     if (item.amount <= 0) return;
 
     const category = item.category || "未分類";
+    if (!category.startsWith("収入/")) return;
+
+    const month = item.date?.substring(0, 7) || "unknown";
+    if (!monthlyTotals[month]) {
+      monthlyTotals[month] = { totalIncome: 0, bonusSum: 0 };
+    }
+    monthlyTotals[month].totalIncome += item.amount;
+
     if (category === "収入/給与") {
       totalRegularIncome += item.amount;
       regularBreakdownMap[category] = (regularBreakdownMap[category] || 0) + item.amount;
-    } else if (category.startsWith("収入/")) {
-      totalBonusIncome += item.amount;
-      bonusBreakdownMap[category] = (bonusBreakdownMap[category] || 0) + item.amount;
+    } else if (category === "収入/一時所得") {
+      monthlyTotals[month].bonusSum += item.amount;
     }
   });
 
+  // Find peak month by total income
+  let peakMonth = null;
+  let maxTotalIncome = -1;
+  Object.entries(monthlyTotals).forEach(([month, data]) => {
+    if (data.totalIncome > maxTotalIncome) {
+      maxTotalIncome = data.totalIncome;
+      peakMonth = month;
+    }
+  });
+
+  const bonusAnnual = peakMonth ? (monthlyTotals[peakMonth].bonusSum * 2) : 0;
   const regularMonthly = Math.round(totalRegularIncome / divisor);
-  const bonusAnnual = Math.round(totalBonusIncome * (12 / divisor));
 
   const regularBreakdown = Object.entries(regularBreakdownMap)
     .map(([name, total]) => ({
@@ -236,12 +252,12 @@ export function estimateIncomeSplit(cashFlow) {
     }))
     .sort((a, b) => b.amount - a.amount);
 
-  const bonusBreakdown = Object.entries(bonusBreakdownMap)
-    .map(([name, total]) => ({
-      name,
-      amount: Math.round(total * (12 / divisor)),
-    }))
-    .sort((a, b) => b.amount - a.amount);
+  const bonusBreakdown = peakMonth && monthlyTotals[peakMonth].bonusSum > 0
+    ? [{
+        name: `収入/一時所得 (${peakMonth}ピーク x2)`,
+        amount: bonusAnnual,
+      }]
+    : [];
 
   return {
     regularMonthly,

@@ -207,23 +207,33 @@ describe("fire domain", () => {
       vi.useRealTimers();
     });
 
-    it("splits regular monthly income and bonus annualized amount", () => {
+    it("splits regular monthly income and bonus annualized amount based on peak month of total income", () => {
       const cashFlow = [
         { date: "2026-03-01", amount: 300000, isTransfer: false, category: "収入/給与" }, // current month excluded
         { date: "2026-02-01", amount: 300000, isTransfer: false, category: "収入/給与" },
+        { date: "2026-02-15", amount: 500000, isTransfer: false, category: "収入/一時所得" },
         { date: "2026-01-01", amount: 300000, isTransfer: false, category: "収入/給与" },
+        { date: "2026-01-15", amount: 100000, isTransfer: false, category: "収入/一時所得" },
         { date: "2025-12-01", amount: 300000, isTransfer: false, category: "収入/給与" },
         { date: "2025-11-01", amount: 300000, isTransfer: false, category: "収入/給与" },
         { date: "2025-10-01", amount: 300000, isTransfer: false, category: "収入/給与" },
-        { date: "2026-02-15", amount: 500000, isTransfer: false, category: "収入/賞与" },
       ];
+
+      // Months total income:
+      // 2026-02: 300k + 500k = 800k (Peak)
+      // 2026-01: 300k + 100k = 400k
+      // Others: 300k
+      // Peak month is 2026-02. 収入/一時所得 in peak: 500k.
+      // bonusAnnual = 500k * 2 = 1,000,000.
+      // regularMonthly = 1.5M / 5 = 300,000.
 
       const result = estimateIncomeSplit(cashFlow);
       expect(result.regularMonthly).toBe(300000);
-      expect(result.bonusAnnual).toBe(1200000); // 500,000 annualized: 500,000 * (12 / 5) = 1,200,000
-      expect(result.monthlyTotal).toBe(400000);
+      expect(result.bonusAnnual).toBe(1000000);
+      expect(result.monthlyTotal).toBe(300000 + 1000000 / 12);
       expect(result.regularBreakdown).toContainEqual({ name: "収入/給与", amount: 300000 });
-      expect(result.bonusBreakdown).toContainEqual({ name: "収入/賞与", amount: 1200000 });
+      expect(result.bonusBreakdown[0].name).toContain("2026-02ピーク x2");
+      expect(result.bonusBreakdown[0].amount).toBe(1000000);
       expect(result.monthCount).toBe(5);
     });
 
@@ -257,7 +267,7 @@ describe("fire domain", () => {
         { date: "2026-02-01", amount: -1000, isTransfer: false, category: "食費/外食" }, // variable
         { date: "2026-02-01", amount: -500, isTransfer: false, category: "住宅/ローン返済" }, // fixed
         { date: "2026-02-01", amount: 300000, isTransfer: false, category: "収入/給与" },
-        { date: "2026-01-01", amount: 100000, isTransfer: false, category: "収入/賞与" },
+        { date: "2026-02-15", amount: 100000, isTransfer: false, category: "収入/一時所得" },
       ];
 
       const result = getPast5MonthSummary(cashFlow);
@@ -265,7 +275,7 @@ describe("fire domain", () => {
       expect(result.avgFixedMonthly).toBe(100); // 500 / 5
       expect(result.avgVariableMonthly).toBe(200); // 1000 / 5
       expect(result.monthlyRegularIncome.average).toBe(60000); // 300,000 / 5
-      expect(result.annualBonus.average).toBe(240000); // 100,000 * (12 / 5)
+      expect(result.annualBonus.average).toBe(200000); // 100,000 * 2
       expect(result.monthCount).toBe(5);
       expect(result.monthlyLivingExpenses.breakdown).toHaveLength(2);
       expect(result.monthlyLivingExpenses.averageSpecial).toBe(0);
