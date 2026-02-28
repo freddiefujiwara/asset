@@ -8,6 +8,7 @@
   --surface: #111827;
   --surface-elevated: #1f2937;
   --border: #334155;
+  --primary: #3b82f6;
   --link: #93c5fd;
   --link-active: #ffffff;
   --error: #fca5a5;
@@ -20,6 +21,7 @@
   --surface: #ffffff;
   --surface-elevated: #f8fafc;
   --border: #e2e8f0;
+  --primary: #2563eb;
   --link: #1d4ed8;
   --link-active: #0f172a;
   --error: #b91c1c;
@@ -39,6 +41,7 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
+  transition: background-color 0.3s, color 0.3s;
 }
 
 .layout {
@@ -112,6 +115,15 @@ body {
   padding: 6px 12px;
   font: inherit;
   cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.theme-toggle:hover {
+  border-color: var(--primary);
 }
 
 .card-grid {

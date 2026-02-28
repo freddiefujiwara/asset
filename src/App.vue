@@ -48,7 +48,7 @@ const { externalSimulatorUrl } = storeToRefs(fireSimulatorStore);
             {{ privacyLabel }}
           </button>
           <button class="theme-toggle" type="button" @click="toggleTheme">
-            {{ themeLabel }}モードへ
+            {{ themeLabel }}
           </button>
           <button v-if="idToken" class="theme-toggle" type="button" @click="logout">
             ログアウト

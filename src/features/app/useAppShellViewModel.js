@@ -19,7 +19,7 @@ export function useAppShellViewModel() {
   const uiStore = useUiStore();
 
   const isDark = computed(() => theme.value === "dark");
-  const themeLabel = computed(() => (isDark.value ? "ライト" : "ダーク"));
+  const themeLabel = computed(() => (isDark.value ? "☀️ ライト" : "🌙 ダーク"));
   const privacyLabel = computed(() => (uiStore.privacyMode ? "金額表示" : "金額モザイク"));
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
   const hasGoogleClientId = computed(() => Boolean(googleClientId));
