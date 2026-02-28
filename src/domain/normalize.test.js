@@ -93,7 +93,7 @@ describe("normalizePortfolio", () => {
     expect(new Set(normalized.cashFlow.map((item) => item.id)).size).toBe(3);
 
     expect(normalized.cashFlow[0]).toEqual({
-      id: "2026-02-12:Shop:-3000:0",
+      id: "2026-02-12::-3000::JPY::Shop::Food::0",
       date: "2026-02-12",
       amount: -3000,
       currency: "JPY",
@@ -103,7 +103,7 @@ describe("normalizePortfolio", () => {
     });
 
     expect(normalized.cashFlow[1]).toEqual({
-      id: "::1000:1",
+      id: "::1000::JPY::::::1",
       date: "",
       amount: 1000,
       currency: "JPY",
@@ -113,12 +113,32 @@ describe("normalizePortfolio", () => {
     });
 
     expect(normalized.cashFlow[2]).toEqual({
-      id: ":::2",
+      id: "::0::JPY::::::0",
       date: "",
       amount: 0,
       currency: "JPY",
       name: "",
       category: "",
+      isTransfer: false,
+    });
+  });
+
+  it("deduplicates visually duplicated cashFlow rows", () => {
+    const normalized = normalizePortfolio({
+      mfcf: [
+        { date: "2026-02-12", amount: "-3000", currency: "JPY", name: "Shop", category: "Food", is_transfer: false },
+        { date: "2026-02-12 ", amount: -3000, currency: " JPY", name: "Shop ", category: "Food", is_transfer: false },
+      ],
+    });
+
+    expect(normalized.cashFlow).toHaveLength(1);
+    expect(normalized.cashFlow[0]).toEqual({
+      id: "2026-02-12::-3000::JPY::Shop::Food::0",
+      date: "2026-02-12",
+      amount: -3000,
+      currency: "JPY",
+      name: "Shop",
+      category: "Food",
       isTransfer: false,
     });
   });
