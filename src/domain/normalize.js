@@ -43,6 +43,35 @@ function withDerivedPensionProfit(row) {
   };
 }
 
+
+function normalizeText(value, fallback = "") {
+  return String(value ?? fallback).trim();
+}
+
+function normalizeCashFlowRows(rows) {
+  const normalized = rows.map((item) => ({
+    date: normalizeText(item?.date),
+    amount: toNumber(item?.amount),
+    currency: normalizeText(item?.currency, "JPY") || "JPY",
+    name: normalizeText(item?.name),
+    category: normalizeText(item?.category),
+    isTransfer: Boolean(item?.is_transfer),
+  }));
+
+  const seen = new Set();
+  return normalized.flatMap((item) => {
+    const rowKey = `${item.date}::${item.amount}::${item.currency}::${item.name}::${item.category}::${item.isTransfer ? 1 : 0}`;
+    if (seen.has(rowKey)) {
+      return [];
+    }
+    seen.add(rowKey);
+    return [{
+      id: rowKey,
+      ...item,
+    }];
+  });
+}
+
 /**
  * @param {any} api
  */
@@ -82,13 +111,6 @@ export function normalizePortfolio(api) {
       points: asArray(safeApi.details__portfolio_det_po__t0),
       liabilitiesDetail: asArray(safeApi["details__liability_det__t0-liability"]),
     },
-    cashFlow: asArray(safeApi.mfcf).map((item) => ({
-      date: String(item?.date ?? ""),
-      amount: toNumber(item?.amount),
-      currency: String(item?.currency ?? "JPY"),
-      name: String(item?.name ?? ""),
-      category: String(item?.category ?? ""),
-      isTransfer: Boolean(item?.is_transfer),
-    })),
+    cashFlow: normalizeCashFlowRows(asArray(safeApi.mfcf)),
   };
 }

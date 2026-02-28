@@ -57,7 +57,7 @@ const getSortIcon = (key) => {
         </tr>
       </thead>
       <tbody>
-        <tr v-for="(item, i) in items" :key="i">
+        <tr v-for="(item, i) in items" :key="item.id || `${item.date}-${item.name}-${item.amount}-${i}`">
           <td data-label="日付">{{ item.date }}</td>
           <td data-label="金額" :class="item.isTransfer ? '' : (item.amount > 0 ? 'is-positive' : 'is-negative')">
             <span class="amount-value">{{ formatYen(item.amount) }}</span>
