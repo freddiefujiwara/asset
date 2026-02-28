@@ -90,8 +90,10 @@ describe("normalizePortfolio", () => {
     };
     const normalized = normalizePortfolio(api);
     expect(normalized.cashFlow).toHaveLength(3);
+    expect(new Set(normalized.cashFlow.map((item) => item.id)).size).toBe(3);
 
     expect(normalized.cashFlow[0]).toEqual({
+      id: "2026-02-12:Shop:-3000:0",
       date: "2026-02-12",
       amount: -3000,
       currency: "JPY",
@@ -101,6 +103,7 @@ describe("normalizePortfolio", () => {
     });
 
     expect(normalized.cashFlow[1]).toEqual({
+      id: "::1000:1",
       date: "",
       amount: 1000,
       currency: "JPY",
@@ -110,6 +113,7 @@ describe("normalizePortfolio", () => {
     });
 
     expect(normalized.cashFlow[2]).toEqual({
+      id: ":::2",
       date: "",
       amount: 0,
       currency: "JPY",
