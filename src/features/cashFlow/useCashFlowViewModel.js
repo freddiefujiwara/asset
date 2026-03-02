@@ -14,6 +14,7 @@ import {
 import { getPast5MonthSummary } from "@/domain/fire";
 
 const MAX_COPY_TARGET_MONTHS = 7;
+const PAST_MONTH_LOOKBACK_COUNT = 5;
 
 /**
  * Manage state and actions for the Cash Flow page.
@@ -51,7 +52,10 @@ export function useCashFlowViewModel() {
 
   const kpis = computed(() => getKPIs(filteredCashFlow.value));
   const monthlyData = computed(() => aggregateByMonth(hasActiveFilters.value ? filteredCashFlow.value : cashFlowRaw.value, { includeNet: !hasActiveFilters.value }));
-  const categoryPieData = computed(() => aggregateByCategory(filteredCashFlow.value, { averageMonths: 5, excludeCurrentMonth: true }));
+  const categoryPieData = computed(() => aggregateByCategory(filteredCashFlow.value, {
+    averageMonths: PAST_MONTH_LOOKBACK_COUNT,
+    excludeCurrentMonth: true,
+  }));
 
   const showPastAverage = computed(() => !monthFilter.value);
   const pastAverages = computed(() => {
@@ -59,7 +63,7 @@ export function useCashFlowViewModel() {
     const now = new Date();
     const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
     const historicalData = monthlyData.value.filter((d) => d.month !== currentMonthKey);
-    return getRecentAverages(historicalData, 5);
+    return getRecentAverages(historicalData, PAST_MONTH_LOOKBACK_COUNT);
   });
 
   const uniqueMonths = computed(() => getUniqueMonths(cashFlowRaw.value));
