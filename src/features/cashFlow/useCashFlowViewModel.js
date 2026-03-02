@@ -13,6 +13,8 @@ import {
 } from "@/domain/cashFlow";
 import { getPast5MonthSummary } from "@/domain/fire";
 
+const MAX_COPY_TARGET_MONTHS = 7;
+
 /**
  * Manage state and actions for the Cash Flow page.
  * This keeps the Vue view simple.
@@ -61,7 +63,7 @@ export function useCashFlowViewModel() {
   });
 
   const uniqueMonths = computed(() => getUniqueMonths(cashFlowRaw.value));
-  const copyTargetMonths = computed(() => uniqueMonths.value.slice(0, 6));
+  const copyTargetMonths = computed(() => uniqueMonths.value.slice(0, MAX_COPY_TARGET_MONTHS));
   const uniqueLargeCategories = computed(() => getUniqueLargeCategories(cashFlowRaw.value));
   const uniqueSmallCategories = computed(() => getUniqueSmallCategories(cashFlowRaw.value, largeCategoryFilter.value));
 

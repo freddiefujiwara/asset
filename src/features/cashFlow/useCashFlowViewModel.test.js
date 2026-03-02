@@ -33,4 +33,41 @@ describe("useCashFlowViewModel", () => {
     expect(vm.largeCategoryFilter.value).toBe("生活");
     expect(vm.getMonthlyMfcfJson("2025-01")).toContain("2025-01-01");
   });
+
+  it("limits copy target months to latest 7 months and returns all when fewer", () => {
+    dataRef.value = {
+      cashFlow: [
+        { date: "2025-08-01", amount: 1 },
+        { date: "2025-07-01", amount: 1 },
+        { date: "2025-06-01", amount: 1 },
+        { date: "2025-05-01", amount: 1 },
+        { date: "2025-04-01", amount: 1 },
+        { date: "2025-03-01", amount: 1 },
+        { date: "2025-02-01", amount: 1 },
+        { date: "2025-01-01", amount: 1 },
+      ],
+    };
+
+    const vm = useCashFlowViewModel();
+    expect(vm.copyTargetMonths.value).toEqual([
+      "2025-08",
+      "2025-07",
+      "2025-06",
+      "2025-05",
+      "2025-04",
+      "2025-03",
+      "2025-02",
+    ]);
+
+    dataRef.value = {
+      cashFlow: [
+        { date: "2025-05-01", amount: 1 },
+        { date: "2025-04-01", amount: 1 },
+        { date: "2025-03-01", amount: 1 },
+        { date: "2025-02-01", amount: 1 },
+        { date: "2025-01-01", amount: 1 },
+      ],
+    };
+    expect(vm.copyTargetMonths.value).toEqual(["2025-05", "2025-04", "2025-03", "2025-02", "2025-01"]);
+  });
 });
