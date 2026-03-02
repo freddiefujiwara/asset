@@ -1,4 +1,4 @@
-# Asset Visualizer - Technical Specification (Very Detailed)
+# 資産可視化 - Technical Specification (Very Detailed)
 
 ## 1. Project Overview
 
