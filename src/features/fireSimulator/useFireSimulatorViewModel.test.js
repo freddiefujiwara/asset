@@ -74,6 +74,7 @@ describe("useFireSimulatorViewModel", () => {
     expect(payload.mabm).toBe(true);
     expect(payload.mctsr).toBe(80);
     expect(payload.sea).toBe(100);
+    expect(payload.wm).toBe("max");
     expect(payload.pc.earlyReduction).toBeUndefined();
     expect(compressToEncodedURIComponent).toHaveBeenCalled();
   });

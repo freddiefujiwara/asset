@@ -141,6 +141,7 @@ export const useFireSimulatorStore = defineStore("fireSimulator", () => {
       mmp: mortgageMonthlyPayment.value,
       mmpm: true, // Should we have this?
       mpd: mortgagePayoffDate.value || "",
+      wm: "max",
     };
 
     const compressed = compressToEncodedURIComponent(JSON.stringify(payload)).replace(/\+/g, "_");
