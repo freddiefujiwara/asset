@@ -67,7 +67,10 @@ describe("useFireSimulatorViewModel", () => {
     const url = vm.externalSimulatorUrl.value;
 
     // Since we mocked compressToEncodedURIComponent to return the input string
-    const payloadStr = url.replace("https://freddiefujiwara.com/fire/", "").replace(/_/g, "+");
+    const payloadStr = url.replace("https://freddiefujiwara.com/fire/", "");
+    // Note: The store replaces '+' with '_' after compression.
+    // In our mock, it's raw JSON. We avoid blindly replacing '_' with '+'
+    // to prevent corrupting keys/values that contain underscores (e.g., 'floor_by_rate').
     const payload = JSON.parse(payloadStr);
 
     expect(payload.mpffyeem).toBe(true);
@@ -75,6 +78,7 @@ describe("useFireSimulatorViewModel", () => {
     expect(payload.mctsr).toBe(80);
     expect(payload.sea).toBe(100);
     expect(payload.pc.earlyReduction).toBeUndefined();
+    expect(payload.simulationAssumptions.withdrawalStrategy).toBe("floor_by_rate");
     expect(compressToEncodedURIComponent).toHaveBeenCalled();
   });
 
