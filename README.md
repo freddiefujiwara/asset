@@ -338,7 +338,7 @@ User-adjustable parameters include:
 - `currentAge`, `withdrawalRate`.
 - `includeInflation` / `inflationRate`.
 - `includeTax` / `taxRate` (Defaults to **enabled**).
-- `includePension` (Integrated household model based on 1979/1976/2013 birth dates).
+- `includePension` (Integrated household model based on the household members' birth dates).
 - `mortgageMonthlyPayment`, `mortgagePayoffDate` (Payments stop following the specified payoff month).
 - `postFireExtraExpense` (Covers National Health Insurance, Pension, Property Tax), `postFireFirstYearExtraExpense` (Social insurance spike).
 - `retirementLumpSumAtFire` (Retirement bonus).
@@ -354,7 +354,7 @@ User-adjustable parameters include:
 
 - Earliest FIRE month/age that survives to age 100.
 - 'Required Assets for FIRE' (あといくら必要か calculation).
-- Interactive Chart: Asset growth paths, required assets line, and life event annotations (e.g., "Daughter's Independence" at April 2037).
+- Interactive Chart: Asset growth paths, required assets line, and life event annotations (e.g., a family life event at a configured date).
 - **Monte Carlo Results**: Success rate and P10/P50/P90 percentile paths visualizing sequence-of-returns risk.
 - Annual simulation summary table.
 - Algorithm explanation with detailed breakdown of excluded assets and lifestyle reduction rules.
@@ -385,7 +385,7 @@ Time: **O(n log n)**; Space: **O(n)**.
 ---
 
 ## 5.4 Owner Detection Algorithm
-Inferred from string suffix patterns (e.g., `@chipop` for wife, `@aojiru.pudding` for daughter).
+Inferred from string suffix patterns assigned per household member.
 Complexity: **O(k)** per row.
 
 ---
@@ -412,7 +412,7 @@ Calculates monthly transitions considering:
 - **Retirement Events**: Injects a lump sum at FIRE and applies a social insurance "spike" in the first post-retirement year.
 
 ### 5.6.2 Lifestyle Reduction
-Automatically reduces specific category expenses starting April 2037 (Daughter's independence):
+Automatically reduces specific category expenses starting at a configured life-event date:
 - **x2/3 Multiplier**: Food, Communication, Clothing/Beauty, Daily Goods.
 - **Zero**: Education.
 
@@ -494,6 +494,6 @@ VITE_GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
 
 ## 10. Known Constraints
 - Owner detection depends on naming consistency in source data.
-- Pension model uses fixed household constants (Birth dates: 1979/1976/2013).
+- Pension model uses fixed household constants (birth dates of the household members).
 - Monte Carlo assumes lognormal returns without autocorrelation.
 - App expects Japanese category naming conventions for specific logic (pension/mortgage).
