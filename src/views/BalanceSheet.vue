@@ -8,6 +8,10 @@ import PieChart from "@/components/PieChart.vue";
 import { formatSignedYen, formatYen } from "@/domain/format";
 import { formatSignedPercent, signedClass } from "@/domain/signed";
 import { useBalanceSheetViewModel } from "@/features/balanceSheet/useBalanceSheetViewModel";
+import ShareSessionCard from "@/components/ShareSessionCard.vue";
+import { usePortfolioStore } from "@/stores/portfolio";
+
+const portfolioStore = usePortfolioStore();
 
 const {
   loading,
@@ -206,6 +210,8 @@ const {
         disabled-on-privacy
       />
     </section>
+
+    <ShareSessionCard v-if="portfolioStore.hasIdToken && !portfolioStore.shareMode" />
   </section>
 </template>
 

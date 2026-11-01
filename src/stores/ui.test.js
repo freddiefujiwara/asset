@@ -38,4 +38,34 @@ describe("ui store", () => {
     expect(localStorage.getItem("asset-privacy")).toBe("off");
     expect(document.documentElement.getAttribute("data-private")).toBe("off");
   });
+
+  it("suspends privacy while share mode is active", async () => {
+    localStorage.setItem("asset-privacy", "on");
+    const ui = useUiStore();
+    expect(ui.privacyMode).toBe(true);
+
+    ui.setPrivacySuspended(true);
+    await nextTick();
+    expect(ui.privacySuspended).toBe(true);
+    expect(document.documentElement.getAttribute("data-private")).toBe("off");
+    // The stored preference itself is not rewritten by suspension.
+    expect(localStorage.getItem("asset-privacy")).toBe("on");
+
+    ui.setPrivacySuspended(false);
+    await nextTick();
+    expect(document.documentElement.getAttribute("data-private")).toBe("on");
+  });
+
+  it("keeps data-private off when suspended while privacy is off", async () => {
+    const ui = useUiStore();
+    expect(ui.privacyMode).toBe(false);
+
+    ui.setPrivacySuspended(true);
+    await nextTick();
+    expect(document.documentElement.getAttribute("data-private")).toBe("off");
+
+    ui.setPrivacySuspended(false);
+    await nextTick();
+    expect(document.documentElement.getAttribute("data-private")).toBe("off");
+  });
 });

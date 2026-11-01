@@ -13,6 +13,8 @@ const {
   authError,
   initialLoading,
   showLoginGate,
+  showShareExpired,
+  shareExpiresLabel,
   isFireEnabled,
   googleScriptError,
   googleButtonRoot,
@@ -44,7 +46,7 @@ const { externalSimulatorUrl } = storeToRefs(fireSimulatorStore);
           </span>
         </nav>
         <div class="header-buttons">
-          <button class="theme-toggle" type="button" @click="togglePrivacy">
+          <button v-if="!portfolioStore.shareMode" class="theme-toggle" type="button" @click="togglePrivacy">
             {{ privacyLabel }}
           </button>
           <button class="theme-toggle" type="button" @click="toggleTheme">
@@ -72,7 +74,16 @@ const { externalSimulatorUrl } = storeToRefs(fireSimulatorStore);
           VITE_GOOGLE_CLIENT_ID が未設定です。
         </p>
       </section>
-      <RouterView v-else />
+      <section v-else-if="showShareExpired" class="table-wrap auth-gate">
+        <h2 class="section-title">閲覧用リンクの有効期限が切れています</h2>
+        <p class="meta">このリンクは発行から1か月間だけ有効です。発行者に再発行を依頼してください。</p>
+      </section>
+      <template v-else>
+        <p v-if="portfolioStore.shareMode" class="meta">
+          一時リンクで表示中です<template v-if="shareExpiresLabel">（{{ shareExpiresLabel }} まで有効）</template>
+        </p>
+        <RouterView />
+      </template>
     </main>
   </div>
 </template>
