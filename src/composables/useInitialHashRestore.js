@@ -37,7 +37,9 @@ export function useInitialHashRestore({ route, router, loading, isReady }) {
   }
 
   onMounted(async () => {
-    if (route.hash) {
+    // Share links carry their token in the hash (#share=...); that fragment
+    // belongs to the portfolio store, so never stash/strip/restore it here.
+    if (route.hash && !route.hash.startsWith("#share=")) {
       pendingInitialHash = route.hash;
       await router.replace({ path: route.path, hash: "" });
     }

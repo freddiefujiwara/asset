@@ -45,12 +45,15 @@ describe("App cross-screen integration", () => {
       loading: false,
       error: "",
       source: "",
+      shareMode: false,
+      shareExpiresAt: "",
       fetchPortfolio: fetchPortfolioMock,
     });
 
     uiStore = reactive({
       privacyMode: false,
       togglePrivacy: vi.fn(),
+      setPrivacySuspended: vi.fn(),
     });
 
     fireSimulatorStore = reactive({
@@ -116,5 +119,48 @@ describe("App cross-screen integration", () => {
     expect(fetchPortfolioMock).toHaveBeenCalledTimes(2);
 
     removeSpy.mockRestore();
+  });
+
+  it("renders share content with the share banner and no login gate", async () => {
+    portfolioStore.shareMode = true;
+    portfolioStore.data = { totals: {} };
+    portfolioStore.source = "live";
+    portfolioStore.shareExpiresAt = new Date(2026, 11, 2, 7, 53).toISOString();
+
+    const router = makeRouter("/balance-sheet");
+    await router.isReady();
+
+    const wrapper = mount(App, {
+      global: {
+        plugins: [router],
+      },
+    });
+
+    await nextTick();
+
+    expect(wrapper.text()).toContain("balance-sheet-view");
+    expect(wrapper.text()).toContain("一時リンクで表示中です（20261202 07:53 まで有効）");
+    expect(wrapper.text()).not.toContain("Googleログインが必要です");
+    expect(uiStore.setPrivacySuspended).toHaveBeenCalledWith(true);
+  });
+
+  it("shows the expired share state instead of the login gate", async () => {
+    portfolioStore.shareMode = true;
+    portfolioStore.error = "AUTH 401: share session expired or invalid";
+
+    const router = makeRouter("/balance-sheet");
+    await router.isReady();
+
+    const wrapper = mount(App, {
+      global: {
+        plugins: [router],
+      },
+    });
+
+    await nextTick();
+
+    expect(wrapper.text()).toContain("閲覧用リンクの有効期限が切れています");
+    expect(wrapper.text()).not.toContain("Googleログインが必要です");
+    expect(wrapper.text()).not.toContain("balance-sheet-view");
   });
 });

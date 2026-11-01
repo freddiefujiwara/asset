@@ -1,6 +1,7 @@
 import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { usePortfolioStore } from "@/stores/portfolio";
 import { useUiStore } from "@/stores/ui";
+import { formatShareExpiry } from "@/domain/share";
 
 const THEME_STORAGE_KEY = "asset-theme";
 const ID_TOKEN_STORAGE_KEY = "asset-google-id-token";
@@ -27,7 +28,9 @@ export function useAppShellViewModel() {
   const hasData = computed(() => Boolean(portfolioStore.data));
   const initialLoading = computed(() => portfolioStore.loading && !hasData.value);
   const canUseApp = computed(() => hasData.value || Boolean(idToken.value));
-  const showLoginGate = computed(() => !initialLoading.value && !idToken.value && (portfolioStore.source !== "live" || !hasData.value));
+  const showLoginGate = computed(() => !initialLoading.value && !idToken.value && !portfolioStore.shareMode && (portfolioStore.source !== "live" || !hasData.value));
+  const showShareExpired = computed(() => portfolioStore.shareMode && !initialLoading.value && !hasData.value);
+  const shareExpiresLabel = computed(() => formatShareExpiry(portfolioStore.shareExpiresAt));
   const isFireEnabled = computed(() => {
     return Boolean(idToken.value) && portfolioStore.source === "live" && !portfolioStore.rawResponse?.error;
   });
@@ -160,6 +163,15 @@ export function useAppShellViewModel() {
     },
   );
 
+  // Share-mode viewers see the numbers: suspend privacy masking while active.
+  watch(
+    () => portfolioStore.shareMode,
+    (shareMode) => {
+      uiStore.setPrivacySuspended(shareMode);
+    },
+    { immediate: true },
+  );
+
   watch(
     () => [googleReady.value, showLoginGate.value],
     async () => {
@@ -177,6 +189,8 @@ export function useAppShellViewModel() {
     authError,
     initialLoading,
     showLoginGate,
+    showShareExpired,
+    shareExpiresLabel,
     isFireEnabled,
     googleScriptError,
     googleButtonRoot,

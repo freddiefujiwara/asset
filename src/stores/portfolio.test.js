@@ -291,4 +291,176 @@ describe("portfolio store", () => {
     expect(store.data).not.toBeNull();
   });
 
+  describe("share sessions", () => {
+    beforeEach(() => {
+      sessionStorage.clear();
+      vi.stubGlobal("location", { hash: "" });
+    });
+
+    it("fetches data with the share token from the URL hash", async () => {
+      vi.stubGlobal("location", { hash: "#share=share-token-1" });
+      const fetchMock = vi.fn().mockResolvedValue(
+        successResponse({ breakdown: [], _share: { expires_at: "2026-12-01T22:56:56.075Z" } }),
+      );
+      vi.stubGlobal("fetch", fetchMock);
+
+      const store = usePortfolioStore();
+      await store.fetchPortfolio();
+
+      expect(fetchMock.mock.calls[0][0]).toContain("share_token=share-token-1");
+      expect(store.shareMode).toBe(true);
+      expect(store.hasIdToken).toBe(false);
+      expect(store.shareExpiresAt).toBe("2026-12-01T22:56:56.075Z");
+      expect(store.source).toBe("live");
+      expect(sessionStorage.getItem("asset-share-token")).toBe("share-token-1");
+    });
+
+    it("reuses the share token stored in sessionStorage", async () => {
+      sessionStorage.setItem("asset-share-token", "stored-token");
+      const fetchMock = vi.fn().mockResolvedValue(successResponse({ breakdown: [] }));
+      vi.stubGlobal("fetch", fetchMock);
+
+      const store = usePortfolioStore();
+      await store.fetchPortfolio();
+
+      expect(fetchMock.mock.calls[0][0]).toContain("share_token=stored-token");
+      expect(store.shareMode).toBe(true);
+      expect(store.shareExpiresAt).toBe("");
+    });
+
+    it("marks hasIdToken when signed in and does not enter share mode", async () => {
+      globalThis.localStorage.getItem.mockReturnValue("token-123");
+      vi.stubGlobal("location", { hash: "#share=ignored-token" });
+      const fetchMock = vi.fn().mockResolvedValue(successResponse({ breakdown: [] }));
+      vi.stubGlobal("fetch", fetchMock);
+
+      const store = usePortfolioStore();
+      await store.fetchPortfolio();
+
+      expect(fetchMock.mock.calls[0][0]).toContain("id_token=token-123");
+      expect(fetchMock.mock.calls[0][0]).not.toContain("share_token=");
+      expect(store.hasIdToken).toBe(true);
+      expect(store.shareMode).toBe(false);
+    });
+
+    it("shows an auth error for an expired share token", async () => {
+      vi.stubGlobal("location", { hash: "#share=expired-token" });
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue(
+          successResponse({ status: 401, error: "share session expired or invalid" }),
+        ),
+      );
+
+      const store = usePortfolioStore();
+      await store.fetchPortfolio();
+
+      expect(store.error).toBe("AUTH 401: share session expired or invalid");
+      expect(store.data).toBe(null);
+      expect(store.source).toBe("");
+    });
+
+    it("does not fall back to mock data in share mode", async () => {
+      vi.stubGlobal("location", { hash: "#share=share-token-1" });
+      vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network down")));
+
+      const store = usePortfolioStore();
+      await store.fetchPortfolio();
+
+      expect(store.error).toBe("network down");
+      expect(store.data).toBe(null);
+      expect(store.source).toBe("");
+    });
+
+    it("issues a share session with the stored id token", async () => {
+      globalThis.localStorage.getItem.mockReturnValue("token-123");
+      const fetchMock = vi.fn().mockResolvedValue(
+        successResponse({
+          share_token: "issued-token",
+          expires_at: "2026-12-01T22:56:56.075Z",
+          ttl_seconds: 2592000,
+        }),
+      );
+      vi.stubGlobal("fetch", fetchMock);
+
+      const store = usePortfolioStore();
+      const issued = await store.issueShare();
+
+      expect(fetchMock.mock.calls[0][0]).toContain("action=issue_share");
+      expect(fetchMock.mock.calls[0][0]).toContain("id_token=token-123");
+      expect(issued).toEqual({ token: "issued-token", expiresAt: "2026-12-01T22:56:56.075Z" });
+      expect(store.issuedShare).toEqual(issued);
+    });
+
+    it("issues a share session without an id token param when none is stored", async () => {
+      const fetchMock = vi.fn().mockResolvedValue(
+        successResponse({ share_token: "t", expires_at: "2026-12-01T00:00:00.000Z" }),
+      );
+      vi.stubGlobal("fetch", fetchMock);
+
+      const store = usePortfolioStore();
+      await store.issueShare();
+
+      expect(fetchMock.mock.calls[0][0]).toContain("action=issue_share");
+      expect(fetchMock.mock.calls[0][0]).not.toContain("id_token=");
+    });
+
+    it("throws on auth error responses when issuing", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue(successResponse({ status: 403, error: "forbidden email" })),
+      );
+      const store = usePortfolioStore();
+      await expect(store.issueShare()).rejects.toThrow("AUTH 403: forbidden email");
+    });
+
+    it("throws a default message when the auth error has no error field", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue(successResponse({ status: 401 })),
+      );
+      const store = usePortfolioStore();
+      await expect(store.issueShare()).rejects.toThrow("AUTH 401: unauthorized");
+    });
+
+    it("throws on HTTP errors when issuing", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({ ok: false, status: 500, json: async () => ({}) }),
+      );
+      const store = usePortfolioStore();
+      await expect(store.issueShare()).rejects.toThrow("HTTP 500");
+    });
+
+    it("revokes the issued share session", async () => {
+      const fetchMock = vi.fn().mockResolvedValue(successResponse({ revoked: true }));
+      vi.stubGlobal("fetch", fetchMock);
+
+      const store = usePortfolioStore();
+      store.issuedShare = { token: "t", expiresAt: "2026-12-01T00:00:00.000Z" };
+      await store.revokeShare();
+
+      expect(fetchMock.mock.calls[0][0]).toContain("action=revoke_share");
+      expect(store.issuedShare).toBe(null);
+    });
+
+    it("throws on auth error responses when revoking", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue(successResponse({ status: 401, error: "missing id token" })),
+      );
+      const store = usePortfolioStore();
+      await expect(store.revokeShare()).rejects.toThrow("AUTH 401: missing id token");
+    });
+
+    it("throws on HTTP errors when revoking", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({ ok: false, status: 500, json: async () => ({}) }),
+      );
+      const store = usePortfolioStore();
+      await expect(store.revokeShare()).rejects.toThrow("HTTP 500");
+    });
+  });
+
 });
