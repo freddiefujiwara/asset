@@ -40,7 +40,6 @@ const {
   enrichedHoldings,
   stockTreemapUrl,
   getMappedAssetStatusJson,
-  copyToken,
 } = useBalanceSheetViewModel();
 </script>
 
@@ -203,14 +202,6 @@ const {
       <p class="back-top-wrap"><a href="#balance-sheet-top">↑ トップへ戻る</a></p>
     </section>
 
-    <section class="footer-actions">
-      <CopyButton
-        label="📋 トークンIDをコピー"
-        :copy-value="copyToken"
-        disabled-on-privacy
-      />
-    </section>
-
     <ShareSessionCard v-if="portfolioStore.hasIdToken && !portfolioStore.shareMode" />
   </section>
 </template>
@@ -226,13 +217,6 @@ const {
   margin-bottom: 0;
 }
 
-.footer-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 24px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
-}
 
 .portfolio-treemap-link {
   display: inline-block;
