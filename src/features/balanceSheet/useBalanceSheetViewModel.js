@@ -178,18 +178,6 @@ export function useBalanceSheetViewModel() {
   const assetPie = computed(() => assetsByClass.value.map((item) => ({ label: item.name, value: item.amountYen })));
   const liabilityPie = computed(() => liabilitiesByCategory.value.map((item) => ({ label: item.category, value: item.amountYen })));
 
-  /**
-   * Read auth token for copy button.
-   */
-  const copyToken = () => {
-    const token = localStorage.getItem("asset-google-id-token");
-    if (!token) {
-      window.alert("トークンが localStorage に見つかりません。");
-      throw new Error("Token not found");
-    }
-    return token;
-  };
-
   return {
     loading,
     error,
@@ -217,6 +205,5 @@ export function useBalanceSheetViewModel() {
     enrichedHoldings,
     stockTreemapUrl,
     getMappedAssetStatusJson,
-    copyToken,
   };
 }
