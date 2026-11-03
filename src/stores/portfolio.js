@@ -4,6 +4,7 @@ import { parseShareToken } from "@/domain/share";
 import sampleApi from "@/mocks/sampleApi.json";
 
 const API_URL =
+  import.meta.env.VITE_GAS_ENDPOINT ??
   "https://script.google.com/macros/s/AKfycbxjQAp6rtSCUTz4T5J96_-zCs9Vrae-7uhZXY7ZIukOZP5fs_HIf44aOAfcN3XfPkis/exec";
 const ID_TOKEN_STORAGE_KEY = "asset-google-id-token";
 const SHARE_TOKEN_STORAGE_KEY = "asset-share-token";

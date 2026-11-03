@@ -140,3 +140,5 @@ vite.config.ts.timestamp-*
 
 # Playwright test results
 test-results/
+
+dist-staging
