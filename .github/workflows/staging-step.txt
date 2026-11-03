@@ -1,0 +1,9 @@
+    - name: Build staging variant into dist/staging
+      env:
+        VITE_GAS_ENDPOINT: "https://script.google.com/macros/s/AKfycbwaNgQjqAJCOKt8ReWAE6uhEZzEBuRRsnRbRFsa16RpVQSs6KSRVCPNZnalOXZWy0CE/exec"
+        VITE_STAGING: "1"
+        VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
+      run: |
+        npm run build:staging
+        mkdir -p dist/staging
+        cp -r dist-staging/* dist/staging/
