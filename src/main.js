@@ -2,7 +2,7 @@ import { createApp } from "vue";
 import { createPinia } from "pinia";
 import { createRouter, createWebHistory } from "vue-router";
 import App from "./App.vue";
-import { showStagingBanner } from "./staging-banner.js";
+import { isStagingBuild, showStagingBanner } from "./staging-banner.js";
 import BalanceSheet from "./views/BalanceSheet.vue";
 import CashFlow from "./views/CashFlow.vue";
 import FireSimulator from "./views/FireSimulator.vue";
@@ -23,4 +23,6 @@ const app = createApp(App);
 app.use(createPinia());
 app.use(router);
 app.mount("#app");
-showStagingBanner();
+if (isStagingBuild()) {
+  showStagingBanner();
+}
