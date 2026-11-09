@@ -34,7 +34,7 @@ describe("useCashFlowViewModel", () => {
     expect(vm.getMonthlyMfcfJson("2025-01")).toContain("2025-01-01");
   });
 
-  it("limits copy target months to latest 7 months and returns all when fewer", () => {
+  it("limits copy target months to latest 13 months and returns all when fewer", () => {
     dataRef.value = {
       cashFlow: [
         { date: "2025-08-01", amount: 1 },
@@ -45,6 +45,12 @@ describe("useCashFlowViewModel", () => {
         { date: "2025-03-01", amount: 1 },
         { date: "2025-02-01", amount: 1 },
         { date: "2025-01-01", amount: 1 },
+        { date: "2024-12-01", amount: 1 },
+        { date: "2024-11-01", amount: 1 },
+        { date: "2024-10-01", amount: 1 },
+        { date: "2024-09-01", amount: 1 },
+        { date: "2024-08-01", amount: 1 },
+        { date: "2024-07-01", amount: 1 },
       ],
     };
 
@@ -57,6 +63,12 @@ describe("useCashFlowViewModel", () => {
       "2025-04",
       "2025-03",
       "2025-02",
+      "2025-01",
+      "2024-12",
+      "2024-11",
+      "2024-10",
+      "2024-09",
+      "2024-08",
     ]);
 
     dataRef.value = {

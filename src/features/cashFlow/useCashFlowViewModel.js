@@ -13,7 +13,7 @@ import {
 } from "@/domain/cashFlow";
 import { getPast12MonthSummary } from "@/domain/fire";
 
-const MAX_COPY_TARGET_MONTHS = 7;
+const MAX_COPY_TARGET_MONTHS = 13;
 const PAST_MONTH_LOOKBACK_COUNT = 12;
 
 /**
