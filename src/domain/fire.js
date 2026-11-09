@@ -10,7 +10,7 @@ export {
   estimateMonthlyExpenses,
   estimateMonthlyIncome,
   estimateIncomeSplit,
-  getPast5MonthSummary,
+  getPast12MonthSummary,
   estimateMortgageMonthlyPayment,
   calculateLifestyleReduction,
   normalizeFireParams,
