@@ -30,7 +30,7 @@ const {
   riskAssets,
   cashAssets,
   monthsOfCash,
-  past5MonthSummary,
+  past12MonthSummary,
   manualMonthlyExpense,
   useAutoExpense,
   manualRegularMonthlyIncome,
@@ -108,25 +108,25 @@ const {
             </label>
           </div>
           <input v-model.number="manualMonthlyExpense" type="number" step="10000" :disabled="useAutoExpense" />
-          <div v-if="useAutoExpense && past5MonthSummary.monthCount > 0" class="expense-breakdown">
+          <div v-if="useAutoExpense && past12MonthSummary.monthCount > 0" class="expense-breakdown">
             <details>
-              <summary>算出内訳 ({{ past5MonthSummary.monthCount }}ヶ月平均)</summary>
+              <summary>算出内訳 ({{ past12MonthSummary.monthCount }}ヶ月平均)</summary>
               <div class="breakdown-content">
                 <div class="breakdown-row total-row">
                   <span class="cat-name">固定費 (合計)</span>
-                  <span class="cat-amount amount-value">{{ formatYen(past5MonthSummary.avgFixedMonthly) }}</span>
+                  <span class="cat-amount amount-value">{{ formatYen(past12MonthSummary.avgFixedMonthly) }}</span>
                 </div>
                 <div class="breakdown-row total-row">
                   <span class="cat-name">変動費 (合計)</span>
-                  <span class="cat-amount amount-value">{{ formatYen(past5MonthSummary.avgVariableMonthly) }}</span>
+                  <span class="cat-amount amount-value">{{ formatYen(past12MonthSummary.avgVariableMonthly) }}</span>
                 </div>
                 <hr class="breakdown-divider" />
-                <div v-for="item in past5MonthSummary.monthlyLivingExpenses.breakdown" :key="item.name" class="breakdown-row">
+                <div v-for="item in past12MonthSummary.monthlyLivingExpenses.breakdown" :key="item.name" class="breakdown-row">
                   <span class="cat-name">{{ item.name }}</span>
                   <span class="cat-amount amount-value">{{ formatYen(item.amount) }}</span>
                 </div>
-                <div v-if="past5MonthSummary.monthlyLivingExpenses.averageSpecial > 0" class="special-info">
-                  <span class="meta">※ 特別な支出 (平均 {{ formatYen(past5MonthSummary.monthlyLivingExpenses.averageSpecial) }}) は除外済み</span>
+                <div v-if="past12MonthSummary.monthlyLivingExpenses.averageSpecial > 0" class="special-info">
+                  <span class="meta">※ 特別な支出 (平均 {{ formatYen(past12MonthSummary.monthlyLivingExpenses.averageSpecial) }}) は除外済み</span>
                 </div>
               </div>
             </details>
@@ -140,11 +140,11 @@ const {
             </label>
           </div>
           <input v-model.number="manualRegularMonthlyIncome" type="number" step="10000" :disabled="useAutoIncome" />
-          <div v-if="useAutoIncome && past5MonthSummary.monthCount > 0" class="expense-breakdown">
+          <div v-if="useAutoIncome && past12MonthSummary.monthCount > 0" class="expense-breakdown">
             <details>
-              <summary>算出内訳 ({{ past5MonthSummary.monthCount }}ヶ月平均)</summary>
+              <summary>算出内訳 ({{ past12MonthSummary.monthCount }}ヶ月平均)</summary>
               <div class="breakdown-content">
-                <div v-for="item in past5MonthSummary.monthlyRegularIncome.breakdown" :key="item.name" class="breakdown-row">
+                <div v-for="item in past12MonthSummary.monthlyRegularIncome.breakdown" :key="item.name" class="breakdown-row">
                   <span class="cat-name">{{ item.name }}</span>
                   <span class="cat-amount amount-value">{{ formatYen(item.amount) }}</span>
                 </div>
@@ -165,11 +165,11 @@ const {
             </div>
           </div>
           <input v-model.number="manualAnnualBonus" type="number" step="10000" :disabled="useAutoBonus || !includeBonus" />
-          <div v-if="useAutoBonus && past5MonthSummary.monthCount > 0" class="expense-breakdown">
+          <div v-if="useAutoBonus && past12MonthSummary.monthCount > 0" class="expense-breakdown">
             <details>
-              <summary>算出内訳 ({{ past5MonthSummary.monthCount }}ヶ月平均)</summary>
+              <summary>算出内訳 ({{ past12MonthSummary.monthCount }}ヶ月平均)</summary>
               <div class="breakdown-content">
-                <div v-for="item in past5MonthSummary.annualBonus.breakdown" :key="item.name" class="breakdown-row">
+                <div v-for="item in past12MonthSummary.annualBonus.breakdown" :key="item.name" class="breakdown-row">
                   <span class="cat-name">{{ item.name }}</span>
                   <span class="cat-amount amount-value">{{ formatYen(item.amount) }}</span>
                 </div>
@@ -292,8 +292,8 @@ const {
               <span class="amount-value" style="margin-left: 8px;">{{ formatYen(monthlyExpense * 12) }}</span>
               <div v-if="useAutoExpense" style="font-size: 0.7rem; margin-top: 4px;">
                 <span class="meta">内訳(月平均): </span>
-                <span class="amount-value">固定{{ formatYen(past5MonthSummary.avgFixedMonthly) }}</span> /
-                <span class="amount-value">変動{{ formatYen(past5MonthSummary.avgVariableMonthly) }}</span>
+                <span class="amount-value">固定{{ formatYen(past12MonthSummary.avgFixedMonthly) }}</span> /
+                <span class="amount-value">変動{{ formatYen(past12MonthSummary.avgVariableMonthly) }}</span>
               </div>
             </div>
             <div>
