@@ -11,10 +11,10 @@ import {
   sortCashFlow,
   getRecentAverages,
 } from "@/domain/cashFlow";
-import { getPast5MonthSummary } from "@/domain/fire";
+import { getPast12MonthSummary } from "@/domain/fire";
 
 const MAX_COPY_TARGET_MONTHS = 7;
-const PAST_MONTH_LOOKBACK_COUNT = 5;
+const PAST_MONTH_LOOKBACK_COUNT = 12;
 
 /**
  * Manage state and actions for the Cash Flow page.
@@ -116,9 +116,9 @@ export function useCashFlowViewModel() {
   };
 
   /**
-   * Build past 5 month summary JSON text for copy action.
+   * Build past 12 month summary JSON text for copy action.
    */
-  const getPast5MonthSummaryJson = () => JSON.stringify(getPast5MonthSummary(cashFlowRaw.value), null, 2);
+  const getPast12MonthSummaryJson = () => JSON.stringify(getPast12MonthSummary(cashFlowRaw.value), null, 2);
 
   /**
    * Reset all filters to default values.
@@ -156,7 +156,7 @@ export function useCashFlowViewModel() {
     handleSort,
     handleCategorySelect,
     getMonthlyMfcfJson,
-    getPast5MonthSummaryJson,
+    getPast12MonthSummaryJson,
     resetFilters,
   };
 }
