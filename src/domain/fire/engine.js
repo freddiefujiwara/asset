@@ -92,7 +92,7 @@ export function generateAlgorithmExplanationSegments(params) {
 }
 
 
-const FIVE_MONTH_LOOKBACK_COUNT = 5;
+const TWELVE_MONTH_LOOKBACK_COUNT = 12;
 
 /**
  * Return month keys for past months.
@@ -111,7 +111,7 @@ function getPastMonths(now, count) {
  */
 function processLookbackCashFlow(cashFlow, callback) {
   const now = new Date();
-  const targetMonths = getPastMonths(now, FIVE_MONTH_LOOKBACK_COUNT);
+  const targetMonths = getPastMonths(now, TWELVE_MONTH_LOOKBACK_COUNT);
   const monthSet = new Set(targetMonths);
 
   cashFlow.forEach((item) => {
@@ -131,7 +131,7 @@ function processLookbackCashFlow(cashFlow, callback) {
  * Estimate monthly expenses from past cash flow rows.
  */
 export function estimateMonthlyExpenses(cashFlow) {
-  const divisor = FIVE_MONTH_LOOKBACK_COUNT;
+  const divisor = TWELVE_MONTH_LOOKBACK_COUNT;
   const breakdownMap = {};
   let totalNormalExpense = 0;
   let totalSpecialExpense = 0;
@@ -181,13 +181,13 @@ export function estimateMonthlyExpenses(cashFlow) {
 }
 
 /**
- * Estimate monthly average income from cash flow (previous 5 months, excluding current month).
+ * Estimate monthly average income from cash flow (previous 12 months, excluding current month).
  */
 /**
  * Estimate monthly income from past cash flow rows.
  */
 export function estimateMonthlyIncome(cashFlow) {
-  const divisor = FIVE_MONTH_LOOKBACK_COUNT;
+  const divisor = TWELVE_MONTH_LOOKBACK_COUNT;
   let totalIncome = 0;
 
   processLookbackCashFlow(cashFlow, (item) => {
@@ -207,7 +207,7 @@ export function estimateMonthlyIncome(cashFlow) {
  * Split income into regular and bonus values.
  */
 export function estimateIncomeSplit(cashFlow) {
-  const divisor = FIVE_MONTH_LOOKBACK_COUNT;
+  const divisor = TWELVE_MONTH_LOOKBACK_COUNT;
   let totalRegularIncome = 0;
   const regularBreakdownMap = {};
   const monthlyTotals = {}; // { 'YYYY-MM': { totalIncome: 0, bonusSum: 0 } }
@@ -270,12 +270,12 @@ export function estimateIncomeSplit(cashFlow) {
 }
 
 /**
- * Aggregate past 5 months summary (excluding current month) for copying and simulation.
+ * Aggregate past 12 months summary (excluding current month) for copying and simulation.
  */
 /**
- * Build one summary object for the past five months.
+ * Build one summary object for the past twelve months.
  */
-export function getPast5MonthSummary(cashFlow) {
+export function getPast12MonthSummary(cashFlow) {
   const expenses = estimateMonthlyExpenses(cashFlow);
   const income = estimateIncomeSplit(cashFlow);
 
@@ -306,7 +306,7 @@ export function getPast5MonthSummary(cashFlow) {
  * Estimate mortgage payment per month from cash flow.
  */
 export function estimateMortgageMonthlyPayment(cashFlow) {
-  const divisor = FIVE_MONTH_LOOKBACK_COUNT;
+  const divisor = TWELVE_MONTH_LOOKBACK_COUNT;
   let totalMortgage = 0;
 
   processLookbackCashFlow(cashFlow, (item) => {
