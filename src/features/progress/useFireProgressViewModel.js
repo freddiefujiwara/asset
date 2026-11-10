@@ -99,6 +99,50 @@ export function useFireProgressViewModel() {
   const sideProgress = computed(() => describeRun(progress.value?.side));
   const fullProgress = computed(() => describeRun(progress.value?.full));
 
+  // 主指標の振り分け（ドメインの selectProgressFocus）。
+  // サイドFIREが到達可能な水準になったら完全FIREが主指標に昇格する。
+  const focus = computed(() => progress.value?.focus ?? null);
+  const bothReached = computed(() => focus.value?.focus === "both");
+
+  const labelForKind = (kind) => (kind === "side" ? "サイドFIRE" : "完全FIRE");
+  const runForKind = (kind) =>
+    kind === "side" ? progress.value?.side : progress.value?.full;
+
+  const primaryProgress = computed(() => {
+    const kind = focus.value?.primaryKind;
+    if (!kind || !progress.value) return null;
+    const run = describeRun(runForKind(kind));
+    if (!run) return null;
+    const isSide = kind === "side";
+    return {
+      ...run,
+      kind,
+      label: labelForKind(kind),
+      // 主指標の対象資産。サイドFIREは大学資金を除いた対象資産、
+      // 完全FIREは総資産そのものが対象（対象資産の行はサイドのときだけ出す）。
+      baseAssetsLabel: isSide ? "FIRE対象資産（大学資金を除く）" : null,
+      baseAssetsYen: isSide
+        ? progress.value.fireTargetAssetsYen
+        : progress.value.totalAssetsYen,
+      rateLabel: isSide
+        ? "到達率（FIRE対象資産 ÷ 必要資産）"
+        : "到達率（総資産 ÷ 必要資産）",
+    };
+  });
+
+  const secondaryProgress = computed(() => {
+    const kind = focus.value?.secondaryKind;
+    if (!kind || !progress.value) return null;
+    const run = describeRun(runForKind(kind));
+    if (!run) return null;
+    return {
+      ...run,
+      kind,
+      label: labelForKind(kind),
+      achieved: run.alreadyReached === true,
+    };
+  });
+
   const trend = computed(() => {
     const requiredAssetsYen = progress.value?.side?.requiredAssetsYen;
     if (!requiredAssetsYen) return { hasTrend: false, points: [] };
@@ -178,6 +222,10 @@ export function useFireProgressViewModel() {
     progress,
     sideProgress,
     fullProgress,
+    focus,
+    bothReached,
+    primaryProgress,
+    secondaryProgress,
     trend,
     projectionTrend,
     trendRows,

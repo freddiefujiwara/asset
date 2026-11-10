@@ -10,6 +10,9 @@ const {
   progress,
   sideProgress,
   fullProgress,
+  bothReached,
+  primaryProgress,
+  secondaryProgress,
   trendRows,
   hasAnyTrend,
   sideDeltaLabel,
@@ -37,29 +40,78 @@ const monthLabel = (monthKey) => {
 
     <template v-else-if="progress && sideProgress">
       <section class="table-wrap">
-        <h2 class="section-title">FIRE進捗（サイドFIREが主指標）</h2>
-        <p class="meta">
+        <h2 class="section-title">
+          <template v-if="bothReached">FIRE進捗</template>
+          <template v-else-if="primaryProgress">FIRE進捗（{{ primaryProgress.label }}が主指標）</template>
+          <template v-else>FIRE進捗</template>
+        </h2>
+        <p v-if="bothReached" class="meta">
+          サイドFIRE・完全FIREともに、現在の前提ではすでに到達可能な水準です。
+          前提を変えて試す場合は <RouterLink to="/fire">FIRE計算</RouterLink> を使ってください。
+        </p>
+        <p v-else-if="primaryProgress?.kind === 'full'" class="meta">
+          サイドFIRE（週3勤務で年収 {{ formatYen(progress.sideFireAnnualIncomeYen) }} の収入が続く場合）は、
+          現在の前提ではすでに到達可能な水準のため、主指標を完全FIRE（収入ゼロ前提）に切り替えています。
+          完全FIREは総資産を対象に計算しています。
+          前提を変えて試す場合は <RouterLink to="/fire">FIRE計算</RouterLink> を使ってください。
+        </p>
+        <p v-else class="meta">
           前提: 週3勤務で年収 {{ formatYen(progress.sideFireAnnualIncomeYen) }} の収入が続く場合。
           FIRE対象資産は総資産から大学資金 {{ formatYen(universityFundYen) }} を除いた額です。
           前提を変えて試す場合は <RouterLink to="/fire">FIRE計算</RouterLink> を使ってください。
         </p>
 
-        <div class="progress-headline">
-          <div>
-            <p class="progress-rate amount-value">
-              {{ sideProgress.progressRatePct != null ? `${sideProgress.progressRatePct.toFixed(1)}%` : "—" }}
-            </p>
-            <p class="meta">到達率（FIRE対象資産 ÷ 必要資産）</p>
+        <template v-if="primaryProgress">
+          <div class="progress-headline">
+            <div>
+              <p class="progress-rate amount-value">
+                {{ primaryProgress.progressRatePct != null ? `${primaryProgress.progressRatePct.toFixed(1)}%` : "—" }}
+              </p>
+              <p class="meta">{{ primaryProgress.rateLabel }}</p>
+            </div>
+            <div class="progress-bar" role="img" :aria-label="`${primaryProgress.label}到達率`">
+              <div
+                class="progress-bar-fill"
+                :style="{ width: `${Math.min(100, Math.max(0, primaryProgress.progressRatePct ?? 0))}%` }"
+              ></div>
+            </div>
           </div>
-          <div class="progress-bar" role="img" aria-label="サイドFIRE到達率">
-            <div
-              class="progress-bar-fill"
-              :style="{ width: `${Math.min(100, Math.max(0, sideProgress.progressRatePct ?? 0))}%` }"
-            ></div>
-          </div>
-        </div>
 
-        <table>
+          <table>
+            <tbody>
+              <tr>
+                <th>総資産</th>
+                <td class="amount-value">{{ formatYen(progress.totalAssetsYen) }}</td>
+              </tr>
+              <tr v-if="primaryProgress.baseAssetsLabel">
+                <th>{{ primaryProgress.baseAssetsLabel }}</th>
+                <td class="amount-value">{{ formatYen(primaryProgress.baseAssetsYen) }}</td>
+              </tr>
+              <tr>
+                <th>必要資産（{{ primaryProgress.label }}）</th>
+                <td class="amount-value">{{ primaryProgress.requiredAssetsYen != null ? formatYen(primaryProgress.requiredAssetsYen) : "—" }}</td>
+              </tr>
+              <tr>
+                <th>あと必要</th>
+                <td class="amount-value">{{ primaryProgress.gapYen != null ? formatYen(primaryProgress.gapYen) : "—" }}</td>
+              </tr>
+              <tr>
+                <th>到達見込み</th>
+                <td>
+                  <template v-if="primaryProgress.alreadyReached">
+                    現在の前提では、すでに到達可能な水準です
+                  </template>
+                  <template v-else-if="primaryProgress.reached">
+                    あと{{ primaryProgress.durationLabel }}（{{ primaryProgress.dateLabel }}・{{ primaryProgress.ageLabel }}時点）
+                  </template>
+                  <template v-else>現在の前提では見込みが立ちません</template>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </template>
+
+        <table v-else-if="bothReached">
           <tbody>
             <tr>
               <th>総資産</th>
@@ -70,34 +122,35 @@ const monthLabel = (monthKey) => {
               <td class="amount-value">{{ formatYen(progress.fireTargetAssetsYen) }}</td>
             </tr>
             <tr>
-              <th>必要資産（サイドFIRE）</th>
-              <td class="amount-value">{{ sideProgress.requiredAssetsYen != null ? formatYen(sideProgress.requiredAssetsYen) : "—" }}</td>
-            </tr>
-            <tr>
-              <th>あと必要</th>
-              <td class="amount-value">{{ sideProgress.gapYen != null ? formatYen(sideProgress.gapYen) : "—" }}</td>
-            </tr>
-            <tr>
-              <th>到達見込み</th>
+              <th>サイドFIRE</th>
               <td>
-                <template v-if="sideProgress.alreadyReached">
-                  現在の前提では、すでに到達可能な水準です
-                </template>
-                <template v-else-if="sideProgress.reached">
-                  あと{{ sideProgress.durationLabel }}（{{ sideProgress.dateLabel }}・{{ sideProgress.ageLabel }}時点）
-                </template>
-                <template v-else>現在の前提では見込みが立ちません</template>
+                到達率 {{ sideProgress.progressRatePct != null ? `${sideProgress.progressRatePct.toFixed(1)}%` : "—" }}
+                ・現在の前提では到達可能な水準です
+              </td>
+            </tr>
+            <tr>
+              <th>完全FIRE</th>
+              <td>
+                到達率 {{ fullProgress.progressRatePct != null ? `${fullProgress.progressRatePct.toFixed(1)}%` : "—" }}
+                ・現在の前提では到達可能な水準です
               </td>
             </tr>
           </tbody>
         </table>
 
-        <p v-if="fullProgress" class="meta">
-          補助指標（完全FIRE・収入ゼロ前提）: 必要資産
-          <span class="amount-value">{{ fullProgress.requiredAssetsYen != null ? formatYen(fullProgress.requiredAssetsYen) : "—" }}</span>
-          <template v-if="fullProgress.alreadyReached">・到達可能な水準です</template>
-          <template v-else-if="fullProgress.reached">
-            ・あと{{ fullProgress.durationLabel }}（{{ fullProgress.dateLabel }}・{{ fullProgress.ageLabel }}時点）
+        <p v-if="secondaryProgress" class="meta">
+          補助指標（{{ secondaryProgress.label }}<template v-if="secondaryProgress.kind === 'full'">・収入ゼロ前提</template><template v-else>・週3勤務で年収 {{ formatYen(progress.sideFireAnnualIncomeYen) }} の収入が続く前提</template>）:
+          <template v-if="secondaryProgress.achieved">
+            達成済み（到達率 {{ secondaryProgress.progressRatePct != null ? `${secondaryProgress.progressRatePct.toFixed(1)}%` : "—" }}・現在の前提では到達可能な水準です）
+          </template>
+          <template v-else>
+            到達率 {{ secondaryProgress.progressRatePct != null ? `${secondaryProgress.progressRatePct.toFixed(1)}%` : "—" }}
+            ・必要資産
+            <span class="amount-value">{{ secondaryProgress.requiredAssetsYen != null ? formatYen(secondaryProgress.requiredAssetsYen) : "—" }}</span>
+            <template v-if="secondaryProgress.reached">
+              ・あと{{ secondaryProgress.durationLabel }}（{{ secondaryProgress.dateLabel }}・{{ secondaryProgress.ageLabel }}時点）
+            </template>
+            <template v-else>・現在の前提では見込みが立ちません</template>
           </template>
         </p>
       </section>
