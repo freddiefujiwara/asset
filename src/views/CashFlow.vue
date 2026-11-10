@@ -30,7 +30,7 @@ const {
   handleSort,
   handleCategorySelect,
   getMonthlyMfcfJson,
-  getPast5MonthSummaryJson,
+  getPast12MonthSummaryJson,
   resetFilters,
 } = useCashFlowViewModel();
 </script>
@@ -123,8 +123,8 @@ const {
 
     <div class="table-wrap api-actions">
       <CopyButton
-        label="📋 過去5ヶ月分のサマリをコピー"
-        :copy-value="getPast5MonthSummaryJson"
+        label="📋 過去12ヶ月分のサマリをコピー"
+        :copy-value="getPast12MonthSummaryJson"
         disabled-on-privacy
       />
       <CopyButton

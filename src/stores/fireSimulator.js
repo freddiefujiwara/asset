@@ -4,7 +4,7 @@ import { usePortfolioStore } from "./portfolio";
 import { calculateAge, USER_BIRTH_DATE, SPOUSE_BIRTH_DATE, DAUGHTER_BIRTH_DATE } from "@/domain/family";
 import {
   calculateFirePortfolio,
-  getPast5MonthSummary,
+  getPast12MonthSummary,
   estimateMortgageMonthlyPayment,
 } from "@/domain/fire";
 import { EMPTY_SUMMARY } from "@/features/fireSimulator/formatters";
@@ -54,13 +54,13 @@ export const useFireSimulatorStore = defineStore("fireSimulator", () => {
   const riskAssets = computed(() => firePortfolio.value.riskAssetsYen);
   const cashAssets = computed(() => firePortfolio.value.cashAssetsYen);
 
-  const past5MonthSummary = computed(() =>
-    data.value?.cashFlow ? getPast5MonthSummary(data.value.cashFlow) : EMPTY_SUMMARY,
+  const past12MonthSummary = computed(() =>
+    data.value?.cashFlow ? getPast12MonthSummary(data.value.cashFlow) : EMPTY_SUMMARY,
   );
 
-  const autoMonthlyExpense = computed(() => past5MonthSummary.value.monthlyLivingExpenses.average);
-  const autoRegularMonthlyIncome = computed(() => past5MonthSummary.value.monthlyRegularIncome.average);
-  const autoAnnualBonus = computed(() => past5MonthSummary.value.annualBonus.average);
+  const autoMonthlyExpense = computed(() => past12MonthSummary.value.monthlyLivingExpenses.average);
+  const autoRegularMonthlyIncome = computed(() => past12MonthSummary.value.monthlyRegularIncome.average);
+  const autoAnnualBonus = computed(() => past12MonthSummary.value.annualBonus.average);
   const autoMortgageMonthlyPayment = computed(() =>
     data.value?.cashFlow ? estimateMortgageMonthlyPayment(data.value.cashFlow) : 0,
   );
@@ -178,7 +178,7 @@ export const useFireSimulatorStore = defineStore("fireSimulator", () => {
     initialAssets,
     riskAssets,
     cashAssets,
-    past5MonthSummary,
+    past12MonthSummary,
     autoMonthlyExpense,
     autoRegularMonthlyIncome,
     autoAnnualBonus,

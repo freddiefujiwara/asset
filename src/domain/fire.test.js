@@ -16,7 +16,7 @@ import {
   calculateDaughterAssetsBreakdown,
   generateAlgorithmExplanationSegments,
   performFireSimulation,
-  getPast5MonthSummary,
+  getPast12MonthSummary,
   calculateLifestyleReduction,
 } from "./fire";
 
@@ -34,7 +34,7 @@ describe("fire domain", () => {
       estimateMonthlyExpenses: expect.any(Function),
       estimateMonthlyIncome: expect.any(Function),
       estimateIncomeSplit: expect.any(Function),
-      getPast5MonthSummary: expect.any(Function),
+      getPast12MonthSummary: expect.any(Function),
       estimateMortgageMonthlyPayment: expect.any(Function),
       calculateLifestyleReduction: expect.any(Function),
       normalizeFireParams: expect.any(Function),
@@ -88,18 +88,18 @@ describe("fire domain", () => {
       vi.useRealTimers();
     });
     it("calculates average monthly expenses and breakdown", () => {
-      // Past 5 months from 2026-03: Feb, Jan, Dec, Nov, Oct
+      // Past 12 months from 2026-03: 2026-02 back to 2025-03
       const cashFlow = [
         { date: "2026-02-01", amount: -100, isTransfer: false, category: "Food" },
         { date: "2026-02-02", amount: -200, isTransfer: false, category: "Housing" },
         { date: "2026-01-01", amount: -300, isTransfer: false, category: "Food" },
         { date: "2026-01-02", amount: -400, isTransfer: false, category: "Housing" },
       ];
-      // Total: 1000. Divided by 5 = 200.
+      // Total: 1000. Divided by 12 = 83.
       const result = estimateMonthlyExpenses(cashFlow);
-      expect(result.total).toBe(200);
-      expect(result.breakdown).toContainEqual({ name: "Food", amount: 80 }); // 400 / 5
-      expect(result.breakdown).toContainEqual({ name: "Housing", amount: 120 }); // 600 / 5
+      expect(result.total).toBe(83);
+      expect(result.breakdown).toContainEqual({ name: "Food", amount: 33 }); // 400 / 12
+      expect(result.breakdown).toContainEqual({ name: "Housing", amount: 50 }); // 600 / 12
     });
 
     it("excludes special expenses and returns them separately", () => {
@@ -108,8 +108,8 @@ describe("fire domain", () => {
         { date: "2026-02-01", amount: -500, isTransfer: false, category: "Food" },
       ];
       const result = estimateMonthlyExpenses(cashFlow);
-      expect(result.total).toBe(100); // 500 / 5
-      expect(result.averageSpecial).toBe(200); // 1000 / 5
+      expect(result.total).toBe(42); // 500 / 12
+      expect(result.averageSpecial).toBe(83); // 1000 / 12
     });
 
     it("handles transfers, income, and missing categories", () => {
@@ -119,8 +119,8 @@ describe("fire domain", () => {
         { date: "2026-02-01", amount: -500, isTransfer: false, category: "" }, // should be 未分類
       ];
       const result = estimateMonthlyExpenses(cashFlow);
-      expect(result.total).toBe(100); // 500 / 5
-      expect(result.breakdown).toContainEqual({ name: "未分類", amount: 100 });
+      expect(result.total).toBe(42); // 500 / 12
+      expect(result.breakdown).toContainEqual({ name: "未分類", amount: 42 });
     });
 
     it("excludes Cash and Card categories", () => {
@@ -130,15 +130,15 @@ describe("fire domain", () => {
         { date: "2026-02-01", amount: -300, isTransfer: false, category: "カード/支払い" },
       ];
       const result = estimateMonthlyExpenses(cashFlow);
-      expect(result.total).toBe(200); // 1000 / 5
+      expect(result.total).toBe(83); // 1000 / 12
       expect(result.breakdown).toHaveLength(1);
       expect(result.breakdown[0].name).toBe("Food");
     });
 
 
-    it("uses previous 5 calendar months and excludes current month", () => {
+    it("uses previous 12 calendar months and excludes current month", () => {
       vi.setSystemTime(new Date("2026-06-15T09:00:00+09:00"));
-      // Past 5: May, Apr, Mar, Feb, Jan
+      // Past 12: 2026-05 back to 2025-06
 
       const cashFlow = [
         { date: "2026-06-01", amount: -10000, isTransfer: false, category: "Food" }, // current month excluded
@@ -147,12 +147,19 @@ describe("fire domain", () => {
         { date: "2026-03-01", amount: -100, isTransfer: false, category: "Food" },
         { date: "2026-02-01", amount: -100, isTransfer: false, category: "Food" },
         { date: "2026-01-01", amount: -100, isTransfer: false, category: "Food" },
-        { date: "2025-12-01", amount: -100, isTransfer: false, category: "Food" }, // beyond 5 months excluded
+        { date: "2025-12-01", amount: -100, isTransfer: false, category: "Food" },
+        { date: "2025-11-01", amount: -100, isTransfer: false, category: "Food" },
+        { date: "2025-10-01", amount: -100, isTransfer: false, category: "Food" },
+        { date: "2025-09-01", amount: -100, isTransfer: false, category: "Food" },
+        { date: "2025-08-01", amount: -100, isTransfer: false, category: "Food" },
+        { date: "2025-07-01", amount: -100, isTransfer: false, category: "Food" },
+        { date: "2025-06-01", amount: -100, isTransfer: false, category: "Food" },
+        { date: "2025-05-01", amount: -100, isTransfer: false, category: "Food" }, // beyond 12 months excluded
       ];
 
       const result = estimateMonthlyExpenses(cashFlow);
-      expect(result.total).toBe(100); // 500 / 5
-      expect(result.monthCount).toBe(5);
+      expect(result.total).toBe(100); // 1200 / 12
+      expect(result.monthCount).toBe(12);
     });
 
     it("returns zeros for empty cash flow", () => {
@@ -193,7 +200,7 @@ describe("fire domain", () => {
         { date: "2026-02-10", amount: 10000, isTransfer: true, category: "振替" }, // excluded
         { date: "2026-02-20", amount: -5000, isTransfer: false, category: "返金" }, // excluded
       ];
-      expect(estimateMonthlyIncome(cashFlow)).toBe(300000); // 1.5M / 5
+      expect(estimateMonthlyIncome(cashFlow)).toBe(125000); // 1.5M / 12
     });
   });
 
@@ -225,16 +232,16 @@ describe("fire domain", () => {
       // Others: 300k
       // Peak month is 2026-02. 収入/一時所得 in peak: 500k.
       // bonusAnnual = 500k * 2 = 1,000,000.
-      // regularMonthly = 1.5M / 5 = 300,000.
+      // regularMonthly = 1.5M / 12 = 125,000.
 
       const result = estimateIncomeSplit(cashFlow);
-      expect(result.regularMonthly).toBe(300000);
+      expect(result.regularMonthly).toBe(125000);
       expect(result.bonusAnnual).toBe(1000000);
-      expect(result.monthlyTotal).toBe(300000 + 1000000 / 12);
-      expect(result.regularBreakdown).toContainEqual({ name: "収入/給与", amount: 300000 });
+      expect(result.monthlyTotal).toBe(125000 + 1000000 / 12);
+      expect(result.regularBreakdown).toContainEqual({ name: "収入/給与", amount: 125000 });
       expect(result.bonusBreakdown[0].name).toContain("2026-02ピーク x2");
       expect(result.bonusBreakdown[0].amount).toBe(1000000);
-      expect(result.monthCount).toBe(5);
+      expect(result.monthCount).toBe(12);
     });
 
     it("handles edge cases for coverage in income split", () => {
@@ -252,7 +259,7 @@ describe("fire domain", () => {
     });
   });
 
-  describe("getPast5MonthSummary", () => {
+  describe("getPast12MonthSummary", () => {
     beforeEach(() => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date("2026-03-15T09:00:00+09:00"));
@@ -270,13 +277,13 @@ describe("fire domain", () => {
         { date: "2026-02-15", amount: 100000, isTransfer: false, category: "収入/一時所得" },
       ];
 
-      const result = getPast5MonthSummary(cashFlow);
-      expect(result.monthlyLivingExpenses.average).toBe(300); // 1500 / 5
-      expect(result.avgFixedMonthly).toBe(100); // 500 / 5
-      expect(result.avgVariableMonthly).toBe(200); // 1000 / 5
-      expect(result.monthlyRegularIncome.average).toBe(60000); // 300,000 / 5
+      const result = getPast12MonthSummary(cashFlow);
+      expect(result.monthlyLivingExpenses.average).toBe(125); // 1500 / 12
+      expect(result.avgFixedMonthly).toBe(42); // 500 / 12
+      expect(result.avgVariableMonthly).toBe(83); // 1000 / 12
+      expect(result.monthlyRegularIncome.average).toBe(25000); // 300,000 / 12
       expect(result.annualBonus.average).toBe(200000); // 100,000 * 2
-      expect(result.monthCount).toBe(5);
+      expect(result.monthCount).toBe(12);
       expect(result.monthlyLivingExpenses.breakdown).toHaveLength(2);
       expect(result.monthlyLivingExpenses.averageSpecial).toBe(0);
     });
@@ -285,8 +292,8 @@ describe("fire domain", () => {
       const cashFlow = [
         { date: "2026-02-01", amount: -5000, isTransfer: false, category: "特別な支出/旅行" },
       ];
-      const result = getPast5MonthSummary(cashFlow);
-      expect(result.monthlyLivingExpenses.averageSpecial).toBe(1000);
+      const result = getPast12MonthSummary(cashFlow);
+      expect(result.monthlyLivingExpenses.averageSpecial).toBe(417); // 5000 / 12
     });
   });
 
@@ -310,7 +317,7 @@ describe("fire domain", () => {
         { date: "2026-02-01", amount: -10000, isTransfer: false, category: "住宅/管理費" },
       ];
 
-      expect(estimateMortgageMonthlyPayment(cashFlow)).toBe(120000);
+      expect(estimateMortgageMonthlyPayment(cashFlow)).toBe(50000); // 600,000 / 12
     });
 
     it("handles edge cases for coverage in mortgage estimation", () => {

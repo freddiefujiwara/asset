@@ -57,7 +57,7 @@ export function useFireSimulatorViewModel() {
     initialAssets,
     riskAssets,
     cashAssets,
-    past5MonthSummary,
+    past12MonthSummary,
     autoMonthlyExpense,
     autoRegularMonthlyIncome,
     autoAnnualBonus,
@@ -97,7 +97,7 @@ export function useFireSimulatorViewModel() {
     retirementLumpSumAtFire: retirementLumpSumAtFire.value,
     includePension: true,
     monthlyInvestment: monthlyInvestment.value,
-    expenseBreakdown: past5MonthSummary.value.monthlyLivingExpenses.breakdown,
+    expenseBreakdown: past12MonthSummary.value.monthlyLivingExpenses.breakdown,
   }));
 
   const growthData = computed(() => generateGrowthTable(simulationParams.value));
@@ -270,7 +270,7 @@ export function useFireSimulatorViewModel() {
     riskAssets,
     cashAssets,
     monthsOfCash,
-    past5MonthSummary,
+    past12MonthSummary,
     manualMonthlyExpense,
     useAutoExpense,
     manualRegularMonthlyIncome,

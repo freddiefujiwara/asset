@@ -418,7 +418,7 @@ describe("cashFlow domain", () => {
       expect(result.find(r => r.label === "除外")).toBeUndefined();
     });
 
-    it("can average past 5 months using fixed divisor", () => {
+    it("can average past 12 months using fixed divisor", () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date("2026-06-15T09:00:00+09:00"));
 
@@ -429,9 +429,9 @@ describe("cashFlow domain", () => {
         { date: "2026-03-05", amount: -300, category: "住宅/ローン返済", isTransfer: false },
       ];
 
-      // Sum = 500 + 400 + 300 = 1200. Divisor = 5. Result = 240.
-      expect(aggregateByType(rows, { averageMonths: 5, excludeCurrentMonth: true })).toEqual([
-        { label: "固定費", value: 240, color: "#38bdf8" },
+      // Sum = 500 + 400 + 300 = 1200. Divisor = 12. Result = 100.
+      expect(aggregateByType(rows, { averageMonths: 12, excludeCurrentMonth: true })).toEqual([
+        { label: "固定費", value: 100, color: "#38bdf8" },
       ]);
     });
   });
@@ -450,7 +450,7 @@ describe("cashFlow domain", () => {
       ]);
     });
 
-    it("can average past 5 months excluding current month", () => {
+    it("can average past 12 months excluding current month", () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date("2026-06-15T09:00:00+09:00"));
 
@@ -463,8 +463,8 @@ describe("cashFlow domain", () => {
         { date: "2026-01-05", amount: -100, category: "Food", isTransfer: false, name: "m1" },
       ];
 
-      expect(aggregateByCategory(rows, { averageMonths: 5, excludeCurrentMonth: true })).toEqual([
-        { label: "Food", value: 300 },
+      expect(aggregateByCategory(rows, { averageMonths: 12, excludeCurrentMonth: true })).toEqual([
+        { label: "Food", value: 125 },
       ]);
     });
 

@@ -26,11 +26,11 @@ vi.mock("@/domain/fire", async (importOriginal) => {
   return {
     ...actual,
     calculateFirePortfolio: () => ({ totalAssetsYen: 1000, riskAssetsYen: 700, cashAssetsYen: 300 }),
-    getPast5MonthSummary: () => ({
+    getPast12MonthSummary: () => ({
       monthlyLivingExpenses: { average: 100, breakdown: [], averageSpecial: 0 },
       monthlyRegularIncome: { average: 200, breakdown: [] },
       annualBonus: { average: 120, breakdown: [] },
-      monthCount: 5,
+      monthCount: 12,
     }),
     estimateMortgageMonthlyPayment: () => 10,
     generateGrowthTable: () => ({ fireReachedMonth: 12, table: [{ month: 12, assets: 777 }] }),
