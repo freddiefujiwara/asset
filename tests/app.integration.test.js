@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createRouter, createMemoryHistory } from "vue-router";
-import { defineComponent, reactive, nextTick, ref } from "vue";
+import { defineComponent, reactive, nextTick } from "vue";
 import App from "@/App.vue";
 
 let portfolioStore;
@@ -56,9 +56,7 @@ describe("App cross-screen integration", () => {
       setPrivacySuspended: vi.fn(),
     });
 
-    fireSimulatorStore = reactive({
-      externalSimulatorUrl: ref("https://example.com/fire"),
-    });
+    fireSimulatorStore = reactive({});
 
     localStorage.clear();
   });

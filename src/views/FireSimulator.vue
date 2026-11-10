@@ -62,7 +62,6 @@ const {
   copyAnnualTable,
   copyText,
   mortgageOptions,
-  externalSimulatorUrl,
 } = useFireSimulatorViewModel();
 </script>
 
@@ -74,14 +73,6 @@ const {
     <div class="filter-section table-wrap">
       <div class="header-with-action">
         <h3 class="section-title">シミュレーション引数</h3>
-        <a
-          class="portfolio-treemap-link"
-          :href="externalSimulatorUrl"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          外部シミュレータ
-        </a>
       </div>
       <div class="fire-form-grid">
         <div class="filter-item">

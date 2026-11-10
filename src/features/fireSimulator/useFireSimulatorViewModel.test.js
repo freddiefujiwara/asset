@@ -17,10 +17,6 @@ vi.mock("@/stores/portfolio", () => ({
   }),
 }));
 
-vi.mock("@/lib/lzString", () => ({
-  compressToEncodedURIComponent: vi.fn((val) => val),
-}));
-
 vi.mock("@/domain/fire", async (importOriginal) => {
   const actual = await importOriginal();
   return {
@@ -42,7 +38,6 @@ vi.mock("@/domain/fire", async (importOriginal) => {
 });
 
 import { useFireSimulatorViewModel } from "@/features/fireSimulator/useFireSimulatorViewModel";
-import { compressToEncodedURIComponent } from "@/lib/lzString";
 
 describe("useFireSimulatorViewModel", () => {
   beforeEach(() => {
@@ -60,23 +55,6 @@ describe("useFireSimulatorViewModel", () => {
     expect(vm.copyAnnualTable()).toContain("incomeWithPensionYen");
     expect(vm.copyConditionsAndAlgorithm()).toContain("algorithmConstants");
     expect(vm.copyConditionsAndAlgorithm()).toContain("mortgageMonthlyPaymentYen");
-  });
-
-  it("includes required fixed flags in externalSimulatorUrl payload", () => {
-    const vm = useFireSimulatorViewModel();
-    const url = vm.externalSimulatorUrl.value;
-
-    // Since we mocked compressToEncodedURIComponent to return the input string
-    const payloadStr = url.replace("https://freddiefujiwara.com/fire/", "").replace(/_/g, "+");
-    const payload = JSON.parse(payloadStr);
-
-    expect(payload.mpffyeem).toBe(true);
-    expect(payload.mabm).toBe(true);
-    expect(payload.mctsr).toBe(80);
-    expect(payload.sea).toBe(100);
-    expect(payload.wm).toBe("max");
-    expect(payload.pc.earlyReduction).toBeUndefined();
-    expect(compressToEncodedURIComponent).toHaveBeenCalled();
   });
 
   it("runs monte carlo only when enabled and clears results when disabled", async () => {
