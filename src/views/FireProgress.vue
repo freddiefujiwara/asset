@@ -10,7 +10,10 @@ const {
   progress,
   sideProgress,
   fullProgress,
-  trend,
+  trendRows,
+  hasAnyTrend,
+  sideDeltaLabel,
+  fullDeltaLabel,
   milestones,
   universityFundYen,
 } = useFireProgressViewModel();
@@ -100,21 +103,33 @@ const monthLabel = (monthKey) => {
       </section>
 
       <section class="table-wrap">
-        <h2 class="section-title">到達率の推移</h2>
-        <template v-if="trend.hasTrend">
+        <h2 class="section-title">推移（到達率と到達見込み）</h2>
+        <template v-if="hasAnyTrend">
           <table>
             <thead>
-              <tr><th>月</th><th>FIRE対象資産</th><th>到達率</th></tr>
+              <tr>
+                <th>月</th><th>FIRE対象資産</th><th>到達率</th>
+                <th>到達見込み（サイドFIRE）</th><th>到達見込み（完全FIRE）</th>
+              </tr>
             </thead>
             <tbody>
-              <tr v-for="point in trend.points" :key="point.month">
-                <td>{{ monthLabel(point.month) }}</td>
-                <td class="amount-value">{{ formatYen(point.fireTargetAssetsYen) }}</td>
-                <td>{{ point.progressRate != null ? `${(point.progressRate * 100).toFixed(1)}%` : "—" }}</td>
+              <tr v-for="row in trendRows" :key="row.month">
+                <td>{{ monthLabel(row.month) }}</td>
+                <td class="amount-value">{{ formatYen(row.fireTargetAssetsYen) }}</td>
+                <td>{{ row.progressRate != null ? `${(row.progressRate * 100).toFixed(1)}%` : "—" }}</td>
+                <td>{{ row.sideProjectedLabel }}</td>
+                <td>{{ row.fullProjectedLabel }}</td>
               </tr>
             </tbody>
           </table>
-          <p class="meta">必要資産は現在の前提で計算した値で固定して比較しています。</p>
+          <p v-if="sideDeltaLabel" class="meta">サイドFIRE: {{ sideDeltaLabel }}</p>
+          <p v-if="fullDeltaLabel" class="meta">完全FIRE: {{ fullDeltaLabel }}</p>
+          <p class="meta">到達率は、必要資産を現在の前提で計算した値で固定して比較しています。</p>
+          <p class="meta">
+            到達見込みは、各月の資産・収支（12か月平均）を現在の前提（利回り・月額投資など）で
+            エンジンに差し替えて振り返り計算したものです。前提が当時と異なるため、
+            当時の見込みそのものではありません。
+          </p>
         </template>
         <p v-else class="meta">
           推移は来月から表示されます（月末スナップショットが2か月分たまると表示されます）。

@@ -6,8 +6,10 @@ import { useFireSimulatorStore } from "@/stores/fireSimulator";
 import { calculateAge, USER_BIRTH_DATE } from "@/domain/family";
 import {
   PROGRESS_MILESTONES,
+  SIDE_FIRE_ANNUAL_INCOME_YEN,
   UNIVERSITY_FUND_YEN,
   buildFireProgress,
+  buildProjectionTrend,
   buildProgressTrend,
 } from "@/domain/progress";
 import { fireDate, formatMonths } from "@/features/fireSimulator/formatters";
@@ -106,6 +108,56 @@ export function useFireProgressViewModel() {
     });
   });
 
+  // 到達見込み時期の推移（各月の資産・収支を現在の前提で振り返り計算）。
+  const projectionTrend = computed(() =>
+    buildProjectionTrend(data.value?.snapshots ?? [], {
+      baseParams: baseParams.value,
+      universityFundYen: UNIVERSITY_FUND_YEN,
+      sideFireAnnualIncomeYen: SIDE_FIRE_ANNUAL_INCOME_YEN,
+    }),
+  );
+
+  const describeProjection = (projection) => {
+    if (!projection) return "—";
+    if (projection.alreadyReached) return "到達可能な水準";
+    if (!projection.reached || !projection.projectedMonth) return "見込みなし";
+    const [year, month] = projection.projectedMonth.split("-").map(Number);
+    return `${year}年${month}月`;
+  };
+
+  // 到達率の推移と到達見込みの推移を月で突き合わせた表示行。
+  const trendRows = computed(() => {
+    const rateByMonth = new Map(
+      trend.value.points.map((point) => [point.month, point]),
+    );
+    return projectionTrend.value.points.map((point) => ({
+      month: point.month,
+      fireTargetAssetsYen:
+        rateByMonth.get(point.month)?.fireTargetAssetsYen ?? point.fireTargetAssetsYen,
+      progressRate: rateByMonth.get(point.month)?.progressRate ?? null,
+      sideProjectedLabel: describeProjection(point.side),
+      fullProjectedLabel: describeProjection(point.full),
+    }));
+  });
+
+  const hasAnyTrend = computed(
+    () => trend.value.hasTrend || projectionTrend.value.hasTrend,
+  );
+
+  const describeDelta = (delta) => {
+    if (delta == null) return null;
+    if (delta > 0) return `先月より見込みが${delta}か月近づきました`;
+    if (delta < 0) return `先月より見込みが${-delta}か月遠のきました`;
+    return "先月から見込みは変わりません";
+  };
+
+  const sideDeltaLabel = computed(() =>
+    describeDelta(projectionTrend.value.delta.side),
+  );
+  const fullDeltaLabel = computed(() =>
+    describeDelta(projectionTrend.value.delta.full),
+  );
+
   const milestones = computed(() =>
     PROGRESS_MILESTONES.map((milestone) => {
       const [year, month] = milestone.monthKey.split("-").map(Number);
@@ -127,6 +179,11 @@ export function useFireProgressViewModel() {
     sideProgress,
     fullProgress,
     trend,
+    projectionTrend,
+    trendRows,
+    hasAnyTrend,
+    sideDeltaLabel,
+    fullDeltaLabel,
     milestones,
     universityFundYen: UNIVERSITY_FUND_YEN,
   };

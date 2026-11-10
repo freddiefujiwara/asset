@@ -84,6 +84,22 @@ describe("useFireProgressViewModel", () => {
     ]);
   });
 
+  it("builds the projection trend with per-month reach estimates and delta labels", () => {
+    const vm = useFireProgressViewModel();
+    expect(vm.projectionTrend.value.hasTrend).toBe(true);
+    expect(vm.projectionTrend.value.points).toHaveLength(2);
+    expect(vm.hasAnyTrend.value).toBe(true);
+    expect(vm.trendRows.value).toHaveLength(2);
+    for (const row of vm.trendRows.value) {
+      expect(row.sideProjectedLabel).toMatch(/^\d{4}年\d{1,2}月$|到達可能な水準|見込みなし/);
+      expect(row.fullProjectedLabel).toMatch(/^\d{4}年\d{1,2}月$|到達可能な水準|見込みなし/);
+      expect(row.progressRate).toBeGreaterThan(0);
+    }
+    // 先月比ラベルは、差分が算出できた場合のみ文言になる
+    expect(vm.sideDeltaLabel.value === null || /先月/.test(vm.sideDeltaLabel.value)).toBe(true);
+    expect(vm.fullDeltaLabel.value === null || /先月/.test(vm.fullDeltaLabel.value)).toBe(true);
+  });
+
   it("reflects share mode from the portfolio store", () => {
     const portfolioStore = usePortfolioStore();
     portfolioStore.shareMode = true;
