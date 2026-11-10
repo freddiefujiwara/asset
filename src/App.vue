@@ -29,8 +29,10 @@ const {
       <h1>資産可視化</h1>
       <div class="header-actions">
         <nav class="nav" aria-label="Primary">
+          <RouterLink to="/">ホーム</RouterLink>
           <RouterLink to="/balance-sheet">バランスシート</RouterLink>
           <RouterLink to="/cash-flow">キャッシュフロー</RouterLink>
+          <RouterLink v-if="!portfolioStore.shareMode" to="/progress">FIRE進捗</RouterLink>
           <RouterLink v-if="isFireEnabled" to="/fire">FIRE</RouterLink>
           <span v-else class="is-disabled" title="APIから正常にデータを取得した後に利用可能です">
             FIRE
