@@ -3,8 +3,10 @@ import {
   PROGRESS_MILESTONES,
   SIDE_FIRE_ANNUAL_INCOME_YEN,
   UNIVERSITY_FUND_YEN,
+  ageAtSnapshotMonth,
   buildFireProgress,
   buildProgressTrend,
+  buildProjectionTrend,
   computeFireTargetAssetsYen,
 } from "./progress";
 
@@ -126,6 +128,102 @@ describe("buildProgressTrend", () => {
     });
     expect(trend.hasTrend).toBe(false);
     expect(trend.points).toHaveLength(1);
+  });
+});
+
+describe("ageAtSnapshotMonth", () => {
+  it("derives the age at the end of the snapshot month from the birth date", () => {
+    // 1979-09-02 生まれ: 2026年11月末は47歳、2029年9月末は50歳
+    expect(ageAtSnapshotMonth("2026-11")).toBe(47);
+    expect(ageAtSnapshotMonth("2029-09")).toBe(50);
+    expect(ageAtSnapshotMonth("2029-08")).toBe(49);
+  });
+
+  it("returns null for an invalid month key", () => {
+    expect(ageAtSnapshotMonth("2026/11")).toBeNull();
+    expect(ageAtSnapshotMonth(null)).toBeNull();
+  });
+});
+
+describe("buildProjectionTrend", () => {
+  const modestSnapshot = {
+    month: "2026-10",
+    totalAssetsYen: 40000000,
+    riskAssetsYen: 33000000,
+    livingCost12mAvgYen: 483688,
+    income12mAvgYen: 1071000,
+  };
+  const richSnapshot = {
+    month: "2026-11",
+    totalAssetsYen: 200000000,
+    riskAssetsYen: 150000000,
+    livingCost12mAvgYen: 483688,
+    income12mAvgYen: 1071000,
+  };
+
+  it("recomputes each month's projection from that month's snapshot values", () => {
+    const trend = buildProjectionTrend([modestSnapshot, richSnapshot], { baseParams });
+    expect(trend.hasTrend).toBe(true);
+    expect(trend.points).toHaveLength(2);
+
+    const [first, second] = trend.points;
+    expect(first.month).toBe("2026-10");
+    expect(first.fireTargetAssetsYen).toBe(40000000 - UNIVERSITY_FUND_YEN);
+    expect(first.side.reached).toBe(true);
+    expect(first.side.alreadyReached).toBe(false);
+    expect(first.side.monthsToReach).toBeGreaterThanOrEqual(1);
+    expect(first.side.projectedMonth).toMatch(/^\d{4}-\d{2}$/);
+    expect(first.side.projectedMonth > first.month).toBe(true);
+
+    // 資産が大きく増えた月は、その月自体が到達見込みになる
+    expect(second.side.alreadyReached).toBe(true);
+    expect(second.side.monthsToReach).toBe(0);
+    expect(second.side.projectedMonth).toBe("2026-11");
+    expect(second.full.reached).toBe(true);
+  });
+
+  it("computes how many months the projection moved since the previous month", () => {
+    const trend = buildProjectionTrend([modestSnapshot, richSnapshot], { baseParams });
+    // 翌月に到達可能な水準になったので、先月比は「先月の到達まで月数 − 経過1か月」
+    expect(trend.delta.side).toBe(trend.points[0].side.monthsToReach - 1);
+    expect(trend.delta.side).toBeGreaterThanOrEqual(0);
+  });
+
+  it("sorts snapshots by month even when given out of order", () => {
+    const trend = buildProjectionTrend([richSnapshot, modestSnapshot], { baseParams });
+    expect(trend.points.map((point) => point.month)).toEqual(["2026-10", "2026-11"]);
+  });
+
+  it("reflects a higher living cost as a later projection", () => {
+    const expensiveSnapshot = { ...modestSnapshot, month: "2026-11", livingCost12mAvgYen: 900000 };
+    const trend = buildProjectionTrend([modestSnapshot, expensiveSnapshot], { baseParams });
+    const [first, second] = trend.points;
+    expect(
+      second.side.projectedMonth === null ||
+        second.side.projectedMonth > first.side.projectedMonth,
+    ).toBe(true);
+  });
+
+  it("marks months that never reach FIRE as having no projection", () => {
+    const hopelessSnapshot = {
+      month: "2026-10",
+      totalAssetsYen: 10000000,
+      riskAssetsYen: 5000000,
+      livingCost12mAvgYen: 5000000,
+      income12mAvgYen: 100000,
+    };
+    const trend = buildProjectionTrend([hopelessSnapshot, richSnapshot], { baseParams });
+    expect(trend.points[0].side.reached).toBe(false);
+    expect(trend.points[0].side.projectedMonth).toBeNull();
+    // 先月が見込みなしなら先月比は出さない
+    expect(trend.delta.side).toBeNull();
+  });
+
+  it("has no trend and no delta with a single snapshot", () => {
+    const trend = buildProjectionTrend([richSnapshot], { baseParams });
+    expect(trend.hasTrend).toBe(false);
+    expect(trend.points).toHaveLength(1);
+    expect(trend.delta).toEqual({ side: null, full: null });
   });
 });
 

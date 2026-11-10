@@ -1,4 +1,5 @@
-import { generateGrowthTable, calculateFirePortfolio } from "./fire";
+import { generateGrowthTable, calculateFirePortfolio, performFireSimulation } from "./fire";
+import { calculateAge, USER_BIRTH_DATE } from "./family";
 
 /**
  * FIRE進捗画面のドメインロジック。
@@ -124,8 +125,8 @@ export function buildFireProgress({
 
 /**
  * スナップショットから到達率の月次推移を作る。
- * 必要資産は「現在の前提で計算した値」で固定した近似（スナップショットには
- * 当時の到達見込みが保存されていないため、見込み時期の推移は出せない）。
+ * 必要資産は「現在の前提で計算した値」で固定した近似。
+ * 到達見込み時期の推移は buildProjectionTrend が担う。
  * 行が1件だけの間は hasTrend=false。
  */
 export function buildProgressTrend(snapshots, { universityFundYen, requiredAssetsYen }) {
@@ -140,4 +141,177 @@ export function buildProgressTrend(snapshots, { universityFundYen, requiredAsset
     };
   });
   return { hasTrend: points.length >= 2, points };
+}
+
+/** "YYYY-MM" を { year, month } に分解する。不正な形式は null。 */
+function parseMonthKey(monthKey) {
+  const match = /^(\d{4})-(\d{2})$/.exec(String(monthKey ?? ""));
+  if (!match) return null;
+  return { year: Number(match[1]), month: Number(match[2]) };
+}
+
+function monthKeyToIndex(monthKey) {
+  const parsed = parseMonthKey(monthKey);
+  if (!parsed) return null;
+  return parsed.year * 12 + (parsed.month - 1);
+}
+
+function indexToMonthKey(index) {
+  const year = Math.floor(index / 12);
+  const month = (index % 12) + 1;
+  return `${year}-${String(month).padStart(2, "0")}`;
+}
+
+function addMonthsToMonthKey(monthKey, months) {
+  const index = monthKeyToIndex(monthKey);
+  if (index == null) return null;
+  return indexToMonthKey(index + months);
+}
+
+/**
+ * スナップショットの月末時点の年齢。
+ * 現在の年齢をそのまま使うと過去の時点ほど到達までの猶予を短く見積もるため、
+ * 生年月日からその月の年齢を逆算する。
+ */
+export function ageAtSnapshotMonth(monthKey) {
+  const parsed = parseMonthKey(monthKey);
+  if (!parsed) return null;
+  // 月末日を基準にする（節目の年齢表示と同じ流儀）。
+  return calculateAge(USER_BIRTH_DATE, new Date(parsed.year, parsed.month, 0));
+}
+
+/**
+ * エンジンを1回回して到達までの月数だけを取り出す。
+ * summarizeRun と同じ到達判定（0か月は到達可能な水準として扱う）。
+ * 月次テーブルの記録を伴わない performFireSimulation を使うため軽い。
+ */
+function estimateReach(params) {
+  const { fireReachedMonth } = performFireSimulation(params);
+  const reached = fireReachedMonth >= 0 && fireReachedMonth < 1200;
+  if (!reached) {
+    return { reached: false, alreadyReached: false, monthsToReach: null };
+  }
+  return {
+    reached: true,
+    alreadyReached: fireReachedMonth === 0,
+    monthsToReach: fireReachedMonth,
+  };
+}
+
+/**
+ * スナップショットの月に時点を差し替えたエンジン入力を作る。
+ * 差し替えるのは「その月時点の値」だけ（資産・リスク資産・年齢・生活費・収入）で、
+ * 利回り・税率・月額投資・ローン完済月などの前提は現在の設定（baseParams）のまま。
+ * 生活費・収入はスナップショットの12か月平均を使い、欠けている場合は現在の値に倒す。
+ */
+function buildRetrospectiveParams({
+  snapshot,
+  baseParams,
+  initialAssetsYen,
+  riskAssetsYen,
+  postFireExtraExpenseAdjustmentYen = 0,
+}) {
+  return {
+    ...baseParams,
+    initialAssets: initialAssetsYen,
+    riskAssets: riskAssetsYen,
+    currentAge: ageAtSnapshotMonth(snapshot.month) ?? baseParams.currentAge,
+    monthlyExpense:
+      snapshot.livingCost12mAvgYen > 0
+        ? snapshot.livingCost12mAvgYen
+        : baseParams.monthlyExpense,
+    monthlyIncome:
+      snapshot.income12mAvgYen > 0
+        ? snapshot.income12mAvgYen
+        : baseParams.monthlyIncome,
+    postFireExtraExpense:
+      Number(baseParams?.postFireExtraExpense ?? 0) + postFireExtraExpenseAdjustmentYen,
+  };
+}
+
+function projectAtSnapshot(snapshot, { baseParams, universityFundYen, sideFireAnnualIncomeYen }) {
+  const totalAssetsYen = Math.max(0, Number(snapshot?.totalAssetsYen ?? 0));
+  const snapshotRiskAssetsYen = Math.max(0, Number(snapshot?.riskAssetsYen ?? 0));
+  const fireTargetAssetsYen = Math.max(0, totalAssetsYen - universityFundYen);
+
+  const toProjection = (reach) => ({
+    ...reach,
+    // 到達可能な水準の月は、その月自体を到達見込みとする。
+    projectedMonth: reach.reached
+      ? addMonthsToMonthKey(snapshot.month, reach.monthsToReach)
+      : null,
+  });
+
+  // 主指標: サイドFIRE（buildFireProgress と同じ資産範囲・継続収入の相殺）。
+  const side = toProjection(
+    estimateReach(
+      buildRetrospectiveParams({
+        snapshot,
+        baseParams,
+        initialAssetsYen: fireTargetAssetsYen,
+        riskAssetsYen: Math.min(snapshotRiskAssetsYen, fireTargetAssetsYen),
+        postFireExtraExpenseAdjustmentYen: -Math.round(sideFireAnnualIncomeYen / 12),
+      }),
+    ),
+  );
+
+  // 補助指標: 完全FIRE（大学資金を差し引かない資産範囲）。
+  const full = toProjection(
+    estimateReach(
+      buildRetrospectiveParams({
+        snapshot,
+        baseParams,
+        initialAssetsYen: totalAssetsYen,
+        riskAssetsYen: Math.min(snapshotRiskAssetsYen, totalAssetsYen),
+      }),
+    ),
+  );
+
+  return { month: snapshot.month, fireTargetAssetsYen, side, full };
+}
+
+/**
+ * 先月比の「見込みが何か月近づいたか」。
+ * 到達見込みの絶対月どうしの差で数えるため、単に1か月経っただけでは
+ * ゼロにもならず、到達までの月数の減りから経過分を引いた値になる。
+ * 前月がすでに到達可能な水準だった場合や、どちらかが見込みなしの場合は null。
+ */
+function projectionDeltaMonths(previous, latest) {
+  if (!previous || !latest) return null;
+  if (previous.alreadyReached) return null;
+  if (!previous.projectedMonth || !latest.projectedMonth) return null;
+  return monthKeyToIndex(previous.projectedMonth) - monthKeyToIndex(latest.projectedMonth);
+}
+
+/**
+ * スナップショット各月の到達見込み時期の推移を作る。
+ * スナップショットには当時の見込みが保存されていないため、各月の資産・収支を
+ * 現在の前提でエンジンに差し替えて振り返り計算する（当時の表示の再現ではない）。
+ * 行が1件だけの間は hasTrend=false で、先月比（delta）も出さない。
+ */
+export function buildProjectionTrend(
+  snapshots,
+  {
+    baseParams,
+    universityFundYen = UNIVERSITY_FUND_YEN,
+    sideFireAnnualIncomeYen = SIDE_FIRE_ANNUAL_INCOME_YEN,
+  } = {},
+) {
+  const rows = (Array.isArray(snapshots) ? snapshots : [])
+    .filter((row) => parseMonthKey(row?.month))
+    .sort((a, b) => a.month.localeCompare(b.month));
+  const points = rows.map((row) =>
+    projectAtSnapshot(row, { baseParams, universityFundYen, sideFireAnnualIncomeYen }),
+  );
+  const hasTrend = points.length >= 2;
+  const previous = points[points.length - 2];
+  const latest = points[points.length - 1];
+  return {
+    hasTrend,
+    points,
+    delta: {
+      side: hasTrend ? projectionDeltaMonths(previous?.side, latest?.side) : null,
+      full: hasTrend ? projectionDeltaMonths(previous?.full, latest?.full) : null,
+    },
+  };
 }
