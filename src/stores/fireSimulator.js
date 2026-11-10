@@ -1,15 +1,13 @@
 import { defineStore } from "pinia";
 import { ref, computed, watchEffect } from "vue";
 import { usePortfolioStore } from "./portfolio";
-import { calculateAge, USER_BIRTH_DATE, SPOUSE_BIRTH_DATE, DAUGHTER_BIRTH_DATE } from "@/domain/family";
+import { calculateAge, USER_BIRTH_DATE } from "@/domain/family";
 import {
   calculateFirePortfolio,
   getPast12MonthSummary,
   estimateMortgageMonthlyPayment,
 } from "@/domain/fire";
 import { EMPTY_SUMMARY } from "@/features/fireSimulator/formatters";
-import { compressToEncodedURIComponent } from "@/lib/lzString";
-import { FIRE_ALGORITHM_CONSTANTS } from "@/domain/fire/pension";
 
 export const useFireSimulatorStore = defineStore("fireSimulator", () => {
   const portfolioStore = usePortfolioStore();
@@ -98,56 +96,6 @@ export const useFireSimulatorStore = defineStore("fireSimulator", () => {
     }
   });
 
-  const externalSimulatorUrl = computed(() => {
-    const payload = {
-      ht: "family",
-      sea: 100,
-      ubd: USER_BIRTH_DATE,
-      sbd: SPOUSE_BIRTH_DATE,
-      dbds: [DAUGHTER_BIRTH_DATE],
-      ia: 24,
-      pc: {
-        userStartAge: FIRE_ALGORITHM_CONSTANTS.pension.userStartAge,
-        spouseUserAgeStart: FIRE_ALGORITHM_CONSTANTS.pension.spouseUserAgeStart,
-        basicFullAnnualYen: FIRE_ALGORITHM_CONSTANTS.pension.basicFullAnnualYen,
-        basicReduction: FIRE_ALGORITHM_CONSTANTS.pension.basicReduction,
-        pensionDataAge: FIRE_ALGORITHM_CONSTANTS.pension.pensionDataAge,
-        userKoseiAccruedAtDataAgeAnnualYen: FIRE_ALGORITHM_CONSTANTS.pension.userKoseiAccruedAt44AnnualYen,
-        userKoseiFutureFactorAnnualYenPerYear: FIRE_ALGORITHM_CONSTANTS.pension.userKoseiFutureFactorAnnualYenPerYear,
-      },
-      mira: riskAssets.value,
-      mica: cashAssets.value,
-      mi: monthlyInvestment.value,
-      arr: annualReturnRate.value,
-      ii: includeInflation.value,
-      ir: inflationRate.value,
-      it: includeTax.value,
-      tr: taxRate.value,
-      pfee: postFireExtraExpense.value,
-      rlsaf: retirementLumpSumAtFire.value,
-      mpffyee: manualPostFireFirstYearExtraExpense.value,
-      mpffyeem: true,
-      mctsr: 80,
-      wr: withdrawalRate.value,
-      ib: includeBonus.value,
-      umc: useMonteCarlo.value,
-      mct: monteCarloTrials.value,
-      mcv: monteCarloVolatility.value,
-      mcs: monteCarloSeed.value,
-      mme: manualMonthlyExpense.value,
-      mrmi: manualRegularMonthlyIncome.value,
-      mab: manualAnnualBonus.value,
-      mabm: true,
-      mmp: mortgageMonthlyPayment.value,
-      mmpm: true, // Should we have this?
-      mpd: mortgagePayoffDate.value || "",
-      wm: "max",
-    };
-
-    const compressed = compressToEncodedURIComponent(JSON.stringify(payload)).replace(/\+/g, "_");
-    return `https://freddiefujiwara.com/fire/${compressed}`;
-  });
-
   return {
     monthlyInvestment,
     annualReturnRate,
@@ -187,7 +135,6 @@ export const useFireSimulatorStore = defineStore("fireSimulator", () => {
     regularMonthlyIncome,
     annualBonus,
     monthlyIncome,
-    externalSimulatorUrl,
     autoPostFireFirstYearExtraExpense,
   };
 });

@@ -66,7 +66,6 @@ export function useFireSimulatorViewModel() {
     regularMonthlyIncome,
     annualBonus,
     monthlyIncome,
-    externalSimulatorUrl,
     autoPostFireFirstYearExtraExpense,
   } = storeToRefs(fireSimulatorStore);
 
@@ -300,7 +299,6 @@ export function useFireSimulatorViewModel() {
     algorithmExplanationSegments,
     copyConditionsAndAlgorithm,
     copyAnnualTable,
-    externalSimulatorUrl,
     copyText,
     mortgageOptions: computed(() => createMortgageOptions()),
   };
