@@ -8,6 +8,7 @@ import {
   buildProgressTrend,
   buildProjectionTrend,
   computeFireTargetAssetsYen,
+  selectProgressFocus,
 } from "./progress";
 
 // サイドFIREにも完全FIREにもまだ届いていない水準のフィクスチャ
@@ -100,6 +101,122 @@ describe("buildFireProgress", () => {
     expect(progress.side.gapYen).toBe(progress.side.requiredAssetsYen - progress.fireTargetAssetsYen);
     expect(progress.side.progressRate).toBeGreaterThan(0);
     expect(progress.side.progressRate).toBeLessThan(1);
+  });
+
+  it("keeps side FIRE as the focus while it is not yet reached", () => {
+    expect(progress.side.alreadyReached).toBe(false);
+    expect(progress.focus).toEqual({
+      focus: "side",
+      primaryKind: "side",
+      secondaryKind: "full",
+      sideAchieved: false,
+      fullAchieved: false,
+    });
+  });
+
+  it("promotes full FIRE once side FIRE is at a reachable level", () => {
+    // 2026-11-10時点の実数ベース。サイドFIREは到達可能な水準、
+    // 完全FIREはまだ先という水準。
+    const currentPortfolio = {
+      totals: { assetsYen: 78139712, liabilitiesYen: 11510887, netWorthYen: 66628825 },
+      holdings: {
+        cashLike: [{ "名称": "銀行預金", "残高": 7502164 }],
+        stocks: [{ "名称": "株式A", "評価額": 17538769 }],
+        funds: [{ "名称": "投信A", "評価額": 49569663 }],
+        pensions: [{ "名称": "確定拠出年金", "現在価値": 3457712 }],
+        points: [],
+        liabilitiesDetail: [],
+      },
+    };
+    const current = buildFireProgress({ portfolio: currentPortfolio, baseParams });
+    expect(current.side.alreadyReached).toBe(true);
+    expect(current.full.alreadyReached).toBe(false);
+    expect(current.focus).toEqual({
+      focus: "full",
+      primaryKind: "full",
+      secondaryKind: "side",
+      sideAchieved: true,
+      fullAchieved: false,
+    });
+    expect(current.fullAssetsYen).toBeGreaterThan(0);
+  });
+
+  it("reports both as reached when both are at a reachable level", () => {
+    const richPortfolio = {
+      totals: { assetsYen: 200000000, liabilitiesYen: 0, netWorthYen: 200000000 },
+      holdings: {
+        cashLike: [{ "名称": "銀行預金", "残高": 50000000 }],
+        stocks: [],
+        funds: [{ "名称": "投信A", "評価額": 150000000 }],
+        pensions: [],
+        points: [],
+        liabilitiesDetail: [],
+      },
+    };
+    const rich = buildFireProgress({ portfolio: richPortfolio, baseParams });
+    expect(rich.side.alreadyReached).toBe(true);
+    expect(rich.full.alreadyReached).toBe(true);
+    expect(rich.focus.focus).toBe("both");
+    expect(rich.focus.primaryKind).toBeNull();
+    expect(rich.focus.secondaryKind).toBeNull();
+    expect(rich.focus.sideAchieved).toBe(true);
+    expect(rich.focus.fullAchieved).toBe(true);
+  });
+});
+
+describe("selectProgressFocus", () => {
+  const run = (overrides = {}) => ({
+    reached: true,
+    alreadyReached: false,
+    monthsToReach: 12,
+    ...overrides,
+  });
+
+  it("keeps side FIRE primary while side FIRE is unreached", () => {
+    const focus = selectProgressFocus({ side: run(), full: run() });
+    expect(focus.focus).toBe("side");
+    expect(focus.primaryKind).toBe("side");
+    expect(focus.secondaryKind).toBe("full");
+    expect(focus.sideAchieved).toBe(false);
+    expect(focus.fullAchieved).toBe(false);
+  });
+
+  it("treats a side FIRE with no projection as unreached", () => {
+    const focus = selectProgressFocus({
+      side: run({ reached: false, monthsToReach: null }),
+      full: run(),
+    });
+    expect(focus.focus).toBe("side");
+    expect(focus.sideAchieved).toBe(false);
+  });
+
+  it("promotes full FIRE when side FIRE is already reachable", () => {
+    const focus = selectProgressFocus({
+      side: run({ alreadyReached: true, monthsToReach: 0 }),
+      full: run(),
+    });
+    expect(focus.focus).toBe("full");
+    expect(focus.primaryKind).toBe("full");
+    expect(focus.secondaryKind).toBe("side");
+    expect(focus.sideAchieved).toBe(true);
+    expect(focus.fullAchieved).toBe(false);
+  });
+
+  it("has no primary when both are already reachable", () => {
+    const focus = selectProgressFocus({
+      side: run({ alreadyReached: true, monthsToReach: 0 }),
+      full: run({ alreadyReached: true, monthsToReach: 0 }),
+    });
+    expect(focus.focus).toBe("both");
+    expect(focus.primaryKind).toBeNull();
+    expect(focus.secondaryKind).toBeNull();
+    expect(focus.sideAchieved).toBe(true);
+    expect(focus.fullAchieved).toBe(true);
+  });
+
+  it("defaults to side FIRE when runs are missing", () => {
+    expect(selectProgressFocus({}).focus).toBe("side");
+    expect(selectProgressFocus().focus).toBe("side");
   });
 });
 

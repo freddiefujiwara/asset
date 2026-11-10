@@ -20,6 +20,49 @@ export const PROGRESS_MILESTONES = [
   { id: "mortgage-payoff", label: "住宅ローン完済", monthKey: "2042-05" },
 ];
 
+/**
+ * 主指標の振り分け。
+ * サイドFIREが未到達の間はサイドFIREを主指標にする。サイドFIREが到達可能な
+ * 水準（alreadyReached）に達したら、未達成の完全FIREを主指標に昇格させ、
+ * サイドFIREは達成済みとして補助に回す。両方とも到達可能な水準なら
+ * focus="both" で、主指標は置かない。
+ * 「達成済み」は alreadyReached（到達まで0か月）で判定し、到達見込みが
+ * 立たない（reached=false）場合は未達成として扱う。
+ *
+ * @param {{side?: object, full?: object}} runs buildFireProgress の各指標の結果
+ * @returns {{focus: "side"|"full"|"both", primaryKind: string|null,
+ *   secondaryKind: string|null, sideAchieved: boolean, fullAchieved: boolean}}
+ */
+export function selectProgressFocus({ side, full } = {}) {
+  const sideAchieved = Boolean(side?.alreadyReached);
+  const fullAchieved = Boolean(full?.alreadyReached);
+  if (sideAchieved && fullAchieved) {
+    return {
+      focus: "both",
+      primaryKind: null,
+      secondaryKind: null,
+      sideAchieved,
+      fullAchieved,
+    };
+  }
+  if (sideAchieved) {
+    return {
+      focus: "full",
+      primaryKind: "full",
+      secondaryKind: "side",
+      sideAchieved,
+      fullAchieved,
+    };
+  }
+  return {
+    focus: "side",
+    primaryKind: "side",
+    secondaryKind: "full",
+    sideAchieved,
+    fullAchieved,
+  };
+}
+
 export function computeFireTargetAssetsYen(portfolio, universityFundYen = UNIVERSITY_FUND_YEN) {
   const totalAssetsYen = Number(portfolio?.totals?.assetsYen ?? 0);
   return Math.max(0, totalAssetsYen - universityFundYen);
@@ -88,7 +131,7 @@ export function buildFireProgress({
     riskAssets: riskAssetsYen,
   };
 
-  // 主指標: サイドFIRE。週3勤務の収入が続く分を、FIRE後の追加支出の
+  // サイドFIREの計算。週3勤務の収入が続く分を、FIRE後の追加支出の
   // マイナスとしてエンジンに渡す（エンジンはFIRE後に定期収入が
   // ゼロになる前提のため、継続収入は支出側で相殺するのが既存の枠組みに合う）。
   const sideFireMonthlyIncomeYen = Math.round(sideFireAnnualIncomeYen / 12);
@@ -102,7 +145,7 @@ export function buildFireProgress({
     fireTargetAssetsYen,
   );
 
-  // 補助指標: 完全FIRE。FIRE計算画面の現在の表示と同じ前提・同じ資産範囲
+  // 完全FIREの計算。FIRE計算画面の現在の表示と同じ前提・同じ資産範囲
   // （本人・妻の合計、大学資金は差し引かない）で計算する。
   const full = summarizeRun(
     {
@@ -115,11 +158,15 @@ export function buildFireProgress({
 
   return {
     totalAssetsYen,
+    // 完全FIREの対象資産（本人・妻の保有銘柄合計）。総資産（totals）とは
+    // 集計範囲の違いでわずかに異なる場合がある。
+    fullAssetsYen: firePortfolio.totalAssetsYen,
     universityFundYen,
     fireTargetAssetsYen,
     sideFireAnnualIncomeYen,
     side,
     full,
+    focus: selectProgressFocus({ side, full }),
   };
 }
 
@@ -242,7 +289,7 @@ function projectAtSnapshot(snapshot, { baseParams, universityFundYen, sideFireAn
       : null,
   });
 
-  // 主指標: サイドFIRE（buildFireProgress と同じ資産範囲・継続収入の相殺）。
+  // サイドFIRE（buildFireProgress と同じ資産範囲・継続収入の相殺）。
   const side = toProjection(
     estimateReach(
       buildRetrospectiveParams({
@@ -255,7 +302,7 @@ function projectAtSnapshot(snapshot, { baseParams, universityFundYen, sideFireAn
     ),
   );
 
-  // 補助指標: 完全FIRE（大学資金を差し引かない資産範囲）。
+  // 完全FIRE（大学資金を差し引かない資産範囲）。
   const full = toProjection(
     estimateReach(
       buildRetrospectiveParams({

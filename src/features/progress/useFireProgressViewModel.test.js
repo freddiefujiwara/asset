@@ -51,6 +51,50 @@ function buildPortfolio() {
   };
 }
 
+function buildSmallPortfolio() {
+  // サイドFIREにも完全FIREにもまだ届いていない水準（25M）。
+  // VMの前提（expenseBreakdown あり）では 40M だとサイドFIREが
+  // 到達可能な水準になってしまうため、この規模にしている。
+  return {
+    ...buildPortfolio(),
+    totals: { assetsYen: 25000000, liabilitiesYen: 11510887, netWorthYen: 13489113 },
+    holdings: {
+      cashLike: [{ "名称": "銀行預金", "残高": 3000000 }],
+      stocks: [{ "名称": "株式A", "評価額": 1000000 }],
+      funds: [{ "名称": "投信A", "評価額": 15000000 }],
+      pensions: [{ "名称": "確定拠出年金", "現在価値": 500000 }],
+      points: [],
+      liabilitiesDetail: [],
+    },
+    snapshots: [],
+  };
+}
+
+function buildRichPortfolio() {
+  // サイドFIRE・完全FIREともに到達可能な水準（200M）
+  return {
+    ...buildPortfolio(),
+    totals: { assetsYen: 200000000, liabilitiesYen: 0, netWorthYen: 200000000 },
+    holdings: {
+      cashLike: [{ "名称": "銀行預金", "残高": 50000000 }],
+      stocks: [],
+      funds: [{ "名称": "投信A", "評価額": 150000000 }],
+      pensions: [],
+      points: [],
+      liabilitiesDetail: [],
+    },
+    snapshots: [],
+  };
+}
+
+function useViewModelWith(portfolio) {
+  dataRef.value = portfolio;
+  const portfolioStore = usePortfolioStore();
+  portfolioStore.data = portfolio;
+  portfolioStore.shareMode = false;
+  return useFireProgressViewModel();
+}
+
 describe("useFireProgressViewModel", () => {
   beforeEach(() => {
     setActivePinia(createPinia());
@@ -61,7 +105,7 @@ describe("useFireProgressViewModel", () => {
     portfolioStore.shareMode = false;
   });
 
-  it("describes side FIRE as the main indicator with duration, date and age", () => {
+  it("describes side FIRE progress with duration, date and age", () => {
     const vm = useFireProgressViewModel();
     expect(vm.progress.value.fireTargetAssetsYen).toBe(78139712 - 10450000);
     expect(vm.sideProgress.value.reached).toBe(true);
@@ -98,6 +142,54 @@ describe("useFireProgressViewModel", () => {
     // 先月比ラベルは、差分が算出できた場合のみ文言になる
     expect(vm.sideDeltaLabel.value === null || /先月/.test(vm.sideDeltaLabel.value)).toBe(true);
     expect(vm.fullDeltaLabel.value === null || /先月/.test(vm.fullDeltaLabel.value)).toBe(true);
+  });
+
+  it("promotes full FIRE to primary when side FIRE is already reachable", () => {
+    // 既定フィクスチャ（78M）はサイドFIREが到達可能な水準、完全FIREは未到達
+    const vm = useFireProgressViewModel();
+    expect(vm.sideProgress.value.alreadyReached).toBe(true);
+    expect(vm.fullProgress.value.alreadyReached).toBe(false);
+    expect(vm.focus.value.focus).toBe("full");
+    expect(vm.bothReached.value).toBe(false);
+    expect(vm.primaryProgress.value.kind).toBe("full");
+    expect(vm.primaryProgress.value.label).toBe("完全FIRE");
+    expect(vm.primaryProgress.value.progressRatePct).toBeCloseTo(
+      vm.fullProgress.value.progressRatePct,
+    );
+    expect(vm.primaryProgress.value.requiredAssetsYen).toBe(
+      vm.fullProgress.value.requiredAssetsYen,
+    );
+    expect(vm.primaryProgress.value.baseAssetsLabel).toBeNull();
+    // サイドFIREは達成済みとして補助に回る
+    expect(vm.secondaryProgress.value.kind).toBe("side");
+    expect(vm.secondaryProgress.value.label).toBe("サイドFIRE");
+    expect(vm.secondaryProgress.value.achieved).toBe(true);
+    expect(vm.secondaryProgress.value.progressRatePct).toBe(100);
+  });
+
+  it("keeps side FIRE as primary while it is not yet reached", () => {
+    const vm = useViewModelWith(buildSmallPortfolio());
+    expect(vm.sideProgress.value.alreadyReached).toBe(false);
+    expect(vm.focus.value.focus).toBe("side");
+    expect(vm.bothReached.value).toBe(false);
+    expect(vm.primaryProgress.value.kind).toBe("side");
+    expect(vm.primaryProgress.value.label).toBe("サイドFIRE");
+    expect(vm.primaryProgress.value.baseAssetsLabel).toBe("FIRE対象資産（大学資金を除く）");
+    expect(vm.primaryProgress.value.baseAssetsYen).toBe(
+      vm.progress.value.fireTargetAssetsYen,
+    );
+    expect(vm.secondaryProgress.value.kind).toBe("full");
+    expect(vm.secondaryProgress.value.achieved).toBe(false);
+  });
+
+  it("has no primary when both side and full FIRE are reachable", () => {
+    const vm = useViewModelWith(buildRichPortfolio());
+    expect(vm.sideProgress.value.alreadyReached).toBe(true);
+    expect(vm.fullProgress.value.alreadyReached).toBe(true);
+    expect(vm.focus.value.focus).toBe("both");
+    expect(vm.bothReached.value).toBe(true);
+    expect(vm.primaryProgress.value).toBeNull();
+    expect(vm.secondaryProgress.value).toBeNull();
   });
 
   it("reflects share mode from the portfolio store", () => {
