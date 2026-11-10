@@ -48,6 +48,26 @@ function normalizeText(value, fallback = "") {
   return String(value ?? fallback).trim();
 }
 
+/**
+ * 月次スナップショット（asset-gas の snapshots.csv）を内部形へ変換する。
+ * 値はCSV由来で文字列のため数値化し、月順に並べる。
+ */
+function normalizeSnapshots(rows) {
+  return asArray(rows)
+    .map((row) => ({
+      month: normalizeText(row?.month),
+      totalAssetsYen: toNumber(row?.total_assets),
+      totalLiabilitiesYen: toNumber(row?.total_liabilities),
+      netAssetsYen: toNumber(row?.net_assets),
+      cashYen: toNumber(row?.cash),
+      riskAssetsYen: toNumber(row?.risk_assets),
+      livingCost12mAvgYen: toNumber(row?.living_cost_12m_avg),
+      income12mAvgYen: toNumber(row?.income_12m_avg),
+    }))
+    .filter((row) => /^\d{4}-\d{2}$/.test(row.month))
+    .sort((a, b) => a.month.localeCompare(b.month));
+}
+
 function normalizeCashFlowRows(rows) {
   const normalized = rows.map((item) => ({
     date: normalizeText(item?.date),
@@ -112,5 +132,6 @@ export function normalizePortfolio(api) {
       liabilitiesDetail: asArray(safeApi["details__liability_det__t0-liability"]),
     },
     cashFlow: normalizeCashFlowRows(asArray(safeApi.mfcf)),
+    snapshots: normalizeSnapshots(safeApi.snapshots),
   };
 }

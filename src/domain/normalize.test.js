@@ -143,4 +143,59 @@ describe("normalizePortfolio", () => {
     });
   });
 
+  it("parses monthly snapshots, numeric strings to numbers, sorted by month", () => {
+    const normalized = normalizePortfolio({
+      snapshots: [
+        {
+          month: "2026-11",
+          total_assets: "78,139,712",
+          total_liabilities: "11,510,887",
+          net_assets: "66,628,825",
+          cash: "7,502,164",
+          risk_assets: "70,630,234",
+          living_cost_12m_avg: "461,012",
+          income_12m_avg: "1,056,465",
+        },
+        {
+          month: "2026-10",
+          total_assets: "77000000",
+          total_liabilities: "11600000",
+          net_assets: "65400000",
+          cash: "7000000",
+          risk_assets: "69000000",
+          living_cost_12m_avg: "470000",
+          income_12m_avg: "1050000",
+        },
+        { month: "not-a-month", total_assets: "1" },
+      ],
+    });
+
+    expect(normalized.snapshots).toEqual([
+      {
+        month: "2026-10",
+        totalAssetsYen: 77000000,
+        totalLiabilitiesYen: 11600000,
+        netAssetsYen: 65400000,
+        cashYen: 7000000,
+        riskAssetsYen: 69000000,
+        livingCost12mAvgYen: 470000,
+        income12mAvgYen: 1050000,
+      },
+      {
+        month: "2026-11",
+        totalAssetsYen: 78139712,
+        totalLiabilitiesYen: 11510887,
+        netAssetsYen: 66628825,
+        cashYen: 7502164,
+        riskAssetsYen: 70630234,
+        livingCost12mAvgYen: 461012,
+        income12mAvgYen: 1056465,
+      },
+    ]);
+  });
+
+  it("snapshots fall back to an empty array when missing", () => {
+    expect(normalizePortfolio({}).snapshots).toEqual([]);
+  });
+
 });
