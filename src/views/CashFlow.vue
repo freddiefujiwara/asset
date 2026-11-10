@@ -6,9 +6,17 @@ import CashFlowTable from "@/components/CashFlowTable.vue";
 import PieChart from "@/components/PieChart.vue";
 import { useCashFlowViewModel } from "@/features/cashFlow/useCashFlowViewModel";
 
+const monthLabel = (monthKey) => {
+  if (!monthKey) return "";
+  const [year, month] = monthKey.split("-");
+  return `${year}年${Number(month)}月`;
+};
+
 const {
   loading,
   error,
+  reviewList,
+  showReviewCategory,
   monthFilter,
   typeFilter,
   largeCategoryFilter,
@@ -39,6 +47,47 @@ const {
   <section>
     <p v-if="loading">読み込み中...</p>
     <p v-if="error" class="error">{{ error }}</p>
+
+    <div class="table-wrap review-section">
+      <h3 class="section-title">要確認リスト（{{ monthLabel(reviewList.month) }}・確定分）</h3>
+      <p class="meta">
+        生活費 <span class="amount-value">{{ formatYen(reviewList.livingCostYen) }}</span>
+        ／ 直近12か月平均 <span class="amount-value">{{ formatYen(reviewList.averageLivingCostYen) }}</span>
+        <strong v-if="reviewList.livingCostOverAverage" class="error">（平均の+10%超・要確認）</strong>
+      </p>
+      <template v-if="reviewList.categories.length">
+        <p class="meta">基準（12か月平均）を+10%以上上回ったカテゴリです。クリックすると明細を表示します。</p>
+        <ul class="review-list">
+          <li v-for="category in reviewList.categories" :key="category.label">
+            <button type="button" class="review-item" @click="showReviewCategory(category.label)">
+              <span class="review-label">{{ category.label }}</span>
+              <span class="amount-value">{{ formatYen(category.monthYen) }}</span>
+              <span class="meta">
+                平均 {{ formatYen(category.averageYen) }}／超過
+                <span class="amount-value">{{ formatYen(category.excessYen) }}</span>
+                <template v-if="category.ratioPct !== null">（+{{ category.ratioPct }}%）</template>
+              </span>
+            </button>
+          </li>
+        </ul>
+      </template>
+      <p v-else class="meta">基準を大きく上回るカテゴリはありませんでした。</p>
+
+      <div v-if="reviewList.special.items.length" class="review-special">
+        <h4>特別支出（生活費とは別枠）</h4>
+        <p class="meta">
+          {{ monthLabel(reviewList.month) }}の特別支出は合計
+          <span class="amount-value">{{ formatYen(reviewList.special.totalYen) }}</span>
+          です。生活費の数字には含まれていません。
+        </p>
+        <ul class="meta review-special-list">
+          <li v-for="item in reviewList.special.items" :key="`${item.date}-${item.name}`">
+            {{ item.date }} {{ item.name }}
+            <span class="amount-value">{{ formatYen(item.amountYen) }}</span>
+          </li>
+        </ul>
+      </div>
+    </div>
 
     <div class="filter-section table-wrap">
       <h3 class="section-title">フィルター</h3>
@@ -146,6 +195,46 @@ const {
 </template>
 
 <style scoped>
+.review-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.review-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 12px;
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-elevated);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.review-label {
+  font-weight: 600;
+}
+.review-special {
+  margin-top: 16px;
+  border-top: 1px dashed var(--border);
+  padding-top: 12px;
+}
+.review-special h4 {
+  margin: 0 0 6px;
+  font-size: 0.95rem;
+}
+.review-special-list {
+  margin: 0;
+  padding-left: 18px;
+}
+
 .filter-grid {
   display: flex;
   flex-wrap: wrap;

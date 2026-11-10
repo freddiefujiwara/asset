@@ -26,7 +26,7 @@ describe('CashFlowBarChart', () => {
       }
     });
     expect(wrapper.find('.section-title').text()).toBe('月次収支推移');
-    expect(wrapper.findAll('rect')).toHaveLength(8); // (1 income + 3 expense) * 2 months
+    expect(wrapper.findAll('rect')).toHaveLength(10); // (1 income + 4 expense: fixed/variable/special/exclude) * 2 months
   });
 
   it('renders reference lines and multiple deviation lines when averages are provided', () => {

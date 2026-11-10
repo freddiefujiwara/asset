@@ -85,6 +85,7 @@ export function useCashFlowBarChartViewModel(props) {
       const yIncome = yScale(d.income);
       const hFixed = Math.abs(yScale(-(d.fixed || 0)) - y0);
       const hVariable = Math.abs(yScale(-(d.variable || 0)) - y0);
+      const hSpecial = Math.abs(yScale(-(d.special || 0)) - y0);
       const hExclude = Math.abs(yScale(-(d.exclude || 0)) - y0);
 
       return {
@@ -101,7 +102,8 @@ export function useCashFlowBarChartViewModel(props) {
           w: barWidth,
           fixed: { y: y0, h: hFixed, val: d.fixed || 0 },
           variable: { y: y0 + hFixed, h: hVariable, val: d.variable || 0 },
-          exclude: { y: y0 + hFixed + hVariable, h: hExclude, val: d.exclude || 0 },
+          special: { y: y0 + hFixed + hVariable, h: hSpecial, val: d.special || 0 },
+          exclude: { y: y0 + hFixed + hVariable + hSpecial, h: hExclude, val: d.exclude || 0 },
         },
         net: { x: x + barWidth, y: yScale(d.net), val: d.net },
         deviation: props.averages

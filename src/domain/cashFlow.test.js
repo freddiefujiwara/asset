@@ -12,6 +12,7 @@ import {
   getUniqueSmallCategories,
   sortCashFlow,
   getExpenseType,
+  isSpecialExpense,
   aggregateByType,
 } from "./cashFlow";
 
@@ -262,6 +263,7 @@ describe("cashFlow domain", () => {
           net: 4000,
           fixed: 1000,
           variable: 2000,
+          special: 0,
           exclude: 3000,
         },
       ]);
@@ -277,6 +279,7 @@ describe("cashFlow domain", () => {
           net: -1000,
           fixed: 0,
           variable: 1000,
+          special: 0,
           exclude: 0,
         },
         {
@@ -286,6 +289,7 @@ describe("cashFlow domain", () => {
           net: -3000,
           fixed: 0,
           variable: 3000,
+          special: 0,
           exclude: 0,
         },
       ]);
@@ -301,6 +305,7 @@ describe("cashFlow domain", () => {
           net: 0,
           fixed: 0,
           variable: 1000,
+          special: 0,
           exclude: 0,
         },
         {
@@ -310,6 +315,7 @@ describe("cashFlow domain", () => {
           net: 0,
           fixed: 0,
           variable: 3000,
+          special: 0,
           exclude: 0,
         },
       ]);
@@ -330,6 +336,7 @@ describe("cashFlow domain", () => {
           net: -81000,
           fixed: 0,
           variable: 81000,
+          special: 0,
           exclude: 0,
         },
         {
@@ -339,9 +346,41 @@ describe("cashFlow domain", () => {
           net: 297000,
           fixed: 0,
           variable: 3000,
+          special: 0,
           exclude: 0,
         },
       ]);
+    });
+    it("splits special expenses out of the exclude bucket", () => {
+      const mixed = [
+        { date: "2026-01-05", amount: -100000, category: "特別な支出/旅行", isTransfer: false },
+        { date: "2026-01-06", amount: -3000, category: "カード引き落とし", isTransfer: false },
+        { date: "2026-01-07", amount: -2000, category: "食費/外食", isTransfer: false },
+        // 振替の特別支出は月次集計の対象外（従来どおり）
+        { date: "2026-01-08", amount: -50000, category: "特別な支出/振替", isTransfer: true },
+      ];
+      expect(aggregateByMonth(mixed)).toEqual([
+        {
+          month: "2026-01",
+          income: 0,
+          expense: 105000,
+          net: -105000,
+          fixed: 0,
+          variable: 2000,
+          special: 100000,
+          exclude: 3000,
+        },
+      ]);
+    });
+  });
+
+  describe("isSpecialExpense", () => {
+    it("detects special expense rows only", () => {
+      expect(isSpecialExpense({ amount: -100, category: "特別な支出/旅行", isTransfer: false })).toBe(true);
+      expect(isSpecialExpense({ amount: -100, category: "食費/外食", isTransfer: false })).toBe(false);
+      expect(isSpecialExpense({ amount: -100, category: "特別な支出/旅行", isTransfer: true })).toBe(false);
+      expect(isSpecialExpense({ amount: 100, category: "特別な支出/旅行", isTransfer: false })).toBe(false);
+      expect(isSpecialExpense(null)).toBe(false);
     });
   });
 

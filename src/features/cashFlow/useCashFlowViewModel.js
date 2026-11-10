@@ -10,6 +10,7 @@ import {
   getUniqueSmallCategories,
   sortCashFlow,
   getRecentAverages,
+  buildCashFlowReview,
 } from "@/domain/cashFlow";
 import { getPast12MonthSummary } from "@/domain/fire";
 
@@ -49,6 +50,19 @@ export function useCashFlowViewModel() {
   const hasActiveFilters = computed(() =>
     Boolean(monthFilter.value || typeFilter.value || largeCategoryFilter.value || smallCategoryFilter.value || searchFilter.value),
   );
+
+  const reviewList = computed(() => buildCashFlowReview(cashFlowRaw.value));
+
+  /**
+   * Jump from the review list to the month's detail rows for one category.
+   */
+  const showReviewCategory = (largeCategory) => {
+    monthFilter.value = reviewList.value.month;
+    typeFilter.value = "";
+    largeCategoryFilter.value = largeCategory;
+    smallCategoryFilter.value = "";
+    searchFilter.value = "";
+  };
 
   const kpis = computed(() => getKPIs(filteredCashFlow.value));
   const monthlyData = computed(() => aggregateByMonth(hasActiveFilters.value ? filteredCashFlow.value : cashFlowRaw.value, { includeNet: !hasActiveFilters.value }));
@@ -145,6 +159,8 @@ export function useCashFlowViewModel() {
     sortOrder,
     filteredCashFlow,
     hasActiveFilters,
+    reviewList,
+    showReviewCategory,
     kpis,
     monthlyData,
     categoryPieData,
