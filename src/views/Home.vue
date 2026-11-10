@@ -44,6 +44,9 @@ const monthLabel = (monthKey) => {
         <p class="meta">
           今月はここまで <span class="amount-value">{{ formatYen(investmentCard.currentMonth.amountYen) }}</span> 実行済み
         </p>
+        <p class="meta">
+          判定は明細で確認できる本人分（月{{ formatYen(investmentCard.standardYen) }}）が対象です
+        </p>
       </article>
 
       <article class="card" :class="{ 'is-attention': livingCostCard.status === 'attention' }">

@@ -90,21 +90,29 @@ describe("buildInvestmentCard", () => {
     item({ date: "2026-10-16", amount: -99962, name: "楽天証券投信積立0.5%~", category: "", isTransfer: true }),
   ];
 
-  it("flags attention when last month is below 95% of the standard", () => {
+  // 判定基準は本人分323,000円（世帯423,000円のうち妻分100,000円は
+  // フィード対象外）。フィクスチャの先月合計322,818円は本人分の実測相当。
+  it("judges against the self-only standard of 323,000 yen and is ok near it", () => {
     const card = buildInvestmentCard(october, NOW);
     expect(card.lastMonth).toEqual({ month: "2026-10", amountYen: 322818 });
-    expect(card.standardYen).toBe(423000);
+    expect(card.standardYen).toBe(323000);
+    expect(card.status).toBe(CARD_STATUS.OK);
+  });
+
+  it("flags attention when last month is below 95% of the self standard", () => {
+    const rows = [october[0]]; // iDeCo掛金23,000円のみ
+    const card = buildInvestmentCard(rows, NOW);
+    expect(card.lastMonth.amountYen).toBe(23000);
     expect(card.status).toBe(CARD_STATUS.ATTENTION);
   });
 
-  it("is ok within the -5% band and reports current month progress without judging it", () => {
+  it("reports current month progress without judging it", () => {
     const rows = [
       ...october,
-      item({ date: "2026-10-20", amount: -100000, name: "楽天証券投信積立0.5%~", category: "", isTransfer: true }),
       item({ date: "2026-11-05", amount: -50000, name: "楽天証券投信積立0.5%~", category: "", isTransfer: true }),
     ];
     const card = buildInvestmentCard(rows, NOW);
-    expect(card.lastMonth.amountYen).toBe(422818);
+    expect(card.lastMonth.amountYen).toBe(322818);
     expect(card.status).toBe(CARD_STATUS.OK);
     expect(card.currentMonth).toEqual({ month: "2026-11", amountYen: 50000 });
   });

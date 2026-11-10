@@ -10,8 +10,15 @@ import { getMonthKey } from "../cashFlow/shared";
 
 export const CARD_STATUS = { OK: "ok", ATTENTION: "attention" };
 
-/** 投資の基準額（月額）。FIREシミュレータの初期値と同じ。 */
-export const MONTHLY_INVESTMENT_STANDARD_YEN = 423000;
+/**
+ * 投資カードの判定基準額（月額・本人分）。
+ * 世帯の月額投資は423,000円（本人323,000円＋妻100,000円）だが、
+ * このカードが数える明細（本人の Money Forward フィード）に現れるのは
+ * 本人分のみで、妻分100,000円はフィード対象外のため判定に入らない。
+ * そのため判定基準は本人分の323,000円とする。
+ * なお FIRE計算側の月額投資は世帯前提の423,000円のまま（変更しない）。
+ */
+export const MONTHLY_INVESTMENT_STANDARD_SELF_YEN = 323000;
 /** 投資カード: 基準の -5% 未満で要確認（超過は要確認にしない）。 */
 export const INVESTMENT_TOLERANCE_RATE = 0.05;
 /** 生活費カード: 12か月平均の +10% 超で要確認。 */
@@ -30,7 +37,9 @@ export const FRESHNESS_STALE_DAYS = 3;
  * - 「楽天証券投信積立0.5%~」楽天カード積立
  * - 「コクミンネンキンキキンレンゴウカイ(カクテイキヨシユツネンキン)」iDeCo掛金
  * いずれも is_transfer=true の振替として記録され、支出分類からは除外される。
- * 給与天引き分など明細に現れない投資は数えられない（保守的な定義）。
+ * 実測（2025-11〜2026-10）の合計は月約32.2万円で、本人分の月額投資
+ * 323,000円とほぼ一致することを確認済み。妻分の月100,000円はこの
+ * フィードに現れないため数えられない（判定基準も本人分に合わせている）。
  */
 const INVESTMENT_NAME_KEYWORDS = ["投信積立", "確定拠出年金", "カクテイキヨシユツネンキン"];
 
@@ -63,7 +72,7 @@ export function buildInvestmentCard(cashFlow, now = new Date()) {
   const currentMonth = formatMonthKey(now);
   const lastMonth = shiftMonthKey(currentMonth, -1);
   const lastAmount = sumInvestmentExecutions(cashFlow, lastMonth);
-  const standard = MONTHLY_INVESTMENT_STANDARD_YEN;
+  const standard = MONTHLY_INVESTMENT_STANDARD_SELF_YEN;
   const status =
     lastAmount >= standard * (1 - INVESTMENT_TOLERANCE_RATE)
       ? CARD_STATUS.OK
