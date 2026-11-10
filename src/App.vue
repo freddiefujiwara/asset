@@ -1,8 +1,6 @@
 <script setup>
 import { RouterLink, RouterView } from "vue-router";
-import { storeToRefs } from "pinia";
 import { useAppShellViewModel } from "@/features/app/useAppShellViewModel";
-import { useFireSimulatorStore } from "@/stores/fireSimulator";
 import ExternalLinkIcon from "@/components/ExternalLinkIcon.vue";
 
 const {
@@ -23,9 +21,6 @@ const {
   toggleTheme,
   logout,
 } = useAppShellViewModel();
-
-const fireSimulatorStore = useFireSimulatorStore();
-const { externalSimulatorUrl } = storeToRefs(fireSimulatorStore);
 </script>
 
 <template>
@@ -36,10 +31,7 @@ const { externalSimulatorUrl } = storeToRefs(fireSimulatorStore);
         <nav class="nav" aria-label="Primary">
           <RouterLink to="/balance-sheet">バランスシート</RouterLink>
           <RouterLink to="/cash-flow">キャッシュフロー</RouterLink>
-          <a v-if="isFireEnabled" :href="externalSimulatorUrl" target="_blank" rel="noopener noreferrer">
-            FIRE
-            <ExternalLinkIcon />
-          </a>
+          <RouterLink v-if="isFireEnabled" to="/fire">FIRE</RouterLink>
           <span v-else class="is-disabled" title="APIから正常にデータを取得した後に利用可能です">
             FIRE
             <ExternalLinkIcon />
