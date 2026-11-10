@@ -19,6 +19,17 @@ export const getExpenseType = (categoryOrItem) => {
   return "variable"; // それ以外はすべて変動費
 };
 
+/**
+ * 特別支出かどうか（カテゴリが「特別な支出」で始まる出金）。
+ * getExpenseType では "exclude" 扱いとなり生活費には含めないが、
+ * 収支画面の要確認リストと月次グラフでは通常の除外と分けて扱うため、
+ * 判定をここに一本化する。
+ */
+export function isSpecialExpense(item) {
+  if (!item || item.isTransfer || Number(item.amount) >= 0) return false;
+  return String(item.category ?? "").startsWith("特別な支出");
+}
+
 export function getCategoryLabel(item) {
   const category = item?.category;
   return typeof category === "string" && category.length > 0 ? category : UNCATEGORIZED;

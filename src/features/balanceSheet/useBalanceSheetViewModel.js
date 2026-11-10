@@ -18,6 +18,11 @@ import {
   getYahooSymbol,
 } from "@/domain/holdings";
 import { useInitialHashRestore } from "@/composables/useInitialHashRestore";
+import {
+  buildAssetSegments,
+  buildBalanceMonthlyChanges,
+  findLargestHolding,
+} from "@/domain/assetSummary";
 
 const KEY_MAP = {
   breakdown: "asset_breakdown",
@@ -125,6 +130,23 @@ export function useBalanceSheetViewModel() {
 
   const summary = computed(() => riskAssetSummary(filteredHoldings.value));
   const riskAssetsTotal = computed(() => summary.value.totalYen);
+
+  // 先頭の3区分サマリ（総資産／FIRE対象資産／60歳前に使いやすい資産）。
+  // 金額はこの画面の表示集計（カテゴリ別カード・合計）に合わせる。
+  const assetSegments = computed(() =>
+    buildAssetSegments({
+      totalAssetsYen: totals.value.assetsYen,
+      categoryCards: categoryCards.value,
+    }),
+  );
+  // 単一銘柄の集中表示（分母はリスク資産合計＝明細の「リスク比」と同じ）。
+  const largestHolding = computed(() =>
+    findLargestHolding(filteredHoldings.value, riskAssetsTotal.value),
+  );
+  // 前月比（月次スナップショットは世帯全体の値）。
+  const balanceMonthlyChanges = computed(() =>
+    buildBalanceMonthlyChanges(data.value?.snapshots ?? []),
+  );
   const dailyMoves = computed(() => summary.value.dailyMoves);
   const dailyMoveTotal = computed(() => summary.value.dailyMoveTotal);
   const dailyMoveClass = computed(() => signedClass(dailyMoveTotal.value));
@@ -185,6 +207,9 @@ export function useBalanceSheetViewModel() {
     selectedOwner,
     selectOwner,
     categoryCards,
+    assetSegments,
+    largestHolding,
+    balanceMonthlyChanges,
     riskAssetsTotal,
     dailyMoves,
     dailyMoveTotal,

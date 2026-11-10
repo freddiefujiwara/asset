@@ -1,4 +1,4 @@
-import { getCategoryLabel, getExpenseType } from "./classifiers";
+import { getCategoryLabel, getExpenseType, isSpecialExpense } from "./classifiers";
 import { getMonthKey } from "./shared";
 
 export function getKPIs(cashFlow) {
@@ -44,6 +44,7 @@ export function aggregateByMonth(cashFlow, { includeNet = true } = {}) {
         net: 0,
         fixed: 0,
         variable: 0,
+        special: 0,
         exclude: 0,
       };
     }
@@ -53,8 +54,13 @@ export function aggregateByMonth(cashFlow, { includeNet = true } = {}) {
       const absAmount = Math.abs(item.amount);
       months[month].expense += absAmount;
 
-      const type = getExpenseType(item);
-      if (type === "fixed") {
+      // 特別支出は "exclude" の一部だが、月次グラフで通常の生活費・
+      // その他の除外と分けて見せるため独立したバケットに分離する。
+      // fixed + variable + special + exclude = expense の関係は維持する。
+      const type = isSpecialExpense(item) ? "special" : getExpenseType(item);
+      if (type === "special") {
+        months[month].special += absAmount;
+      } else if (type === "fixed") {
         months[month].fixed += absAmount;
       } else if (type === "variable") {
         months[month].variable += absAmount;

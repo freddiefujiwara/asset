@@ -13,6 +13,12 @@ import { usePortfolioStore } from "@/stores/portfolio";
 
 const portfolioStore = usePortfolioStore();
 
+const monthLabel = (monthKey) => {
+  if (!monthKey) return "";
+  const [year, month] = monthKey.split("-");
+  return `${year}年${Number(month)}月`;
+};
+
 const {
   loading,
   error,
@@ -20,6 +26,9 @@ const {
   selectedOwner,
   selectOwner,
   categoryCards,
+  assetSegments,
+  largestHolding,
+  balanceMonthlyChanges,
   riskAssetsTotal,
   dailyMoves,
   dailyMoveTotal,
@@ -47,6 +56,60 @@ const {
   <section id="balance-sheet-top">
     <p v-if="loading">読み込み中...</p>
     <p v-if="error" class="error">{{ error }}</p>
+
+    <section class="card-grid">
+      <article class="card">
+        <h2>総資産</h2>
+        <p class="amount-value is-positive">{{ formatYen(assetSegments.totalAssetsYen) }}</p>
+        <p class="meta">保有資産の合計（この画面の集計）</p>
+      </article>
+      <article class="card">
+        <h2>FIRE対象資産</h2>
+        <p class="amount-value is-positive">{{ formatYen(assetSegments.fireTargetAssetsYen) }}</p>
+        <p class="meta">
+          総資産 − 大学資金 <span class="amount-value">{{ formatYen(assetSegments.universityFundYen) }}</span>（設定値）
+        </p>
+      </article>
+      <article class="card">
+        <h2>60歳前に使いやすい資産</h2>
+        <p class="amount-value is-positive">{{ formatYen(assetSegments.usableBefore60Yen) }}</p>
+        <p class="meta">
+          総資産 − {{ assetSegments.ageLockedLabel }} <span class="amount-value">{{ formatYen(assetSegments.ageLockedYen) }}</span>
+        </p>
+      </article>
+    </section>
+
+    <section class="table-wrap">
+      <h2 class="section-title">前月比（月次スナップショット）</h2>
+      <template v-if="balanceMonthlyChanges.available">
+        <table>
+          <thead>
+            <tr><th>項目</th><th>{{ monthLabel(balanceMonthlyChanges.month) }}</th><th>前月比</th></tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in balanceMonthlyChanges.rows" :key="row.key">
+              <td>{{ row.label }}</td>
+              <td class="amount-value">{{ formatYen(row.currentYen) }}</td>
+              <td class="amount-value">{{ formatSignedYen(row.diffYen) }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="meta">月末時点のスナップショット（{{ monthLabel(balanceMonthlyChanges.previousMonth) }} → {{ monthLabel(balanceMonthlyChanges.month) }}）で比較しています。スナップショットは世帯全体の値です。</p>
+      </template>
+      <p v-else class="meta">来月から表示されます（月末スナップショットが2か月分たまると表示されます）。</p>
+    </section>
+
+    <section v-if="largestHolding" class="table-wrap">
+      <h2 class="section-title">集中の確認</h2>
+      <p class="meta">
+        最大の保有銘柄は {{ largestHolding.categoryTitle }}「{{ largestHolding.name }}」で
+        <span class="amount-value">{{ formatYen(largestHolding.amountYen) }}</span>、
+        リスク資産（<span class="amount-value">{{ formatYen(largestHolding.riskAssetsTotalYen) }}</span>）の
+        <strong>{{ largestHolding.ratioOfRiskAssetsPct !== null ? `${largestHolding.ratioOfRiskAssetsPct.toFixed(1)}%` : "-" }}</strong>
+        を占めます（評価損益 <span class="amount-value">{{ formatSignedYen(largestHolding.profitYen) }}</span>）。
+        偏りの確認用で、売買の指示ではありません。
+      </p>
+    </section>
 
     <section class="table-wrap">
       <div class="header-with-action">

@@ -106,6 +106,20 @@ const {
             </rect>
             <rect
               :x="b.expense.x"
+              :y="b.expense.special.y"
+              :width="b.expense.w"
+              :height="b.expense.special.h"
+              fill="#a855f7"
+              opacity="0.8"
+              @pointerenter="showTooltip($event, { month: b.month, label: '特別支出', value: b.expense.special.val })"
+              @pointermove="showTooltip($event, { month: b.month, label: '特別支出', value: b.expense.special.val })"
+              @pointerleave="hideTooltip($event)"
+              @click.stop="showTooltip($event, { month: b.month, label: '特別支出', value: b.expense.special.val })"
+            >
+              <title>{{ b.month }} 特別支出: {{ b.expense.special.val.toLocaleString() }}</title>
+            </rect>
+            <rect
+              :x="b.expense.x"
               :y="b.expense.exclude.y"
               :width="b.expense.w"
               :height="b.expense.exclude.h"
@@ -295,6 +309,10 @@ const {
       <div style="display: flex; align-items: center; gap: 4px;">
         <span style="width: 12px; height: 12px; background: #f59e0b; border-radius: 2px;"></span>
         <span style="font-size: 12px;">支出（変動）</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 4px;">
+        <span style="width: 12px; height: 12px; background: #a855f7; border-radius: 2px;"></span>
+        <span style="font-size: 12px;">支出（特別）</span>
       </div>
       <div style="display: flex; align-items: center; gap: 4px;">
         <span style="width: 12px; height: 12px; background: #4b5563; border-radius: 2px;"></span>
