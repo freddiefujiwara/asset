@@ -265,7 +265,7 @@ const {
       <p class="back-top-wrap"><a href="#balance-sheet-top">↑ トップへ戻る</a></p>
     </section>
 
-    <ShareSessionCard v-if="portfolioStore.hasIdToken && !portfolioStore.shareMode" />
+    <ShareSessionCard v-if="portfolioStore.hasSession && !portfolioStore.shareMode" />
   </section>
 </template>
 

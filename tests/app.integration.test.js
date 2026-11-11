@@ -48,6 +48,9 @@ describe("App cross-screen integration", () => {
       shareMode: false,
       shareExpiresAt: "",
       fetchPortfolio: fetchPortfolioMock,
+      revokeSession: vi.fn(() => {
+        localStorage.removeItem("asset-session-token");
+      }),
     });
 
     uiStore = reactive({
@@ -76,7 +79,7 @@ describe("App cross-screen integration", () => {
   });
 
   it("renders route content when token exists", async () => {
-    localStorage.setItem("asset-google-id-token", "dummy-token");
+    localStorage.setItem("asset-session-token", "dummy-token");
 
     const router = makeRouter("/cash-flow");
     await router.isReady();
@@ -95,7 +98,7 @@ describe("App cross-screen integration", () => {
   });
 
   it("logs out and refetches when auth error occurs with existing token", async () => {
-    localStorage.setItem("asset-google-id-token", "dummy-token");
+    localStorage.setItem("asset-session-token", "dummy-token");
     const removeSpy = vi.spyOn(Storage.prototype, "removeItem");
 
     const router = makeRouter("/fire");
@@ -113,7 +116,7 @@ describe("App cross-screen integration", () => {
     await nextTick();
     await nextTick();
 
-    expect(removeSpy).toHaveBeenCalledWith("asset-google-id-token");
+    expect(removeSpy).toHaveBeenCalledWith("asset-session-token");
     expect(fetchPortfolioMock).toHaveBeenCalledTimes(2);
 
     removeSpy.mockRestore();

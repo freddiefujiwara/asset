@@ -58,7 +58,7 @@ describe("portfolio store", () => {
     expect(store.data.cashFlow[0].name).toBe("Shop");
   });
 
-  it("sends token as query param when localStorage has google id token", async () => {
+  it("sends session token as query param when localStorage has a session token", async () => {
     globalThis.localStorage.getItem.mockReturnValue("token-123");
     const fetchMock = vi.fn().mockResolvedValue(successResponse({ breakdown: [] }));
     vi.stubGlobal("fetch", fetchMock);
@@ -67,19 +67,27 @@ describe("portfolio store", () => {
     await store.fetchPortfolio();
 
     const calledUrl = fetchMock.mock.calls[0][0];
-    expect(calledUrl).toContain("id_token=token-123");
+    expect(calledUrl).toContain("session_token=token-123");
   });
 
-  it("uses direct token when passed to fetchPortfolio", async () => {
+  it("exchanges a google id token for a stored owner session", async () => {
     globalThis.localStorage.getItem.mockReturnValue("");
-    const fetchMock = vi.fn().mockResolvedValue(successResponse({ breakdown: [] }));
+    const fetchMock = vi.fn().mockResolvedValue(successResponse({
+      session_token: "session-xyz",
+      expires_at: "2026-12-31T05:00:00.000Z",
+      ttl_seconds: 2592000,
+    }));
     vi.stubGlobal("fetch", fetchMock);
 
     const store = usePortfolioStore();
-    await store.fetchPortfolio("direct-token-456");
+    const token = await store.exchangeSession("google-token-456");
 
     const calledUrl = fetchMock.mock.calls[0][0];
-    expect(calledUrl).toContain("id_token=direct-token-456");
+    expect(calledUrl).toContain("action=exchange_session");
+    expect(calledUrl).toContain("id_token=google-token-456");
+    expect(token).toBe("session-xyz");
+    expect(globalThis.localStorage.setItem).toHaveBeenCalledWith("asset-session-token", "session-xyz");
+    expect(store.hasSession).toBe(true);
   });
 
   it("shows cors error and does not fallback to mock when request is blocked", async () => {
@@ -127,7 +135,7 @@ describe("portfolio store", () => {
   });
 
 
-  it("shows guidance when GAS still expects bearer token", async () => {
+  it("reports the api auth error when no token is stored", async () => {
     globalThis.localStorage.getItem.mockReturnValue("");
     vi.stubGlobal(
       "fetch",
@@ -139,23 +147,23 @@ describe("portfolio store", () => {
 
     expect(store.source).toBe("");
     expect(store.data).toBe(null);
-    expect(store.error).toContain("GAS must read e.parameter.id_token");
+    expect(store.error).toContain("AUTH 401: missing id token");
   });
 
-  it("retries once when api returns missing id token even though token exists", async () => {
+  it("clears the stored session when api reports it expired or invalid", async () => {
     globalThis.localStorage.getItem.mockReturnValue("token-123");
     const fetchMock = vi
       .fn()
-      .mockResolvedValueOnce(successResponse({ status: 401, error: "missing id token" }))
-      .mockResolvedValueOnce(successResponse({ breakdown: [] }));
+      .mockResolvedValue(successResponse({ status: 401, error: "session expired or invalid" }));
     vi.stubGlobal("fetch", fetchMock);
 
     const store = usePortfolioStore();
     await store.fetchPortfolio();
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(store.error).toBe("");
-    expect(store.source).toBe("live");
+    expect(store.error).toContain("AUTH 401: session expired or invalid");
+    expect(store.hasSession).toBe(false);
+    expect(globalThis.localStorage.removeItem).toHaveBeenCalledWith("asset-session-token");
+    expect(store.source).toBe("");
   });
 
   it("allows retry after auth error", async () => {
@@ -309,7 +317,7 @@ describe("portfolio store", () => {
 
       expect(fetchMock.mock.calls[0][0]).toContain("share_token=share-token-1");
       expect(store.shareMode).toBe(true);
-      expect(store.hasIdToken).toBe(false);
+      expect(store.hasSession).toBe(false);
       expect(store.shareExpiresAt).toBe("2026-12-01T22:56:56.075Z");
       expect(store.source).toBe("live");
       expect(sessionStorage.getItem("asset-share-token")).toBe("share-token-1");
@@ -328,7 +336,7 @@ describe("portfolio store", () => {
       expect(store.shareExpiresAt).toBe("");
     });
 
-    it("marks hasIdToken when signed in and does not enter share mode", async () => {
+    it("marks hasSession when signed in and does not enter share mode", async () => {
       globalThis.localStorage.getItem.mockReturnValue("token-123");
       vi.stubGlobal("location", { hash: "#share=ignored-token" });
       const fetchMock = vi.fn().mockResolvedValue(successResponse({ breakdown: [] }));
@@ -337,9 +345,9 @@ describe("portfolio store", () => {
       const store = usePortfolioStore();
       await store.fetchPortfolio();
 
-      expect(fetchMock.mock.calls[0][0]).toContain("id_token=token-123");
+      expect(fetchMock.mock.calls[0][0]).toContain("session_token=token-123");
       expect(fetchMock.mock.calls[0][0]).not.toContain("share_token=");
-      expect(store.hasIdToken).toBe(true);
+      expect(store.hasSession).toBe(true);
       expect(store.shareMode).toBe(false);
     });
 
@@ -372,7 +380,7 @@ describe("portfolio store", () => {
       expect(store.source).toBe("");
     });
 
-    it("issues a share session with the stored id token", async () => {
+    it("issues a share session with the stored owner session", async () => {
       globalThis.localStorage.getItem.mockReturnValue("token-123");
       const fetchMock = vi.fn().mockResolvedValue(
         successResponse({
@@ -387,12 +395,12 @@ describe("portfolio store", () => {
       const issued = await store.issueShare();
 
       expect(fetchMock.mock.calls[0][0]).toContain("action=issue_share");
-      expect(fetchMock.mock.calls[0][0]).toContain("id_token=token-123");
+      expect(fetchMock.mock.calls[0][0]).toContain("session_token=token-123");
       expect(issued).toEqual({ token: "issued-token", expiresAt: "2026-12-01T22:56:56.075Z" });
       expect(store.issuedShare).toEqual(issued);
     });
 
-    it("issues a share session without an id token param when none is stored", async () => {
+    it("issues a share session without a session token param when none is stored", async () => {
       const fetchMock = vi.fn().mockResolvedValue(
         successResponse({ share_token: "t", expires_at: "2026-12-01T00:00:00.000Z" }),
       );
@@ -402,7 +410,7 @@ describe("portfolio store", () => {
       await store.issueShare();
 
       expect(fetchMock.mock.calls[0][0]).toContain("action=issue_share");
-      expect(fetchMock.mock.calls[0][0]).not.toContain("id_token=");
+      expect(fetchMock.mock.calls[0][0]).not.toContain("session_token=");
     });
 
     it("throws on auth error responses when issuing", async () => {

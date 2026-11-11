@@ -4,10 +4,13 @@ import { useUiStore } from "@/stores/ui";
 import { formatShareExpiry } from "@/domain/share";
 
 const THEME_STORAGE_KEY = "asset-theme";
-const ID_TOKEN_STORAGE_KEY = "asset-google-id-token";
+const SESSION_TOKEN_STORAGE_KEY = "asset-session-token";
+const LEGACY_ID_TOKEN_STORAGE_KEY = "asset-google-id-token";
 
 /**
  * Manage app shell state for auth, theme, and privacy.
+ * The idToken ref holds the 30-day owner session token exchanged at
+ * sign-in (not the 1-hour Google ID token, which is never stored).
  */
 export function useAppShellViewModel() {
   const theme = ref("dark");
@@ -57,10 +60,12 @@ export function useAppShellViewModel() {
   };
 
   /**
-   * Read id token from local storage.
+   * Read the owner session token from local storage, dropping any
+   * legacy stored Google ID token left by the old scheme.
    */
   const readSavedToken = () => {
-    idToken.value = localStorage.getItem(ID_TOKEN_STORAGE_KEY) || "";
+    localStorage.removeItem(LEGACY_ID_TOKEN_STORAGE_KEY);
+    idToken.value = localStorage.getItem(SESSION_TOKEN_STORAGE_KEY) || "";
   };
 
   /**
@@ -73,24 +78,26 @@ export function useAppShellViewModel() {
   };
 
   /**
-   * Log out and refresh data without token.
+   * Log out (revoking the owner session) and refresh data without it.
    */
   const logout = () => {
-    localStorage.removeItem(ID_TOKEN_STORAGE_KEY);
+    portfolioStore.revokeSession();
     idToken.value = "";
     clearPortfolioState();
     portfolioStore.fetchPortfolio();
   };
 
   /**
-   * Save Google credential and fetch live data.
+   * Exchange the Google credential for a 30-day owner session, then
+   * fetch live data with it.
    */
-  const handleGoogleCredential = (response) => {
+  const handleGoogleCredential = async (response) => {
     const credential = response?.credential;
     if (!credential) return;
-    idToken.value = credential;
-    localStorage.setItem(ID_TOKEN_STORAGE_KEY, credential);
-    portfolioStore.fetchPortfolio(credential);
+    const sessionToken = await portfolioStore.exchangeSession(credential);
+    if (!sessionToken) return;
+    idToken.value = sessionToken;
+    portfolioStore.fetchPortfolio();
   };
 
   /**
