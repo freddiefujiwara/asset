@@ -10,7 +10,7 @@ test('Verify Balance Sheet Treemap', async ({ page }) => {
 
   // Bypass login
   await page.addInitScript(() => {
-    window.localStorage.setItem('asset-google-id-token', 'mock-token');
+    window.localStorage.setItem('asset-session-token', 'mock-token');
   });
 
   await page.goto('http://localhost:5173/asset/balance-sheet');

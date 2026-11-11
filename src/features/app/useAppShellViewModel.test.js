@@ -24,6 +24,8 @@ vi.mock("@/stores/portfolio", () => ({
     get shareMode() { return portfolioState.value.shareMode ?? false; },
     get shareExpiresAt() { return portfolioState.value.shareExpiresAt ?? ""; },
     fetchPortfolio: vi.fn(),
+    exchangeSession: vi.fn(async () => "session-token"),
+    revokeSession: vi.fn(),
   }),
 }));
 const uiMock = { privacyMode: false, togglePrivacy: vi.fn(), setPrivacySuspended: vi.fn() };
