@@ -103,6 +103,22 @@ describe("FireSimulationChart.vue", () => {
     expect(wrapper.find(".tooltip").exists()).toBe(false);
   });
 
+  it("renders multiple annotations in position order", () => {
+    const annotations = [
+      { age: 65, label: "リタイア" },
+      { age: 44, label: "開始" },
+    ];
+    const wrapper = mount(FireSimulationChart, {
+      props: { data: sampleData, annotations },
+    });
+    expect(wrapper.text()).toContain("リタイア");
+    expect(wrapper.text()).toContain("開始");
+    const hoverLines = wrapper
+      .findAll("line")
+      .filter((l) => l.attributes("stroke") === "transparent");
+    expect(hoverLines.length).toBe(2);
+  });
+
   it("handles annotations with ages not in data", () => {
     const annotations = [{ age: 99, label: "Invalid" }];
     const wrapper = mount(FireSimulationChart, {

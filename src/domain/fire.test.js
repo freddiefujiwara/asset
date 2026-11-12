@@ -244,6 +244,16 @@ describe("fire domain", () => {
       expect(result.monthCount).toBe(12);
     });
 
+    it("counts other income categories toward monthly totals but not regular or bonus", () => {
+      const cashFlow = [
+        { date: "2026-02-01", amount: 300000, isTransfer: false, category: "収入/給与" },
+        { date: "2026-02-10", amount: 50000, isTransfer: false, category: "収入/その他" },
+      ];
+      const result = estimateIncomeSplit(cashFlow);
+      expect(result.regularMonthly).toBe(25000);
+      expect(result.bonusAnnual).toBe(0);
+    });
+
     it("handles edge cases for coverage in income split", () => {
       const cashFlow = [
         { date: "2026-02-01", amount: 100, isTransfer: true, category: "収入/給与" }, // transfer excluded

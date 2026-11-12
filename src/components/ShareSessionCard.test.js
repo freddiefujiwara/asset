@@ -14,6 +14,9 @@ const futureExpiry = () => new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISO
 
 describe("ShareSessionCard", () => {
   beforeEach(() => {
+    // Vitest 5 no longer surfaces the Vite `base` as import.meta.env.BASE_URL
+    // in the test environment; pin the production value explicitly.
+    vi.stubEnv("BASE_URL", "/asset/");
     portfolioStore = reactive({
       issuedShare: null,
       issueShare: vi.fn(async () => {

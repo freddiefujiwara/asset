@@ -1,3 +1,4 @@
+import { nextTick } from "vue";
 import { beforeEach, describe, expect, it } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
 import { useFireSimulatorStore } from "./fireSimulator";
@@ -62,5 +63,13 @@ describe("fireSimulator store derived values", () => {
 
     store.includeBonus = false;
     expect(store.annualBonus).toBe(0);
+  });
+
+  it("does not overwrite the manual first-year extra expense while its auto toggle is off", async () => {
+    const store = useFireSimulatorStore();
+    store.manualPostFireFirstYearExtraExpense = 12345;
+    store.useAutoFirstYearExtra = false;
+    await nextTick();
+    expect(store.manualPostFireFirstYearExtraExpense).toBe(12345);
   });
 });
