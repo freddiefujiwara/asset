@@ -38,9 +38,11 @@ function getShareToken() {
 }
 
 function buildApiUrlWithSession(sessionToken) {
+  /* v8 ignore start -- defensive: the only caller passes a non-empty token */
   if (!sessionToken) {
     return API_URL;
   }
+  /* v8 ignore stop */
 
   const url = new URL(API_URL);
   url.searchParams.set("session_token", sessionToken);

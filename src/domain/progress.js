@@ -199,6 +199,7 @@ function parseMonthKey(monthKey) {
 
 function monthKeyToIndex(monthKey) {
   const parsed = parseMonthKey(monthKey);
+  /* v8 ignore next -- defensive: callers only pass months that passed parseMonthKey */
   if (!parsed) return null;
   return parsed.year * 12 + (parsed.month - 1);
 }
@@ -211,6 +212,7 @@ function indexToMonthKey(index) {
 
 function addMonthsToMonthKey(monthKey, months) {
   const index = monthKeyToIndex(monthKey);
+  /* v8 ignore next -- defensive: callers only pass months that passed parseMonthKey */
   if (index == null) return null;
   return indexToMonthKey(index + months);
 }
@@ -262,6 +264,7 @@ function buildRetrospectiveParams({
     ...baseParams,
     initialAssets: initialAssetsYen,
     riskAssets: riskAssetsYen,
+    /* v8 ignore next -- defensive: snapshot months are pre-filtered by parseMonthKey */
     currentAge: ageAtSnapshotMonth(snapshot.month) ?? baseParams.currentAge,
     monthlyExpense:
       snapshot.livingCost12mAvgYen > 0
@@ -324,6 +327,7 @@ function projectAtSnapshot(snapshot, { baseParams, universityFundYen, sideFireAn
  * 前月がすでに到達可能な水準だった場合や、どちらかが見込みなしの場合は null。
  */
 function projectionDeltaMonths(previous, latest) {
+  /* v8 ignore next -- defensive: only called with both points present */
   if (!previous || !latest) return null;
   if (previous.alreadyReached) return null;
   if (!previous.projectedMonth || !latest.projectedMonth) return null;

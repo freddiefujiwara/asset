@@ -545,3 +545,10 @@ describe("cashFlow domain", () => {
     });
   });
 });
+
+describe("isSpecialExpense without a category", () => {
+  it("is false when the item has no category", () => {
+    expect(isSpecialExpense({ amount: -100, isTransfer: false })).toBe(false);
+    expect(isSpecialExpense({ amount: -100, category: null, isTransfer: false })).toBe(false);
+  });
+});

@@ -472,3 +472,110 @@ describe("portfolio store", () => {
   });
 
 });
+
+describe("portfolio store owner session lifecycle", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    vi.unstubAllGlobals();
+    vi.stubGlobal("localStorage", {
+      getItem: vi.fn().mockReturnValue(""),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+    });
+    globalThis.sessionStorage?.clear();
+  });
+
+  it("throws when the session exchange returns an HTTP error", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 500, json: async () => ({}) }));
+    const store = usePortfolioStore();
+    await expect(store.exchangeSession("google-id-token")).rejects.toThrow("HTTP 500");
+    expect(store.hasSession).toBe(false);
+  });
+
+  it("returns an empty token and records the error when the exchange is rejected", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(successResponse({ status: 403, error: "forbidden email" })));
+    const store = usePortfolioStore();
+    const token = await store.exchangeSession("google-id-token");
+    expect(token).toBe("");
+    expect(store.error).toBe("AUTH 403: forbidden email");
+    expect(store.hasSession).toBe(false);
+  });
+
+  it("uses a generic message when the exchange rejection has no error detail", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(successResponse({ status: 401 })));
+    const store = usePortfolioStore();
+    const token = await store.exchangeSession("google-id-token");
+    expect(token).toBe("");
+    expect(store.error).toBe("AUTH 401: unauthorized");
+  });
+
+  it("returns an empty token when the exchange response has no session token", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(successResponse({ expires_at: "2026-12-31T05:00:00.000Z" })));
+    const store = usePortfolioStore();
+    const token = await store.exchangeSession("google-id-token");
+    expect(token).toBe("");
+    expect(store.hasSession).toBe(false);
+  });
+
+  it("revokes the owner session and clears the stored token", async () => {
+    globalThis.localStorage.getItem.mockReturnValue("token-123");
+    const fetchMock = vi.fn().mockResolvedValue(successResponse({ revoked: true }));
+    vi.stubGlobal("fetch", fetchMock);
+    const store = usePortfolioStore();
+    await store.revokeSession();
+    expect(fetchMock.mock.calls[0][0]).toContain("action=revoke_session");
+    expect(globalThis.localStorage.removeItem).toHaveBeenCalledWith("asset-session-token");
+    expect(store.hasSession).toBe(false);
+  });
+
+  it("revokeSession does not call the API when no session is stored", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(successResponse({ revoked: true }));
+    vi.stubGlobal("fetch", fetchMock);
+    const store = usePortfolioStore();
+    await store.revokeSession();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(store.hasSession).toBe(false);
+  });
+
+  it("revokeSession still clears the local session when the API call fails", async () => {
+    globalThis.localStorage.getItem.mockReturnValue("token-123");
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network down")));
+    const store = usePortfolioStore();
+    await expect(store.revokeSession()).resolves.toBeUndefined();
+    expect(globalThis.localStorage.removeItem).toHaveBeenCalledWith("asset-session-token");
+    expect(store.hasSession).toBe(false);
+  });
+
+  it("throws a default message when revoking a share fails auth without detail", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(successResponse({ status: 401 })));
+    const store = usePortfolioStore();
+    await expect(store.revokeShare()).rejects.toThrow("AUTH 401: unauthorized");
+  });
+
+  it("fetches without any token parameters when nothing is stored", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(successResponse({ breakdown: [] }));
+    vi.stubGlobal("fetch", fetchMock);
+    const store = usePortfolioStore();
+    await store.fetchPortfolio();
+    const calledUrl = fetchMock.mock.calls[0][0];
+    expect(calledUrl).not.toContain("session_token=");
+    expect(calledUrl).not.toContain("share_token=");
+    expect(store.shareMode).toBe(false);
+  });
+
+  it("fetches without any token parameters when location is unavailable", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(successResponse({ breakdown: [] }));
+    vi.stubGlobal("fetch", fetchMock);
+    const originalLocation = globalThis.location;
+    vi.stubGlobal("location", undefined);
+    try {
+      const store = usePortfolioStore();
+      await store.fetchPortfolio();
+    } finally {
+      vi.stubGlobal("location", originalLocation);
+    }
+    const calledUrl = fetchMock.mock.calls[0][0];
+    expect(calledUrl).not.toContain("session_token=");
+    expect(calledUrl).not.toContain("share_token=");
+  });
+});

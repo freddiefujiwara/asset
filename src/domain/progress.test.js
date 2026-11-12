@@ -353,3 +353,92 @@ describe("PROGRESS_MILESTONES", () => {
     ]);
   });
 });
+
+describe("buildFireProgress edge cases", () => {
+  it("marks both runs as not reached when assets only shrink", () => {
+    const brokePortfolio = {
+      totals: { assetsYen: 12000000, liabilitiesYen: 0, netWorthYen: 12000000 },
+      holdings: {
+        cashLike: [{ "名称": "銀行預金", "残高": 12000000 }],
+        stocks: [],
+        funds: [],
+        pensions: [],
+        points: [],
+        liabilitiesDetail: [],
+      },
+    };
+    const brokeParams = {
+      ...baseParams,
+      monthlyIncome: 0,
+      monthlyInvestment: 0,
+      annualReturnRate: 0,
+      monthlyExpense: 900000,
+      includePension: false,
+      retirementLumpSumAtFire: 0,
+    };
+    const progress = buildFireProgress({ portfolio: brokePortfolio, baseParams: brokeParams });
+    expect(progress.side.reached).toBe(false);
+    expect(progress.side.alreadyReached).toBe(false);
+    expect(progress.side.monthsToReach).toBeNull();
+    expect(progress.side.requiredAssetsYen).toBeNull();
+    expect(progress.side.progressRate).toBeNull();
+    expect(progress.side.gapYen).toBeNull();
+    expect(progress.full.reached).toBe(false);
+  });
+
+  it("treats a missing portfolio as zero assets", () => {
+    const progress = buildFireProgress({ portfolio: null, baseParams });
+    expect(progress.totalAssetsYen).toBe(0);
+    expect(progress.fireTargetAssetsYen).toBe(0);
+  });
+
+  it("accepts a null postFireExtraExpense in the base params", () => {
+    const progress = buildFireProgress({
+      portfolio,
+      baseParams: { ...baseParams, postFireExtraExpense: null },
+    });
+    expect(progress.side).toBeTypeOf("object");
+    expect(progress.full).toBeTypeOf("object");
+  });
+});
+
+describe("buildProgressTrend edge cases", () => {
+  it("treats a non-array snapshots argument as empty", () => {
+    const trend = buildProgressTrend(null, {
+      universityFundYen: UNIVERSITY_FUND_YEN,
+      requiredAssetsYen: 100000000,
+    });
+    expect(trend.hasTrend).toBe(false);
+    expect(trend.points).toEqual([]);
+  });
+
+  it("reports a null progress rate when the required assets are zero", () => {
+    const trend = buildProgressTrend(
+      [
+        { month: "2026-10", totalAssetsYen: 77000000 },
+        { month: "2026-11", totalAssetsYen: 78139712 },
+      ],
+      { universityFundYen: UNIVERSITY_FUND_YEN, requiredAssetsYen: 0 },
+    );
+    expect(trend.points.map((point) => point.progressRate)).toEqual([null, null]);
+  });
+});
+
+describe("buildProjectionTrend edge cases", () => {
+  it("treats a non-array snapshots argument as empty", () => {
+    const trend = buildProjectionTrend(null, { baseParams });
+    expect(trend.hasTrend).toBe(false);
+    expect(trend.points).toEqual([]);
+    expect(trend.delta).toEqual({ side: null, full: null });
+  });
+
+  it("falls back to the base params for snapshots without amounts or averages", () => {
+    const { postFireExtraExpense, ...paramsWithoutExtra } = baseParams;
+    const trend = buildProjectionTrend([{ month: "2026-10" }, { month: "2026-11" }], {
+      baseParams: paramsWithoutExtra,
+    });
+    expect(trend.hasTrend).toBe(true);
+    expect(trend.points).toHaveLength(2);
+    expect(trend.points[0].fireTargetAssetsYen).toBe(0);
+  });
+});

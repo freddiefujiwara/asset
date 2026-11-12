@@ -80,3 +80,44 @@ describe("buildBalanceMonthlyChanges", () => {
     ]);
   });
 });
+
+describe("assetSummary edge cases", () => {
+  it("treats missing totals and a non-array category list as zero", () => {
+    const segments = buildAssetSegments({ totalAssetsYen: undefined, categoryCards: null });
+    expect(segments.totalAssetsYen).toBe(0);
+    expect(segments.ageLockedYen).toBe(0);
+  });
+
+  it("counts an age-locked card without an amount as zero", () => {
+    const segments = buildAssetSegments({
+      totalAssetsYen: 1000000,
+      categoryCards: [{ key: "pensions" }],
+    });
+    expect(segments.ageLockedYen).toBe(0);
+    expect(segments.usableBefore60Yen).toBe(1000000);
+  });
+
+  it("skips non-positive rows and reports a null ratio when the risk total is missing", () => {
+    const holdings = {
+      stocks: [
+        { "名称": "ゼロ株", "評価額": 0 },
+        { "名称": "主力株", "評価額": 500000 },
+      ],
+      funds: [],
+      pensions: [],
+    };
+    const largest = findLargestHolding(holdings, undefined);
+    expect(largest.name).toBe("主力株");
+    expect(largest.riskAssetsTotalYen).toBe(0);
+    expect(largest.ratioOfRiskAssetsPct).toBeNull();
+  });
+
+  it("treats non-array snapshots as unavailable monthly changes", () => {
+    expect(buildBalanceMonthlyChanges(null)).toEqual({
+      available: false,
+      month: "",
+      previousMonth: "",
+      rows: [],
+    });
+  });
+});

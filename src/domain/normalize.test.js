@@ -199,3 +199,14 @@ describe("normalizePortfolio", () => {
   });
 
 });
+
+describe("normalizePortfolio currency fallback", () => {
+  it("falls back to JPY when a cash flow row has an empty currency", () => {
+    const normalized = normalizePortfolio({
+      mfcf: [
+        { date: "2026-02-12", amount: -3000, currency: "", name: "Shop", category: "Food", is_transfer: false },
+      ],
+    });
+    expect(normalized.cashFlow[0].currency).toBe("JPY");
+  });
+});
