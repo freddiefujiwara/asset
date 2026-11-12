@@ -347,3 +347,62 @@ describe("holdings domain", () => {
     });
   });
 });
+
+describe("holdings edge cases", () => {
+  it("treats a missing holdings object as empty", () => {
+    expect(stockFundRows(null)).toEqual([]);
+    expect(stockFundRows(undefined)).toEqual([]);
+    const summary = riskAssetSummary(null);
+    expect(summary.totalYen).toBe(0);
+  });
+
+  it("ignores a non-array pensions field in the summary", () => {
+    const summary = riskAssetSummary({ stocks: [], funds: [], pensions: "n/a" });
+    expect(summary.totalYen).toBe(0);
+  });
+
+  it("fills in the symbol from a later row of the same fund", () => {
+    const tiles = fundTiles([
+      { "銘柄名": "投信A", "評価額": 100 },
+      { "銘柄名": "投信A", "銘柄コード": "1234", "評価額": 200 },
+    ]);
+    expect(tiles).toHaveLength(1);
+    expect(tiles[0].symbol).toBe("1234");
+  });
+
+  it("derives profit from the profit rate when no profit amount is given", () => {
+    const tiles = stockTiles([
+      { "銘柄名": "株A", "評価額": 10000, "評価損益率": 10, "前日比": 0 },
+    ]);
+    expect(tiles[0].profit).toBeCloseTo(909.09, 2);
+  });
+
+  it("reports a zero change rate when the cost basis is not positive", () => {
+    const tiles = pensionTiles([{ "名称": "年金A", "現在価値": 100, "評価損益": 150 }]);
+    expect(tiles[0].changeRate).toBe(0);
+  });
+
+  it("reports a zero change rate when the previous value is not positive", () => {
+    const tiles = stockTiles([
+      { "銘柄名": "株B", "評価額": 100, "前日比": 150, "評価損益": 0 },
+    ]);
+    expect(tiles[0].changeRate).toBe(0);
+  });
+
+  it("returns no pension tiles for a missing list", () => {
+    expect(pensionTiles(undefined)).toEqual([]);
+    expect(pensionTiles(null)).toEqual([]);
+  });
+
+  it("builds a search URL even without a name", () => {
+    expect(stockPriceUrl(undefined, "12")).toBe("https://www.google.com/search?q=");
+  });
+
+  it("falls back to the raw code for unknown symbols in the CSV", () => {
+    const csv = generateStockCsv([
+      { "銘柄コード": "12", "保有数": 3 },
+      { "保有数": 1 },
+    ]);
+    expect(csv).toBe("12,3\n,1");
+  });
+});

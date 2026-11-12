@@ -26,3 +26,10 @@ describe("parse helpers", () => {
     expect(toPercent("▲9.94%")).toBe(-9.94);
   });
 });
+
+describe("toNumber with missing values", () => {
+  it("treats null and undefined as zero", () => {
+    expect(toNumber(null)).toBe(0);
+    expect(toNumber(undefined)).toBe(0);
+  });
+});

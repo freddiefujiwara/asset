@@ -126,6 +126,7 @@ export function buildLivingCostCard(cashFlow, now = new Date()) {
   const topCategories = Array.from(labels)
     .map((label) => {
       const lastMonthYen = last.byLargeCategory[label] ?? 0;
+      /* v8 ignore next -- labels are the union of both maps and the window includes the last month */
       const averageYen = (windowByCategory[label] ?? 0) / 12;
       return {
         label,

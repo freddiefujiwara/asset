@@ -218,6 +218,7 @@ export function estimateIncomeSplit(cashFlow) {
     const category = item.category || "未分類";
     if (!category.startsWith("収入/")) return;
 
+    /* v8 ignore next -- processLookbackCashFlow only passes dated items in the lookback window */
     const month = item.date?.substring(0, 7) || "unknown";
     if (!monthlyTotals[month]) {
       monthlyTotals[month] = { totalIncome: 0, bonusSum: 0 };

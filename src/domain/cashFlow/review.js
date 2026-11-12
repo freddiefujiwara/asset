@@ -65,12 +65,14 @@ export function buildCashFlowReview(cashFlow, now = new Date()) {
   const categories = Array.from(labels)
     .map((label) => {
       const monthYen = target.byLargeCategory[label] ?? 0;
+      /* v8 ignore next -- labels are the union of both maps and the window includes the target month */
       const averageYen = (windowByCategory[label] ?? 0) / 12;
       return {
         label,
         monthYen,
         averageYen: Math.round(averageYen),
         excessYen: Math.round(monthYen - averageYen),
+        /* v8 ignore next -- the window includes the target month, so a listed label always has a positive average */
         ratioPct: averageYen > 0 ? Math.round((monthYen / averageYen - 1) * 100) : null,
       };
     })

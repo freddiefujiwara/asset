@@ -11,6 +11,7 @@
  * @returns {boolean}
  */
 function hasAccountingNegativeMarker(raw) {
+  /* v8 ignore next -- both callers pass only strings (typeof-guarded), so raw is never nullish */
   const normalized = String(raw ?? "").trim();
   return (normalized.startsWith("(") && normalized.endsWith(")")) || /^[▲△]/.test(normalized);
 }

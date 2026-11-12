@@ -290,3 +290,48 @@ describe("monthly checklist helpers", () => {
     expect(parseChecklistState('{"a":1}')).toEqual([]);
   });
 });
+
+describe("home cards edge cases", () => {
+  it("builds the living cost card for a missing cash flow list", () => {
+    const card = buildLivingCostCard(null, NOW);
+    expect(card.lastMonth.amountYen).toBe(0);
+    expect(card.topCategories).toEqual([]);
+  });
+
+  it("combines categories seen only in the window or only in the last month", () => {
+    const cashFlow = [];
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(2025, 10 + i, 5);
+      const month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      if (month !== "2026-10") {
+        cashFlow.push(item({ date: `${month}-05`, amount: -1000, category: "日用品/消耗品" }));
+      }
+    }
+    cashFlow.push(item({ date: "2026-10-05", amount: -5000, category: "食費/食料品" }));
+    const card = buildLivingCostCard(cashFlow, NOW);
+    const food = card.topCategories.find((category) => category.label === "食費");
+    expect(food).toMatchObject({ lastMonthYen: 5000, averageYen: 417 });
+  });
+
+  it("groups rows with missing or empty large categories under 未分類", () => {
+    const card = buildLivingCostCard(
+      [
+        item({ date: "2026-10-03", amount: -1000, category: undefined }),
+        item({ date: "2026-10-04", amount: -2000, category: "" }),
+        item({ date: "2026-10-05", amount: -4000, category: "/その他" }),
+      ],
+      NOW,
+    );
+    expect(card.lastMonth.amountYen).toBe(7000);
+  });
+
+  it("treats rows without a name or category as non-special, non-investment rows", () => {
+    expect(isInvestmentExecution({ amount: -100 })).toBe(false);
+    expect(listSpecialExpenses([{ date: "2026-10-01", amount: -100 }], "2026-10")).toEqual([]);
+    expect(listSpecialExpenses(null, "2026-10")).toEqual([]);
+  });
+
+  it("builds the freshness card for a missing cash flow list", () => {
+    expect(buildFreshnessCard(null, NOW)).toBeTypeOf("object");
+  });
+});
