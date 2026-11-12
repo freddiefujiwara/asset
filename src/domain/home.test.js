@@ -188,6 +188,14 @@ describe("special expenses", () => {
     ]);
   });
 
+  it("sorts multiple special expenses in the same month by date descending", () => {
+    const sameMonth = [
+      item({ date: "2026-10-02", amount: -1000, name: "A", category: "特別な支出/その他特別な支出" }),
+      item({ date: "2026-10-20", amount: -2000, name: "B", category: "特別な支出/家具・家電" }),
+    ];
+    expect(listSpecialExpenses(sameMonth, "2026-10").map((e) => e.name)).toEqual(["B", "A"]);
+  });
+
   it("builds the card for last and current month without a status", () => {
     const card = buildSpecialExpenseCard(rows, NOW);
     expect(card.lastMonth.totalYen).toBe(162550);

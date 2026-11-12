@@ -54,6 +54,21 @@ describe("family domain", () => {
     expect(groups.find((g) => g.ownerLabel === "娘")?.items[0]?.profitRatePct).toBe(33.3);
   });
 
+  it("treats holdings without daily-move or profit fields as no move and no profit", () => {
+    const groups = summarizeFamilyAssets({
+      cashLike: [],
+      stocks: [{ 銘柄名: "Plain@freddie", 評価額: "400" }],
+      funds: [],
+      pensions: [],
+      points: [],
+    });
+
+    const me = groups.find((g) => g.ownerLabel === "私");
+    expect(me?.totalYen).toBe(400);
+    expect(me?.dailyMoveYen).toBe(0);
+    expect(me?.profitYen).toBe(0);
+  });
+
   it("returns null group profit rate when principal is zero", () => {
     const groups = summarizeFamilyAssets({
       cashLike: [],

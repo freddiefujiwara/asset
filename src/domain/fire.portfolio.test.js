@@ -25,7 +25,7 @@ describe("fire domain", () => {
           funds: [{ "名称": "D@aojiru.pudding", "評価額": 300 }],
           pensions: [{ "名称": "E@aojiru.pudding", "現在価値": 400 }],
           points: [{ "名称": "F@aojiru.pudding", "残高": 50 }],
-          liabilitiesDetail: [{ "名称": "G@aojiru.pudding", "残高": 500 }],
+          liabilitiesDetail: [{ "名称": "G@aojiru.pudding", "残高": 500 }, { "名称": "H", "残高": 700 }],
         }
       };
       const result = calculateDaughterAssetsBreakdown(portfolio);

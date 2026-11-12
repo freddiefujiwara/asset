@@ -154,7 +154,8 @@ export function estimateMonthlyExpenses(cashFlow) {
 
     if (type === "fixed") {
       totalFixedExpense += absAmount;
-    } else if (type === "variable") {
+    } else {
+      // exclude は上で return 済みのため、ここに残るのは variable のみ
       totalVariableExpense += absAmount;
     }
 
@@ -246,12 +247,12 @@ export function estimateIncomeSplit(cashFlow) {
   const bonusAnnual = peakMonth ? (monthlyTotals[peakMonth].bonusSum * 2) : 0;
   const regularMonthly = Math.round(totalRegularIncome / divisor);
 
-  const regularBreakdown = Object.entries(regularBreakdownMap)
-    .map(([name, total]) => ({
-      name,
-      amount: Math.round(total / divisor),
-    }))
-    .sort((a, b) => b.amount - a.amount);
+  const regularBreakdown = Object.entries(regularBreakdownMap).map(([name, total]) => ({
+    name,
+    amount: Math.round(total / divisor),
+  }));
+  /* v8 ignore next -- regularBreakdownMap のキーは「収入/給与」のみで要素は最大1件のため、比較関数は実行されない */
+  regularBreakdown.sort((a, b) => b.amount - a.amount);
 
   const bonusBreakdown = peakMonth && monthlyTotals[peakMonth].bonusSum > 0
     ? [{
@@ -670,6 +671,7 @@ function _runCoreSimulation(params, { recordMonthly = false, fireMonth = -1, ret
 
     if (recordMonthly && m <= maxMonths) {
       const last = monthlyData[monthlyData.length - 1];
+      /* v8 ignore else -- 同じ条件のブロックで同一イテレーション中に push されるため、last は常に存在する */
       if (last) {
         last.investmentGain = investmentGain;
         last.withdrawal = monthlyWithdrawal;

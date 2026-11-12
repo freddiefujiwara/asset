@@ -64,7 +64,9 @@ export function aggregateByMonth(cashFlow, { includeNet = true } = {}) {
         months[month].fixed += absAmount;
       } else if (type === "variable") {
         months[month].variable += absAmount;
-      } else if (type === "exclude") {
+      } else {
+        // type は special/fixed/variable のいずれでもなければ exclude のみ
+        // （getExpenseType の戻り値がこの3値＋special に限られるため）
         months[month].exclude += absAmount;
       }
     }
@@ -179,6 +181,7 @@ export function aggregateByType(cashFlow, { averageMonths = 0, excludeCurrentMon
       return;
     }
     const type = getExpenseType(item);
+    /* v8 ignore else -- getExpenseType の戻り値は types のキー（fixed/variable/exclude）のいずれか */
     if (types[type]) {
       types[type].value += Math.abs(item.amount);
     }
