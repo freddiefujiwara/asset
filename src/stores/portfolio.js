@@ -1,14 +1,19 @@
 import { defineStore } from "pinia";
 import { normalizePortfolio } from "@/domain/normalize";
 import { parseShareToken } from "@/domain/share";
+import { isStagingBuild } from "@/staging-banner.js";
 import sampleApi from "@/mocks/sampleApi.json";
 
 const API_URL =
   import.meta.env.VITE_GAS_ENDPOINT ??
   "https://script.google.com/macros/s/AKfycbxjQAp6rtSCUTz4T5J96_-zCs9Vrae-7uhZXY7ZIukOZP5fs_HIf44aOAfcN3XfPkis/exec";
-const SESSION_TOKEN_STORAGE_KEY = "asset-session-token";
+// Storage keys are environment-scoped: localStorage is shared across
+// the whole origin, so staging builds must never read or overwrite the
+// production tokens (same pattern as tweet/alarm).
+const storageKey = (base) => (isStagingBuild() ? `${base}:staging` : base);
+export const SESSION_TOKEN_STORAGE_KEY = storageKey("asset-session-token");
 const LEGACY_ID_TOKEN_STORAGE_KEY = "asset-google-id-token";
-const SHARE_TOKEN_STORAGE_KEY = "asset-share-token";
+export const SHARE_TOKEN_STORAGE_KEY = storageKey("asset-share-token");
 
 // Sign-in uses a 30-day owner session issued by the API in exchange for
 // the (1-hour) Google ID token; the raw ID token is never stored.

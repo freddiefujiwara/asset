@@ -1,10 +1,12 @@
 import { computed, nextTick, onMounted, ref, watch } from "vue";
-import { usePortfolioStore } from "@/stores/portfolio";
+import {
+  SESSION_TOKEN_STORAGE_KEY,
+  usePortfolioStore,
+} from "@/stores/portfolio";
 import { useUiStore } from "@/stores/ui";
 import { formatShareExpiry } from "@/domain/share";
 
 const THEME_STORAGE_KEY = "asset-theme";
-const SESSION_TOKEN_STORAGE_KEY = "asset-session-token";
 const LEGACY_ID_TOKEN_STORAGE_KEY = "asset-google-id-token";
 
 /**
