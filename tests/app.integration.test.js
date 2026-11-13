@@ -10,6 +10,7 @@ let fireSimulatorStore;
 let fetchPortfolioMock;
 
 vi.mock("@/stores/portfolio", () => ({
+  SESSION_TOKEN_STORAGE_KEY: "asset-session-token",
   usePortfolioStore: () => portfolioStore,
 }));
 
