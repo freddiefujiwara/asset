@@ -45,6 +45,10 @@ describe("buildCashFlowReview", () => {
         averageYen: 1333,
         excessYen: 3667,
         ratioPct: 275,
+        topExpenses: [
+          { date: "2026-10-20", name: "item", amountYen: 4000 },
+          { date: "2026-10-06", name: "item", amountYen: 1000 },
+        ],
       },
     ]);
     expect(review.special.totalYen).toBe(50000);
@@ -79,6 +83,32 @@ describe("buildCashFlowReview", () => {
       "食費",
       "交通費",
       "娯楽",
+    ]);
+  });
+});
+
+describe("buildCashFlowReview top expenses", () => {
+  it("keeps only the three largest expenses of the target month per category", () => {
+    const cashFlow = [];
+    windowMonths().forEach((month) => {
+      cashFlow.push(row(`${month}-05`, -1000, "日用品/消耗品"));
+    });
+    cashFlow.push(row("2026-10-02", -500, "日用品/日用品", "小物"));
+    cashFlow.push(row("2026-10-03", -9000, "日用品/日用品", "まとめ買い"));
+    cashFlow.push(row("2026-10-04", -3000, "日用品/日用品", "洗剤"));
+    cashFlow.push(row("2026-10-05", -9000, "日用品/日用品", "同額の買い物"));
+    // 振替・収入・除外分類はトップ3にも入らない
+    cashFlow.push({ date: "2026-10-06", amount: -99999, category: "日用品/日用品", name: "振替", isTransfer: true });
+    cashFlow.push(row("2026-10-07", 88888, "日用品/日用品", "収入"));
+    cashFlow.push(row("2026-10-08", -77777, "現金・カード/電子マネー", "チャージ"));
+
+    const review = buildCashFlowReview(cashFlow, NOW);
+    const daily = review.categories.find((category) => category.label === "日用品");
+    // 同額は日付の新しい順
+    expect(daily.topExpenses).toEqual([
+      { date: "2026-10-05", name: "同額の買い物", amountYen: 9000 },
+      { date: "2026-10-03", name: "まとめ買い", amountYen: 9000 },
+      { date: "2026-10-04", name: "洗剤", amountYen: 3000 },
     ]);
   });
 });

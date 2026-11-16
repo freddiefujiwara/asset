@@ -1,19 +1,17 @@
-import { computed, ref } from "vue";
+import { computed } from "vue";
 import { usePortfolioData } from "@/composables/usePortfolioData";
 import { usePortfolioStore } from "@/stores/portfolio";
 import { useFireBaseParams } from "@/features/fireSimulator/useFireBaseParams";
 import { fireDate, formatMonths } from "@/features/fireSimulator/formatters";
-import { DEADLINE_DEFINITIONS } from "@/config/deadlines";
 import {
+  buildAssetDailyChange,
   buildAttentionItems,
-  buildDeadlineItems,
   buildFreshnessCard,
   buildHeadline,
   buildInvestmentCard,
-  buildMonthlyChecklist,
-  checklistStorageKey,
-  parseChecklistState,
+  buildRecentExpenses,
 } from "@/domain/home";
+import { riskAssetSummary } from "@/domain/holdings";
 import { buildCashFlowReview } from "@/domain/cashFlow/review";
 import {
   SIDE_FIRE_ANNUAL_INCOME_YEN,
@@ -24,10 +22,9 @@ import {
 
 /**
  * ホーム画面（アクション型ダッシュボード）のビューモデル。
- * 判定はすべてドメイン層で行い、ここはデータ接続とチェックリストの
- * localStorage 保存だけを担う。
- * 構成: 一行の結論 → 期限のあるアクション → FIRE進捗の要点 →
- * 要確認（最大3件）→ 月次チェックリスト。
+ * 判定はすべてドメイン層で行い、ここはデータ接続だけを担う。
+ * 構成: 一行の結論 → 資産推移（前日比と主な原因）→ 要確認（最大3件）→
+ * 過去3日間の支出 → FIRE進捗の要点（一番下）。
  */
 export function useHomeViewModel() {
   const { data, loading, error } = usePortfolioData();
@@ -51,8 +48,17 @@ export function useHomeViewModel() {
     }),
   );
 
-  // 期限のあるアクション（静的設定 @/config/deadlines）。
-  const deadlineItems = computed(() => buildDeadlineItems(DEADLINE_DEFINITIONS, now));
+  // 資産推移: 保有明細の前日比を集計する。リスク資産の現在額も併せて出す。
+  const assetDaily = computed(() => {
+    const holdings = data.value?.holdings;
+    return {
+      ...buildAssetDailyChange(holdings),
+      riskAssetsYen: riskAssetSummary(holdings).totalYen,
+    };
+  });
+
+  // 過去3日間の支出（明細の最新日を末日にする）。
+  const recentExpenses = computed(() => buildRecentExpenses(cashFlow.value));
 
   // FIRE進捗の要点（完全FIRE）。共有モードでは /progress と同様に出さない。
   const fireProgress = computed(() =>
@@ -107,49 +113,14 @@ export function useHomeViewModel() {
     }),
   );
 
-  // 月次チェックリスト: キーに年月を含むため、月替わりで自動リセットされる。
-  // 先月の投資が基準どおりなら、データ判定で自動的にチェック済みにする。
-  const storageKey = checklistStorageKey(now);
-  const readStoredCheckedIds = () => {
-    try {
-      return parseChecklistState(globalThis.localStorage?.getItem(storageKey));
-    } catch {
-      return [];
-    }
-  };
-  const checkedIds = ref(readStoredCheckedIds());
-  const autoCheckedIds = computed(() =>
-    investmentCard.value.status === "ok" ? ["investment-standard"] : [],
-  );
-  const checklistItems = computed(() =>
-    buildMonthlyChecklist(checkedIds.value, autoCheckedIds.value),
-  );
-  const toggleChecklistItem = (id) => {
-    // 自動確認済みの項目は手動で切り替えられない。
-    if (autoCheckedIds.value.includes(id)) return;
-    const next = new Set(checkedIds.value);
-    if (next.has(id)) {
-      next.delete(id);
-    } else {
-      next.add(id);
-    }
-    checkedIds.value = Array.from(next);
-    try {
-      globalThis.localStorage?.setItem(storageKey, JSON.stringify(checkedIds.value));
-    } catch {
-      // 保存できなくても画面のチェック状態は維持する
-    }
-  };
-
   return {
     loading,
     error,
     shareMode,
     headline,
-    deadlineItems,
-    fireSummary,
+    assetDaily,
     attention,
-    checklistItems,
-    toggleChecklistItem,
+    recentExpenses,
+    fireSummary,
   };
 }

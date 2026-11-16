@@ -64,7 +64,10 @@ export function buildAttentionItems({ investmentCard, freshnessCard, review } = 
       averageYen: category.averageYen,
       excessYen: category.excessYen,
       ratioPct: category.ratioPct,
-      linkTo: "/cash-flow",
+      // 「詳細を見る」で別画面へ飛ばす代わりに、そのカテゴリの先月の
+      // 支出トップ3をカード内に直接出すための明細。
+      topExpenses: Array.isArray(category.topExpenses) ? category.topExpenses : [],
+      linkTo: null,
     });
   });
 
