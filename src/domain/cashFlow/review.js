@@ -33,6 +33,36 @@ function livingCostByLargeCategory(cashFlow, monthKey) {
   return { total, byLargeCategory };
 }
 
+/** カテゴリ別に表示する、その月の支出トップ件数。 */
+export const REVIEW_TOP_EXPENSE_LIMIT = 3;
+
+/**
+ * 対象月の大カテゴリごとに、金額の大きい支出をトップ3まで返す。
+ * 集計条件は livingCostByLargeCategory と揃える（振替・収入・除外分類は除く）。
+ * 「なぜそのカテゴリが平均を上回ったか」を明細そのもので示すための材料。
+ */
+function topExpensesByLargeCategory(cashFlow, monthKey) {
+  const byLargeCategory = new Map();
+  (cashFlow ?? []).forEach((item) => {
+    if (getMonthKey(item) !== monthKey) return;
+    if (item.isTransfer || Number(item.amount) >= 0) return;
+    if (getExpenseType(item) === "exclude") return;
+    const largeCategory = String(item.category ?? "未分類").split("/")[0] || "未分類";
+    const entries = byLargeCategory.get(largeCategory) ?? [];
+    entries.push({
+      date: item.date,
+      name: item.name,
+      amountYen: Math.abs(Number(item.amount)),
+    });
+    byLargeCategory.set(largeCategory, entries);
+  });
+  byLargeCategory.forEach((entries, label) => {
+    entries.sort((a, b) => b.amountYen - a.amountYen || b.date.localeCompare(a.date));
+    byLargeCategory.set(label, entries.slice(0, REVIEW_TOP_EXPENSE_LIMIT));
+  });
+  return byLargeCategory;
+}
+
 /**
  * @param {Array} cashFlow 正規化済み明細
  * @param {Date} [now]
@@ -41,7 +71,7 @@ function livingCostByLargeCategory(cashFlow, monthKey) {
  *   livingCostYen: number,
  *   averageLivingCostYen: number,
  *   livingCostOverAverage: boolean,
- *   categories: Array<{label: string, monthYen: number, averageYen: number, excessYen: number, ratioPct: number|null}>,
+ *   categories: Array<{label: string, monthYen: number, averageYen: number, excessYen: number, ratioPct: number|null, topExpenses: Array<{date: string, name: string, amountYen: number}>}>,
  *   special: { totalYen: number, items: Array<{date: string, name: string, category: string, amountYen: number}> },
  * }}
  */
@@ -60,6 +90,7 @@ export function buildCashFlowReview(cashFlow, now = new Date()) {
     });
   }
   const average = windowTotal / 12;
+  const topExpenses = topExpensesByLargeCategory(cashFlow, targetMonth);
 
   const labels = new Set([...Object.keys(windowByCategory), ...Object.keys(target.byLargeCategory)]);
   const categories = Array.from(labels)
@@ -74,6 +105,7 @@ export function buildCashFlowReview(cashFlow, now = new Date()) {
         excessYen: Math.round(monthYen - averageYen),
         /* v8 ignore next -- the window includes the target month, so a listed label always has a positive average */
         ratioPct: averageYen > 0 ? Math.round((monthYen / averageYen - 1) * 100) : null,
+        topExpenses: topExpenses.get(label) ?? [],
       };
     })
     // カテゴリ単位の掲載条件: 基準（12か月平均）の +10% 超。

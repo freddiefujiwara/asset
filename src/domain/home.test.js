@@ -1,28 +1,25 @@
 import { describe, expect, it } from "vitest";
 import {
+  ASSET_DAILY_CONTRIBUTOR_LIMIT,
   ATTENTION_ITEM_LIMIT,
   ATTENTION_SPECIAL_EXPENSE_YEN,
   CARD_STATUS,
-  DEADLINE_DISPLAY_LEAD_DAYS,
-  MONTHLY_CHECKLIST_ITEMS,
+  RECENT_EXPENSE_DAYS,
+  buildAssetDailyChange,
   buildAttentionItems,
-  buildDeadlineItems,
   buildFreshnessCard,
   buildHeadline,
   buildInvestmentCard,
   buildLivingCostCard,
   buildMilestoneCard,
-  buildMonthlyChecklist,
   buildMonthlyChanges,
+  buildRecentExpenses,
   buildSpecialExpenseCard,
-  checklistStorageKey,
   isInvestmentExecution,
   listSpecialExpenses,
-  parseChecklistState,
   shiftMonthKey,
   sumInvestmentExecutions,
 } from "./home";
-import { DEADLINE_DEFINITIONS } from "@/config/deadlines";
 
 const NOW = new Date(2026, 10, 10); // 2026-11-10
 
@@ -296,29 +293,6 @@ describe("buildMonthlyChanges", () => {
   });
 });
 
-describe("monthly checklist helpers", () => {
-  it("has the four items in order", () => {
-    expect(MONTHLY_CHECKLIST_ITEMS.map((item) => item.label)).toEqual([
-      "先月の特別支出を確認した",
-      "先月の投資が基準どおりだった",
-      "生活費の超過カテゴリを見た",
-      "FIRE進捗を確認した",
-    ]);
-  });
-
-  it("keys storage by month so a new month resets automatically", () => {
-    expect(checklistStorageKey(new Date(2026, 10, 10))).toBe("asset-monthly-checklist:2026-11");
-    expect(checklistStorageKey(new Date(2026, 11, 1))).toBe("asset-monthly-checklist:2026-12");
-  });
-
-  it("parses saved state and drops unknown ids and broken json", () => {
-    expect(parseChecklistState('["investment-standard","bogus"]')).toEqual(["investment-standard"]);
-    expect(parseChecklistState("not-json")).toEqual([]);
-    expect(parseChecklistState(null)).toEqual([]);
-    expect(parseChecklistState('{"a":1}')).toEqual([]);
-  });
-});
-
 describe("home cards edge cases", () => {
   it("builds the living cost card for a missing cash flow list", () => {
     const card = buildLivingCostCard(null, NOW);
@@ -361,134 +335,6 @@ describe("home cards edge cases", () => {
 
   it("builds the freshness card for a missing cash flow list", () => {
     expect(buildFreshnessCard(null, NOW)).toBeTypeOf("object");
-  });
-});
-
-describe("buildDeadlineItems with the configured definitions", () => {
-  it("shows the iDeCo window and the share link expiry 45 days ahead, sorted by countdown", () => {
-    const items = buildDeadlineItems(DEADLINE_DEFINITIONS, new Date(2026, 10, 17));
-    expect(items.map((item) => item.id)).toEqual([
-      "ideco-increase-application",
-      "share-link-expiry",
-    ]);
-    expect(items[0]).toMatchObject({
-      kind: "window",
-      phase: "upcoming",
-      daysUntilStart: 14,
-      countdownDays: 14,
-      targetDate: "2026-12-01",
-    });
-    expect(items[1]).toMatchObject({
-      kind: "deadline",
-      phase: "upcoming",
-      daysUntilEnd: 15,
-      countdownDays: 15,
-      targetDate: "2026-12-02",
-    });
-  });
-
-  it("counts down to the window end while the iDeCo window is open, and drops the expired link", () => {
-    const items = buildDeadlineItems(DEADLINE_DEFINITIONS, new Date(2026, 11, 10));
-    expect(items.map((item) => item.id)).toEqual([
-      "ideco-increase-application",
-      "chatgpt-business-cancel",
-    ]);
-    expect(items[0]).toMatchObject({ phase: "active", daysUntilStart: 0, daysUntilEnd: 14, countdownDays: 14, targetDate: "2026-12-24" });
-    expect(items[1]).toMatchObject({ phase: "upcoming", countdownDays: 30, targetDate: "2027-01-09" });
-  });
-
-  it("shows the OpenMoney repost countdown and marks it available from the start date", () => {
-    const before = buildDeadlineItems(DEADLINE_DEFINITIONS, new Date(2027, 0, 20));
-    expect(before.map((item) => item.id)).toEqual(["openmoney-repost"]);
-    expect(before[0]).toMatchObject({ kind: "available-from", phase: "upcoming", daysUntilStart: 8, countdownDays: 8 });
-
-    const onDay = buildDeadlineItems(DEADLINE_DEFINITIONS, new Date(2027, 0, 28));
-    expect(onDay).toHaveLength(1);
-    expect(onDay[0]).toMatchObject({ phase: "active", daysUntilStart: 0, countdownDays: 0 });
-
-    // 終了日が無いため、開始後も「対応可能」として残る
-    const later = buildDeadlineItems(DEADLINE_DEFINITIONS, new Date(2027, 2, 1));
-    expect(later.map((item) => item.id)).toEqual(["openmoney-repost"]);
-  });
-
-  it("hides a deadline on the day after it passes", () => {
-    const items = buildDeadlineItems(DEADLINE_DEFINITIONS, new Date(2027, 0, 10));
-    expect(items.map((item) => item.id)).not.toContain("chatgpt-business-cancel");
-  });
-});
-
-describe("buildDeadlineItems rules", () => {
-  const windowDef = {
-    id: "w",
-    label: "期間もの",
-    kind: "window",
-    startDate: "2026-12-01",
-    endDate: "2026-12-24",
-  };
-
-  it("shows a window exactly 45 days before it starts but not 46 days before", () => {
-    expect(buildDeadlineItems([windowDef], new Date(2026, 9, 17))).toHaveLength(1);
-    expect(buildDeadlineItems([windowDef], new Date(2026, 9, 16))).toHaveLength(0);
-  });
-
-  it("keeps a window on its last day and hides it the day after", () => {
-    const lastDay = buildDeadlineItems([windowDef], new Date(2026, 11, 24));
-    expect(lastDay[0]).toMatchObject({ phase: "active", countdownDays: 0 });
-    expect(buildDeadlineItems([windowDef], new Date(2026, 11, 25))).toHaveLength(0);
-  });
-
-  it("shows a deadline exactly 45 days ahead but not 46", () => {
-    const def = { id: "d", label: "締切", kind: "deadline", endDate: "2026-12-02" };
-    expect(buildDeadlineItems([def], new Date(2026, 9, 18))).toHaveLength(1);
-    expect(buildDeadlineItems([def], new Date(2026, 9, 17))).toHaveLength(0);
-    expect(buildDeadlineItems([def], new Date(2026, 11, 2))[0]).toMatchObject({ countdownDays: 0 });
-    expect(buildDeadlineItems([def], new Date(2026, 11, 3))).toHaveLength(0);
-  });
-
-  it("shows an available-from item exactly 45 days ahead but not 46", () => {
-    const def = { id: "a", label: "開始", kind: "available-from", startDate: "2027-01-28" };
-    expect(buildDeadlineItems([def], new Date(2026, 11, 14))).toHaveLength(1);
-    expect(buildDeadlineItems([def], new Date(2026, 11, 13))).toHaveLength(0);
-  });
-
-  it("sorts by countdown and breaks ties by id", () => {
-    const defs = [
-      { id: "b-item", label: "B", kind: "deadline", endDate: "2026-12-10" },
-      { id: "a-item", label: "A", kind: "deadline", endDate: "2026-12-10" },
-      { id: "c-item", label: "C", kind: "deadline", endDate: "2026-12-05" },
-    ];
-    const items = buildDeadlineItems(defs, new Date(2026, 11, 1));
-    expect(items.map((item) => item.id)).toEqual(["c-item", "a-item", "b-item"]);
-  });
-
-  it("defaults the note to an empty string", () => {
-    const def = { id: "d", label: "締切", kind: "deadline", endDate: "2026-12-02" };
-    expect(buildDeadlineItems([def], new Date(2026, 11, 1))[0].note).toBe("");
-  });
-
-  it("skips invalid definitions", () => {
-    const defs = [
-      null,
-      "not-an-object",
-      { label: "IDなし", kind: "deadline", endDate: "2026-12-02" },
-      { id: "no-label", kind: "deadline", endDate: "2026-12-02" },
-      { id: "bad-format", label: "x", kind: "deadline", endDate: "2026/12/02" },
-      { id: "bad-month", label: "x", kind: "deadline", endDate: "2026-13-01" },
-      { id: "bad-day", label: "x", kind: "deadline", endDate: "2026-02-30" },
-      { id: "no-end", label: "x", kind: "deadline" },
-      { id: "reversed", label: "x", kind: "window", startDate: "2026-12-24", endDate: "2026-12-01" },
-      { id: "window-bad-start", label: "x", kind: "window", startDate: "oops", endDate: "2026-12-01" },
-      { id: "window-bad-end", label: "x", kind: "window", startDate: "2026-12-01", endDate: "oops" },
-      { id: "no-start", label: "x", kind: "available-from" },
-      { id: "unknown-kind", label: "x", kind: "other", startDate: "2026-12-01", endDate: "2026-12-02" },
-    ];
-    expect(buildDeadlineItems(defs, new Date(2026, 11, 1))).toEqual([]);
-  });
-
-  it("returns an empty list for missing or non-array definitions", () => {
-    expect(buildDeadlineItems(null, NOW)).toEqual([]);
-    expect(buildDeadlineItems(undefined, NOW)).toEqual([]);
-    expect(DEADLINE_DISPLAY_LEAD_DAYS).toBe(45);
   });
 });
 
@@ -629,6 +475,26 @@ describe("buildAttentionItems", () => {
     expect(result.items[0]).toMatchObject({ label: "衣服・美容", excessYen: 15063, ratioPct: 80 });
   });
 
+  it("carries the category top expenses inline instead of a detail link", () => {
+    const topExpenses = [
+      { date: "2026-10-12", name: "美容室", amountYen: 12000 },
+      { date: "2026-10-05", name: "衣類", amountYen: 8000 },
+    ];
+    const result = buildAttentionItems({
+      ...okCards,
+      review: {
+        ...okCards.review,
+        categories: [
+          { label: "衣服・美容", monthYen: 33776, averageYen: 18713, excessYen: 15063, ratioPct: 80, topExpenses },
+          { label: "日用品", monthYen: 20585, averageYen: 18025, excessYen: 2560, ratioPct: 14 },
+        ],
+      },
+    });
+    expect(result.items[0]).toMatchObject({ topExpenses, linkTo: null });
+    // topExpenses が無いカテゴリは空配列になる
+    expect(result.items[1]).toMatchObject({ topExpenses: [], linkTo: null });
+  });
+
   it("adds the overall living cost item when it is over the average", () => {
     const result = buildAttentionItems({
       ...okCards,
@@ -702,20 +568,141 @@ describe("buildAttentionItems", () => {
   });
 });
 
-describe("buildMonthlyChecklist", () => {
-  it("marks stored items as checked", () => {
-    const items = buildMonthlyChecklist(["fire-progress"]);
-    expect(items.find((item) => item.id === "fire-progress")).toMatchObject({ checked: true, auto: false });
-    expect(items.find((item) => item.id === "special-expenses")).toMatchObject({ checked: false, auto: false });
+describe("buildAssetDailyChange", () => {
+  it("sums the daily change and ranks contributors by absolute contribution", () => {
+    const result = buildAssetDailyChange({
+      stocks: [
+        { 銘柄名: "楽天株", 評価額: "1000000", 前日比: "-30000" },
+        { 銘柄名: "ETF", 評価額: "500000", 前日比: "5000" },
+      ],
+      funds: [
+        { 銘柄名: "オルカン", 評価額: "8000000", 前日比: "-120000" },
+        { 銘柄名: "先進国ファンド", 評価額: "2000000", 前日比: "10000" },
+      ],
+    });
+    expect(result.hasData).toBe(true);
+    expect(result.totalDailyChangeYen).toBe(-135000);
+    expect(result.rowsWithData).toBe(4);
+    expect(result.rowsTotal).toBe(4);
+    expect(result.contributors).toEqual([
+      { name: "オルカン", changeYen: -120000 },
+      { name: "楽天株", changeYen: -30000 },
+      { name: "先進国ファンド", changeYen: 10000 },
+    ]);
+    expect(result.contributors).toHaveLength(ASSET_DAILY_CONTRIBUTOR_LIMIT);
   });
 
-  it("marks auto items as checked regardless of the stored state", () => {
-    const items = buildMonthlyChecklist([], ["investment-standard"]);
-    expect(items.find((item) => item.id === "investment-standard")).toMatchObject({ checked: true, auto: true });
+  it("aggregates the same fund held at multiple institutions", () => {
+    const result = buildAssetDailyChange({
+      funds: [
+        { 銘柄名: "オルカン", 評価額: "100", 前日比: "-100" },
+        { 銘柄名: "オルカン", 評価額: "200", 前日比: "-50" },
+      ],
+    });
+    expect(result.contributors).toEqual([{ name: "オルカン", changeYen: -150 }]);
+    expect(result.rowsWithData).toBe(2);
   });
 
-  it("handles missing state", () => {
-    expect(buildMonthlyChecklist(null).every((item) => !item.checked && !item.auto)).toBe(true);
-    expect(buildMonthlyChecklist(undefined, null).every((item) => !item.checked)).toBe(true);
+  it("accepts the other daily-change keys but never falls back to 評価損益", () => {
+    const result = buildAssetDailyChange({
+      stocks: [
+        { 銘柄名: "A", 評価額: "100", 前日比損益: "700" },
+        { 銘柄名: "B", 評価額: "100", 評価損益: "99999" },
+        { 銘柄名: "C", 評価額: "100" },
+      ],
+    });
+    expect(result.totalDailyChangeYen).toBe(700);
+    expect(result.rowsWithData).toBe(1);
+    expect(result.rowsTotal).toBe(3);
+    expect(result.contributors).toEqual([{ name: "A", changeYen: 700 }]);
+  });
+
+  it("falls back to the code, then to a placeholder name", () => {
+    const result = buildAssetDailyChange({
+      stocks: [
+        { 銘柄コード: "1301", 評価額: "100", 前日比: "10" },
+        { 評価額: "100", 前日比: "20" },
+      ],
+    });
+    expect(result.contributors).toEqual([
+      { name: "名称未設定", changeYen: 20 },
+      { name: "1301", changeYen: 10 },
+    ]);
+  });
+
+  it("reports no data for missing or malformed holdings", () => {
+    const empty = { hasData: false, totalDailyChangeYen: 0, contributors: [], rowsWithData: 0, rowsTotal: 0 };
+    expect(buildAssetDailyChange(undefined)).toEqual(empty);
+    expect(buildAssetDailyChange(null)).toEqual(empty);
+    expect(buildAssetDailyChange({})).toEqual(empty);
+    expect(buildAssetDailyChange({ stocks: "x", funds: null })).toEqual(empty);
+    expect(buildAssetDailyChange({ stocks: [null, 42] })).toEqual({
+      ...empty,
+      rowsTotal: 2,
+    });
+  });
+});
+
+describe("buildRecentExpenses", () => {
+  it("groups the last three days of spending by date, anchored on the latest transaction date", () => {
+    const cashFlow = [
+      item({ date: "2026-11-14", amount: -500, name: "コンビニ", category: "食費/食料品" }),
+      item({ date: "2026-11-14", amount: -3000, name: "スーパー", category: "食費/食料品" }),
+      item({ date: "2026-11-13", amount: -1200, name: "電車", category: "交通費/電車" }),
+      item({ date: "2026-11-12", amount: -800, name: "日用品店", category: "日用品/消耗品" }),
+      // 窓の外（4日前）は含めない
+      item({ date: "2026-11-11", amount: -9999, name: "古い支出", category: "食費/食料品" }),
+      // 収入・振替は含めない
+      item({ date: "2026-11-14", amount: 500000, name: "給与", category: "収入/給与" }),
+      item({ date: "2026-11-14", amount: -50000, name: "投信積立", category: "", isTransfer: true }),
+    ];
+    const result = buildRecentExpenses(cashFlow);
+    expect(result.hasData).toBe(true);
+    expect(result.latestDate).toBe("2026-11-14");
+    expect(result.fromDate).toBe("2026-11-12");
+    expect(result.totalYen).toBe(5500);
+    expect(result.groups.map((group) => group.date)).toEqual(["2026-11-14", "2026-11-13", "2026-11-12"]);
+    expect(result.groups[0].totalYen).toBe(3500);
+    expect(result.groups[0].items.map((entry) => entry.name)).toEqual(["スーパー", "コンビニ"]);
+    expect(RECENT_EXPENSE_DAYS).toBe(3);
+  });
+
+  it("excludes settlement-style rows but keeps special expenses", () => {
+    const cashFlow = [
+      item({ date: "2026-11-14", amount: -300000, name: "カード引き落とし", category: "現金・カード/カード引き落とし" }),
+      item({ date: "2026-11-14", amount: -45000, name: "冷蔵庫", category: "特別な支出/家具・家電" }),
+    ];
+    const result = buildRecentExpenses(cashFlow);
+    expect(result.totalYen).toBe(45000);
+    expect(result.groups[0].items.map((entry) => entry.name)).toEqual(["冷蔵庫"]);
+  });
+
+  it("crosses a month boundary when shifting back from the latest date", () => {
+    const result = buildRecentExpenses([
+      item({ date: "2026-11-01", amount: -100, name: "月初", category: "食費/食料品" }),
+      item({ date: "2026-10-30", amount: -200, name: "月末", category: "食費/食料品" }),
+    ]);
+    expect(result.fromDate).toBe("2026-10-30");
+    expect(result.totalYen).toBe(300);
+  });
+
+  it("reports no data when there is nothing to show", () => {
+    expect(buildRecentExpenses([])).toEqual({
+      hasData: false,
+      latestDate: "",
+      fromDate: "",
+      groups: [],
+      totalYen: 0,
+    });
+    expect(buildRecentExpenses(null).hasData).toBe(false);
+    expect(buildRecentExpenses(undefined).hasData).toBe(false);
+    // 明細はあるが支出が無い場合も hasData は false（最新日だけ返る）
+    const incomeOnly = buildRecentExpenses([
+      item({ date: "2026-11-14", amount: 1000, name: "給与", category: "収入/給与" }),
+      null,
+    ]);
+    expect(incomeOnly.hasData).toBe(false);
+    expect(incomeOnly.latestDate).toBe("2026-11-14");
+    expect(incomeOnly.groups).toEqual([]);
   });
 });

@@ -68,8 +68,8 @@ function buildData() {
     totals: { assetsYen: 78139712, liabilitiesYen: 11510887, netWorthYen: 66628825 },
     holdings: {
       cashLike: [{ "名称": "銀行預金", "残高": 7502164 }],
-      stocks: [{ "名称": "株式A", "評価額": 17538769 }],
-      funds: [{ "名称": "投信A", "評価額": 49569663 }],
+      stocks: [{ "銘柄名": "株式A", "評価額": 17538769, "前日比": -50000 }],
+      funds: [{ "銘柄名": "投信A", "評価額": 49569663, "前日比": 120000 }],
       pensions: [{ "名称": "確定拠出年金", "現在価値": 3457712 }],
       points: [],
       liabilitiesDetail: [],
@@ -123,45 +123,25 @@ describe("useHomeViewModel", () => {
     expect(vm.attention.value.totalCount).toBe(2);
   });
 
-  it("returns deadline items sorted by countdown", () => {
+  it("aggregates the holdings daily change with its top contributors", () => {
     const vm = useHomeViewModel();
-    const items = vm.deadlineItems.value;
-    expect(Array.isArray(items)).toBe(true);
-    const countdowns = items.map((item) => item.countdownDays);
-    expect(countdowns).toEqual([...countdowns].sort((a, b) => a - b));
-    items.forEach((item) => {
-      expect(item.countdownDays).toBeLessThanOrEqual(45);
-    });
+    expect(vm.assetDaily.value.hasData).toBe(true);
+    expect(vm.assetDaily.value.totalDailyChangeYen).toBe(70000);
+    expect(vm.assetDaily.value.contributors).toEqual([
+      { name: "投信A", changeYen: 120000 },
+      { name: "株式A", changeYen: -50000 },
+    ]);
+    // リスク資産の現在額（株式＋投信＋年金）
+    expect(vm.assetDaily.value.riskAssetsYen).toBe(70566144);
   });
 
-  it("auto-checks the investment checklist item when last month met the standard", () => {
+  it("lists the last three days of spending anchored on the latest transaction", () => {
     const vm = useHomeViewModel();
-    const item = vm.checklistItems.value.find((entry) => entry.id === "investment-standard");
-    expect(item).toMatchObject({ checked: true, auto: true });
-
-    // 自動確認済みの項目は手動で切り替えられない
-    vm.toggleChecklistItem("investment-standard");
-    expect(
-      vm.checklistItems.value.find((entry) => entry.id === "investment-standard").checked,
-    ).toBe(true);
-  });
-
-  it("persists manual checklist toggles in localStorage under a monthly key", () => {
-    const vm = useHomeViewModel();
-    expect(vm.checklistItems.value.find((item) => item.id === "fire-progress").checked).toBe(false);
-
-    vm.toggleChecklistItem("fire-progress");
-    expect(vm.checklistItems.value.find((item) => item.id === "fire-progress").checked).toBe(true);
-
-    const key = Object.keys(localStorage).find((k) => k.startsWith("asset-monthly-checklist:"));
-    expect(key).toBeTruthy();
-    expect(JSON.parse(localStorage.getItem(key))).toEqual(["fire-progress"]);
-
-    // A fresh view model in the same month restores the state.
-    const vm2 = useHomeViewModel();
-    expect(vm2.checklistItems.value.find((item) => item.id === "fire-progress").checked).toBe(true);
-
-    vm2.toggleChecklistItem("fire-progress");
-    expect(vm2.checklistItems.value.find((item) => item.id === "fire-progress").checked).toBe(false);
+    // 最新明細（10日前・食費100円）だけが3日間の窓に入る
+    expect(vm.recentExpenses.value.hasData).toBe(true);
+    expect(vm.recentExpenses.value.latestDate).toBe(daysAgoKey(10));
+    expect(vm.recentExpenses.value.totalYen).toBe(100);
+    expect(vm.recentExpenses.value.groups).toHaveLength(1);
+    expect(vm.recentExpenses.value.groups[0].items[0]).toMatchObject({ name: "最新明細", amountYen: 100 });
   });
 });

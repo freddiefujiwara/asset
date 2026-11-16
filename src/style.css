@@ -9,7 +9,7 @@
   --surface-elevated: #1f2937;
   --border: #334155;
   --primary: #3b82f6;
-  --link: #93c5fd;
+  --link: #58a6ff;
   --link-active: #ffffff;
   --error: #fca5a5;
 }
@@ -22,7 +22,7 @@
   --surface-elevated: #f8fafc;
   --border: #e2e8f0;
   --primary: #2563eb;
-  --link: #1d4ed8;
+  --link: #0066cc;
   --link-active: #0f172a;
   --error: #b91c1c;
 }
@@ -42,6 +42,13 @@ body {
   background: var(--bg);
   color: var(--text);
   transition: background-color 0.3s, color 0.3s;
+}
+
+/* リンクは本文テキストと明確に区別できる標準的なリンクブルーで統一する。
+   個別に色を指定している箇所（.nav a 等）も同じ変数を使う。 */
+a {
+  color: var(--link);
+  text-underline-offset: 2px;
 }
 
 .layout {

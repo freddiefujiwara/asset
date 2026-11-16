@@ -8,11 +8,10 @@ const {
   error,
   shareMode,
   headline,
-  deadlineItems,
-  fireSummary,
+  assetDaily,
   attention,
-  checklistItems,
-  toggleChecklistItem,
+  recentExpenses,
+  fireSummary,
 } = useHomeViewModel();
 
 const monthLabel = (monthKey) => {
@@ -27,31 +26,7 @@ const dateLabel = (dateKey) => {
   return `${month}月${day}日`;
 };
 
-// 期限アイテムのカウントダウン文。
-const deadlineCountdownLabel = (item) => {
-  if (item.kind === "window") {
-    return item.phase === "active"
-      ? `期間中です（締切まであと${item.countdownDays}日）`
-      : `開始まであと${item.countdownDays}日`;
-  }
-  if (item.kind === "deadline") {
-    return item.countdownDays === 0 ? "本日が期限です" : `あと${item.countdownDays}日`;
-  }
-  // available-from
-  return item.phase === "active"
-    ? "対応できるようになりました"
-    : `あと${item.countdownDays}日で可能になります`;
-};
-
-const deadlinePeriodLabel = (item) => {
-  if (item.kind === "window") {
-    return `${dateLabel(item.startDate)}〜${dateLabel(item.endDate)}`;
-  }
-  if (item.kind === "deadline") {
-    return `${dateLabel(item.endDate)}まで`;
-  }
-  return `${dateLabel(item.startDate)}から`;
-};
+const signedClass = (value) => (value > 0 ? "is-positive" : value < 0 ? "is-negative" : "");
 </script>
 
 <template>
@@ -84,22 +59,119 @@ const deadlinePeriodLabel = (item) => {
       </p>
     </section>
 
-    <!-- 2. 期限のあるアクション -->
-    <section v-if="deadlineItems.length" class="table-wrap">
-      <h2 class="section-title">期限のあるアクション</h2>
-      <ul class="deadline-list">
-        <li v-for="item in deadlineItems" :key="item.id">
-          <strong>{{ item.label }}</strong>
-          （{{ deadlinePeriodLabel(item) }}）
-          <strong :class="{ error: item.phase === 'active' || item.countdownDays <= 7 }">
-            {{ deadlineCountdownLabel(item) }}
-          </strong>
-          <br><span class="meta">{{ item.note }}</span>
-        </li>
-      </ul>
+    <!-- 2. 資産推移（前日比と主な原因） -->
+    <section class="table-wrap">
+      <h2 class="section-title">資産推移</h2>
+      <template v-if="assetDaily.hasData">
+        <p class="headline-line">
+          リスク資産は前日比
+          <span class="amount-value" :class="signedClass(assetDaily.totalDailyChangeYen)">
+            {{ formatSignedYen(assetDaily.totalDailyChangeYen) }}
+          </span>
+          （現在 <span class="amount-value">{{ formatYen(assetDaily.riskAssetsYen) }}</span>）
+        </p>
+        <p class="meta">前日比への寄与が大きい銘柄：</p>
+        <ul class="daily-list">
+          <li v-for="contributor in assetDaily.contributors" :key="contributor.name">
+            {{ contributor.name }}
+            <span class="amount-value" :class="signedClass(contributor.changeYen)">
+              {{ formatSignedYen(contributor.changeYen) }}
+            </span>
+          </li>
+        </ul>
+        <p v-if="assetDaily.rowsWithData < assetDaily.rowsTotal" class="meta">
+          ※ 前日比は、値がある {{ assetDaily.rowsWithData }}／{{ assetDaily.rowsTotal }} 銘柄分だけを集計しています。
+        </p>
+      </template>
+      <p v-else class="meta">
+        前日比のデータがありません（リスク資産は現在
+        <span class="amount-value">{{ formatYen(assetDaily.riskAssetsYen) }}</span>）。
+      </p>
     </section>
 
-    <!-- 3. FIRE進捗の要点（共有モードでは出さない） -->
+    <!-- 3. 要確認（最大3件） -->
+    <section class="table-wrap">
+      <h2 class="section-title">要確認</h2>
+      <template v-if="attention.items.length">
+        <ul class="attention-list">
+          <li v-for="item in attention.items" :key="item.id">
+            <template v-if="item.kind === 'freshness'">
+              <strong class="error">明細の取り込みが止まっています</strong>
+              <span v-if="item.latestDate" class="meta">
+                （最新は {{ item.latestDate }} 分・{{ item.ageDays }}日前）
+              </span>
+              <span v-else class="meta">（明細データがありません）</span>
+            </template>
+            <template v-else-if="item.kind === 'investment'">
+              <strong class="error">先月（{{ monthLabel(item.month) }}）の投資実行額が基準未満でした</strong>
+              <span class="meta">
+                （<span class="amount-value">{{ formatYen(item.amountYen) }}</span>／基準
+                <span class="amount-value">{{ formatYen(item.standardYen) }}</span>・判定は本人分のみ）
+              </span>
+            </template>
+            <template v-else-if="item.kind === 'category'">
+              <strong class="error">{{ item.label }}が12か月平均を大きく上回りました</strong>
+              <span class="meta">
+                （先月 <span class="amount-value">{{ formatYen(item.monthYen) }}</span>／平均
+                <span class="amount-value">{{ formatYen(item.averageYen) }}</span><template v-if="item.ratioPct != null">・+{{ item.ratioPct }}%</template>）
+              </span>
+              <ul v-if="item.topExpenses.length" class="top-expenses">
+                <li v-for="(expense, index) in item.topExpenses" :key="index">
+                  {{ dateLabel(expense.date) }} {{ expense.name }}
+                  <span class="amount-value">{{ formatYen(expense.amountYen) }}</span>
+                </li>
+              </ul>
+            </template>
+            <template v-else-if="item.kind === 'living-cost'">
+              <strong class="error">生活費が12か月平均の+10%を超えました</strong>
+              <span class="meta">
+                （先月 <span class="amount-value">{{ formatYen(item.amountYen) }}</span>／平均
+                <span class="amount-value">{{ formatYen(item.averageYen) }}</span>）
+              </span>
+            </template>
+            <template v-else-if="item.kind === 'special'">
+              <strong class="error">先月に大きな特別支出がありました</strong>
+              <span class="meta">
+                （{{ item.name }} <span class="amount-value">{{ formatYen(item.amountYen) }}</span>）
+              </span>
+            </template>
+            <RouterLink v-if="item.linkTo" :to="item.linkTo">詳細を見る</RouterLink>
+          </li>
+        </ul>
+        <p v-if="attention.totalCount > attention.items.length" class="meta">
+          ほか{{ attention.totalCount - attention.items.length }}件あります。詳細は収支画面で確認できます。
+        </p>
+      </template>
+      <p v-else class="meta">要確認はありません。</p>
+    </section>
+
+    <!-- 4. 過去3日間の支出 -->
+    <section class="table-wrap">
+      <h2 class="section-title">過去3日間の支出</h2>
+      <template v-if="recentExpenses.hasData">
+        <p class="meta">
+          {{ dateLabel(recentExpenses.fromDate) }}〜{{ dateLabel(recentExpenses.latestDate) }}の支出
+          （明細の最新日を末日にしています）。合計
+          <span class="amount-value">{{ formatYen(recentExpenses.totalYen) }}</span>
+        </p>
+        <template v-for="group in recentExpenses.groups" :key="group.date">
+          <h3 class="day-title">
+            {{ dateLabel(group.date) }}
+            <span class="meta">（<span class="amount-value">{{ formatYen(group.totalYen) }}</span>）</span>
+          </h3>
+          <ul class="expense-list">
+            <li v-for="(expense, index) in group.items" :key="index">
+              {{ expense.name }}
+              <span class="meta">{{ expense.category }}</span>
+              <span class="amount-value">{{ formatYen(expense.amountYen) }}</span>
+            </li>
+          </ul>
+        </template>
+      </template>
+      <p v-else class="meta">過去3日間の支出は記録されていません。</p>
+    </section>
+
+    <!-- 5. FIRE進捗の要点（共有モードでは出さない） -->
     <section v-if="!shareMode && fireSummary" class="table-wrap">
       <h2 class="section-title">FIRE進捗の要点（完全FIRE）</h2>
       <div class="progress-headline">
@@ -138,76 +210,6 @@ const deadlinePeriodLabel = (item) => {
       </p>
       <p class="meta"><RouterLink to="/progress">FIRE進捗の詳細を見る</RouterLink></p>
     </section>
-
-    <!-- 4. 要確認（最大3件） -->
-    <section class="table-wrap">
-      <h2 class="section-title">要確認</h2>
-      <template v-if="attention.items.length">
-        <ul class="attention-list">
-          <li v-for="item in attention.items" :key="item.id">
-            <template v-if="item.kind === 'freshness'">
-              <strong class="error">明細の取り込みが止まっています</strong>
-              <span v-if="item.latestDate" class="meta">
-                （最新は {{ item.latestDate }} 分・{{ item.ageDays }}日前）
-              </span>
-              <span v-else class="meta">（明細データがありません）</span>
-            </template>
-            <template v-else-if="item.kind === 'investment'">
-              <strong class="error">先月（{{ monthLabel(item.month) }}）の投資実行額が基準未満でした</strong>
-              <span class="meta">
-                （<span class="amount-value">{{ formatYen(item.amountYen) }}</span>／基準
-                <span class="amount-value">{{ formatYen(item.standardYen) }}</span>・判定は本人分のみ）
-              </span>
-            </template>
-            <template v-else-if="item.kind === 'category'">
-              <strong class="error">{{ item.label }}が12か月平均を大きく上回りました</strong>
-              <span class="meta">
-                （先月 <span class="amount-value">{{ formatYen(item.monthYen) }}</span>／平均
-                <span class="amount-value">{{ formatYen(item.averageYen) }}</span><template v-if="item.ratioPct != null">・+{{ item.ratioPct }}%</template>）
-              </span>
-            </template>
-            <template v-else-if="item.kind === 'living-cost'">
-              <strong class="error">生活費が12か月平均の+10%を超えました</strong>
-              <span class="meta">
-                （先月 <span class="amount-value">{{ formatYen(item.amountYen) }}</span>／平均
-                <span class="amount-value">{{ formatYen(item.averageYen) }}</span>）
-              </span>
-            </template>
-            <template v-else-if="item.kind === 'special'">
-              <strong class="error">先月に大きな特別支出がありました</strong>
-              <span class="meta">
-                （{{ item.name }} <span class="amount-value">{{ formatYen(item.amountYen) }}</span>）
-              </span>
-            </template>
-            <RouterLink v-if="item.linkTo" :to="item.linkTo">詳細を見る</RouterLink>
-          </li>
-        </ul>
-        <p v-if="attention.totalCount > attention.items.length" class="meta">
-          ほか{{ attention.totalCount - attention.items.length }}件あります。詳細は収支画面で確認できます。
-        </p>
-      </template>
-      <p v-else class="meta">要確認はありません。</p>
-    </section>
-
-    <!-- 5. 月次チェックリスト -->
-    <section class="table-wrap">
-      <h2 class="section-title">月次チェックリスト</h2>
-      <ul class="checklist">
-        <li v-for="item in checklistItems" :key="item.id">
-          <label :class="{ 'is-auto': item.auto }">
-            <input
-              type="checkbox"
-              :checked="item.checked"
-              :disabled="item.auto"
-              @change="toggleChecklistItem(item.id)"
-            >
-            {{ item.label }}
-            <span v-if="item.auto" class="auto-badge">自動確認済み</span>
-          </label>
-        </li>
-      </ul>
-      <p class="meta">チェックはこの端末にだけ保存され、月が替わると自動でリセットされます。「自動確認済み」はデータから判定できた項目です。</p>
-    </section>
   </section>
 </template>
 
@@ -217,15 +219,34 @@ const deadlinePeriodLabel = (item) => {
   margin: 4px 0;
 }
 
-.deadline-list,
 .attention-list {
   margin: 0;
   padding-left: 18px;
 }
 
-.deadline-list li,
 .attention-list li {
   margin: 6px 0;
+}
+
+.top-expenses {
+  margin: 4px 0 4px 18px;
+  padding: 0;
+}
+
+.daily-list,
+.expense-list {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.daily-list li,
+.expense-list li {
+  margin: 4px 0;
+}
+
+.day-title {
+  margin: 10px 0 4px;
+  font-size: 1rem;
 }
 
 .progress-headline {
@@ -254,31 +275,5 @@ const deadlinePeriodLabel = (item) => {
 .progress-bar-fill {
   height: 100%;
   background: var(--primary);
-}
-
-.checklist {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.checklist li {
-  margin: 6px 0;
-}
-
-.checklist label {
-  cursor: pointer;
-}
-
-.checklist label.is-auto {
-  cursor: default;
-}
-
-.auto-badge {
-  margin-left: 8px;
-  padding: 1px 6px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  font-size: 0.8em;
 }
 </style>
