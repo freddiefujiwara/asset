@@ -14,4 +14,17 @@ describe("useHoldingTableViewModel", () => {
     expect(vm.displayedRows.value[0]["評価額"]).toBe("100");
     expect(vm.formatCell(props.columns[0], props.rows[0])).toContain("¥");
   });
+
+  it("formats the daily change with its rate when the current value is known", () => {
+    const column = { key: "__dailyChange", label: "前日比" };
+    const props = reactive({ rows: [], columns: [column], isLiability: false });
+    const vm = useHoldingTableViewModel(props);
+    // 前日比％ = 100 ÷（1100 − 100）= +10.0%
+    expect(vm.formatCell(column, { 評価額: "1100", 前日比: "100" })).toBe("+¥100 (+10.0%)");
+    expect(vm.formatCell(column, { 現在価値: "900", 前日比: "-100" })).toBe("-¥100 (-10.0%)");
+    // 現在の値が無い・前日の値が0のときは金額のみ
+    expect(vm.formatCell(column, { 前日比: "100" })).toBe("+¥100");
+    expect(vm.formatCell(column, { 評価額: "100", 前日比: "100" })).toBe("+¥100");
+    expect(vm.formatCell(column, { 評価額: "100" })).toBe("-");
+  });
 });

@@ -75,9 +75,17 @@ describe("buildBalanceMonthlyChanges", () => {
     expect(changes.month).toBe("2026-10");
     expect(changes.previousMonth).toBe("2026-09");
     expect(changes.rows).toEqual([
-      { key: "totalAssets", label: "総資産", currentYen: 78000000, previousYen: 77000000, diffYen: 1000000 },
-      { key: "netAssets", label: "純資産", currentYen: 66500000, previousYen: 65000000, diffYen: 1500000 },
+      { key: "totalAssets", label: "総資産", currentYen: 78000000, previousYen: 77000000, diffYen: 1000000, diffRatePct: (1000000 / 77000000) * 100 },
+      { key: "netAssets", label: "純資産", currentYen: 66500000, previousYen: 65000000, diffYen: 1500000, diffRatePct: (1500000 / 65000000) * 100 },
     ]);
+  });
+
+  it("reports a null rate when the previous value is zero", () => {
+    const changes = buildBalanceMonthlyChanges([
+      { month: "2026-09", totalAssetsYen: 0, netAssetsYen: 0 },
+      { month: "2026-10", totalAssetsYen: 100, netAssetsYen: 50 },
+    ]);
+    expect(changes.rows.map((row) => row.diffRatePct)).toEqual([null, null]);
   });
 });
 

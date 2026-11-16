@@ -51,6 +51,23 @@ describe("useBalanceSheetViewModel", () => {
     expect(replace).toHaveBeenCalledWith({ query: { owner: "all", extra: "1" } });
   });
 
+  it("derives the daily move rate against the previous day's total", () => {
+    portfolioDataRef.value = {
+      holdings: {
+        stocks: [{ "銘柄名": "テスト株", "評価額": "1100", "前日比": "100" }],
+        funds: [],
+        pensions: [],
+        points: [],
+        cashLike: [],
+        liabilitiesDetail: [],
+      },
+    };
+    const vm = useBalanceSheetViewModel();
+    expect(vm.dailyMoveTotal.value).toBe(100);
+    // 前日比％ = 100 ÷（1100 − 100）
+    expect(vm.dailyMoveRatePct.value).toBeCloseTo(10);
+  });
+
   it("builds mapped raw JSON and treemap URL", () => {
     const vm = useBalanceSheetViewModel();
     expect(vm.getMappedAssetStatusJson()).toContain("asset_breakdown");

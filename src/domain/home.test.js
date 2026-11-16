@@ -366,6 +366,22 @@ describe("buildHeadline", () => {
     expect(headline.diffYen).toBe(1628825);
   });
 
+  it("adds the month-over-month rate of the net assets diff", () => {
+    const headline = buildHeadline({ snapshots });
+    expect(headline.diffRatePct).toBeCloseTo((1628825 / 65000000) * 100);
+  });
+
+  it("reports a null rate when the previous net assets are zero", () => {
+    const headline = buildHeadline({
+      snapshots: [
+        { month: "2026-10", netAssetsYen: 0 },
+        { month: "2026-11", netAssetsYen: 500 },
+      ],
+    });
+    expect(headline.diffYen).toBe(500);
+    expect(headline.diffRatePct).toBeNull();
+  });
+
   it("falls back to the current net assets with a single snapshot", () => {
     expect(
       buildHeadline({ snapshots: snapshots.slice(1), currentNetAssetsYen: 67000000 }),
@@ -375,6 +391,7 @@ describe("buildHeadline", () => {
       previousMonth: "",
       netAssetsYen: 67000000,
       diffYen: null,
+      diffRatePct: null,
       pace: null,
       projectionDeltaMonths: null,
     });
@@ -584,11 +601,17 @@ describe("buildAssetDailyChange", () => {
     expect(result.totalDailyChangeYen).toBe(-135000);
     expect(result.rowsWithData).toBe(4);
     expect(result.rowsTotal).toBe(4);
-    expect(result.contributors).toEqual([
-      { name: "オルカン", changeYen: -120000 },
-      { name: "楽天株", changeYen: -30000 },
-      { name: "先進国ファンド", changeYen: 10000 },
+    // 合計の％は集計範囲（4銘柄）の前日の値ベース
+    expect(result.totalChangeRatePct).toBeCloseTo((-135000 / 11635000) * 100);
+    expect(result.contributors.map((c) => [c.name, c.changeYen])).toEqual([
+      ["オルカン", -120000],
+      ["楽天株", -30000],
+      ["先進国ファンド", 10000],
     ]);
+    // 前日比％ = 前日比 ÷（現在の評価額 − 前日比）
+    expect(result.contributors[0].changeRatePct).toBeCloseTo((-120000 / 8120000) * 100);
+    expect(result.contributors[1].changeRatePct).toBeCloseTo((-30000 / 1030000) * 100);
+    expect(result.contributors[2].changeRatePct).toBeCloseTo((10000 / 1990000) * 100);
     expect(result.contributors).toHaveLength(ASSET_DAILY_CONTRIBUTOR_LIMIT);
   });
 
@@ -599,8 +622,11 @@ describe("buildAssetDailyChange", () => {
         { 銘柄名: "オルカン", 評価額: "200", 前日比: "-50" },
       ],
     });
-    expect(result.contributors).toEqual([{ name: "オルカン", changeYen: -150 }]);
+    expect(result.contributors).toEqual([
+      { name: "オルカン", changeYen: -150, changeRatePct: (-150 / 450) * 100 },
+    ]);
     expect(result.rowsWithData).toBe(2);
+    expect(result.totalChangeRatePct).toBeCloseTo((-150 / 450) * 100);
   });
 
   it("accepts the other daily-change keys but never falls back to 評価損益", () => {
@@ -614,7 +640,10 @@ describe("buildAssetDailyChange", () => {
     expect(result.totalDailyChangeYen).toBe(700);
     expect(result.rowsWithData).toBe(1);
     expect(result.rowsTotal).toBe(3);
-    expect(result.contributors).toEqual([{ name: "A", changeYen: 700 }]);
+    expect(result.contributors).toEqual([
+      { name: "A", changeYen: 700, changeRatePct: (700 / -600) * 100 },
+    ]);
+    expect(result.totalChangeRatePct).toBeCloseTo((700 / -600) * 100);
   });
 
   it("falls back to the code, then to a placeholder name", () => {
@@ -625,13 +654,35 @@ describe("buildAssetDailyChange", () => {
       ],
     });
     expect(result.contributors).toEqual([
-      { name: "名称未設定", changeYen: 20 },
-      { name: "1301", changeYen: 10 },
+      { name: "名称未設定", changeYen: 20, changeRatePct: (20 / 80) * 100 },
+      { name: "1301", changeYen: 10, changeRatePct: (10 / 90) * 100 },
     ]);
   });
 
+  it("reports a null rate when a value is missing or the previous value is zero", () => {
+    const missingValue = buildAssetDailyChange({
+      stocks: [
+        { 銘柄名: "値あり", 評価額: "1000", 前日比: "100" },
+        { 銘柄名: "値なし", 前日比: "50" },
+      ],
+    });
+    expect(missingValue.totalDailyChangeYen).toBe(150);
+    // 評価額が無い行が混ざるため合計の％は出さない
+    expect(missingValue.totalChangeRatePct).toBeNull();
+    expect(missingValue.contributors).toEqual([
+      { name: "値あり", changeYen: 100, changeRatePct: (100 / 900) * 100 },
+      { name: "値なし", changeYen: 50, changeRatePct: null },
+    ]);
+
+    const zeroBase = buildAssetDailyChange({
+      stocks: [{ 銘柄名: "同額", 評価額: "100", 前日比: "100" }],
+    });
+    expect(zeroBase.contributors[0].changeRatePct).toBeNull();
+    expect(zeroBase.totalChangeRatePct).toBeNull();
+  });
+
   it("reports no data for missing or malformed holdings", () => {
-    const empty = { hasData: false, totalDailyChangeYen: 0, contributors: [], rowsWithData: 0, rowsTotal: 0 };
+    const empty = { hasData: false, totalDailyChangeYen: 0, totalChangeRatePct: null, contributors: [], rowsWithData: 0, rowsTotal: 0 };
     expect(buildAssetDailyChange(undefined)).toEqual(empty);
     expect(buildAssetDailyChange(null)).toEqual(empty);
     expect(buildAssetDailyChange({})).toEqual(empty);

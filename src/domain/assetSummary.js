@@ -1,6 +1,7 @@
 import { UNIVERSITY_FUND_YEN } from "./progress";
 import { assetAmountYen, assetDisplayName } from "./family";
 import { toNumber } from "./parse";
+import { diffRatePct } from "./signed";
 
 /**
  * 資産画面（バランスシート）先頭の3区分サマリ・集中表示・前月比の
@@ -115,12 +116,14 @@ export function buildBalanceMonthlyChanges(snapshots) {
     rows: definitions.map((definition) => {
       const currentYen = definition.pick(current);
       const previousYen = definition.pick(previous);
+      const diffYen = currentYen - previousYen;
       return {
         key: definition.key,
         label: definition.label,
         currentYen,
         previousYen,
-        diffYen: currentYen - previousYen,
+        diffYen,
+        diffRatePct: diffRatePct(diffYen, previousYen),
       };
     }),
   };

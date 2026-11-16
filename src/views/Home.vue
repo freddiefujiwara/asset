@@ -1,6 +1,7 @@
 <script setup>
 import { RouterLink } from "vue-router";
 import { formatSignedYen, formatYen } from "@/domain/format";
+import { formatSignedPercent } from "@/domain/signed";
 import { useHomeViewModel } from "@/features/home/useHomeViewModel";
 
 const {
@@ -41,7 +42,7 @@ const signedClass = (value) => (value > 0 ? "is-positive" : value < 0 ? "is-nega
         <p class="headline-line">
           純資産は <span class="amount-value">{{ formatYen(headline.netAssetsYen) }}</span>
           （{{ monthLabel(headline.month) }}末・先月比
-          <span class="amount-value">{{ formatSignedYen(headline.diffYen) }}</span>）
+          <span class="amount-value">{{ formatSignedYen(headline.diffYen) }}</span><template v-if="headline.diffRatePct != null">（{{ formatSignedPercent(headline.diffRatePct, 1) }}）</template>）
           <template v-if="headline.pace === 'improving'">
             。完全FIREの到達見込みは先月より{{ headline.projectionDeltaMonths }}か月近づきました。
           </template>
@@ -66,7 +67,7 @@ const signedClass = (value) => (value > 0 ? "is-positive" : value < 0 ? "is-nega
         <p class="headline-line">
           リスク資産は前日比
           <span class="amount-value" :class="signedClass(assetDaily.totalDailyChangeYen)">
-            {{ formatSignedYen(assetDaily.totalDailyChangeYen) }}
+            {{ formatSignedYen(assetDaily.totalDailyChangeYen) }}<template v-if="assetDaily.totalChangeRatePct != null">（{{ formatSignedPercent(assetDaily.totalChangeRatePct, 1) }}）</template>
           </span>
           （現在 <span class="amount-value">{{ formatYen(assetDaily.riskAssetsYen) }}</span>）
         </p>
@@ -75,7 +76,7 @@ const signedClass = (value) => (value > 0 ? "is-positive" : value < 0 ? "is-nega
           <li v-for="contributor in assetDaily.contributors" :key="contributor.name">
             {{ contributor.name }}
             <span class="amount-value" :class="signedClass(contributor.changeYen)">
-              {{ formatSignedYen(contributor.changeYen) }}
+              {{ formatSignedYen(contributor.changeYen) }}<template v-if="contributor.changeRatePct != null">（{{ formatSignedPercent(contributor.changeRatePct, 1) }}）</template>
             </span>
           </li>
         </ul>
