@@ -1,8 +1,7 @@
 import { computed } from "vue";
-import { storeToRefs } from "pinia";
 import { usePortfolioData } from "@/composables/usePortfolioData";
 import { usePortfolioStore } from "@/stores/portfolio";
-import { useFireSimulatorStore } from "@/stores/fireSimulator";
+import { useFireBaseParams } from "@/features/fireSimulator/useFireBaseParams";
 import { calculateAge, USER_BIRTH_DATE } from "@/domain/family";
 import {
   PROGRESS_MILESTONES,
@@ -22,59 +21,11 @@ import { fireDate, formatMonths } from "@/features/fireSimulator/formatters";
 export function useFireProgressViewModel() {
   const { data, loading, error } = usePortfolioData();
   const portfolioStore = usePortfolioStore();
-  const fireSimulatorStore = useFireSimulatorStore();
 
-  const {
-    annualReturnRate,
-    currentAge,
-    includeInflation,
-    inflationRate,
-    includeTax,
-    taxRate,
-    withdrawalRate,
-    postFireExtraExpense,
-    retirementLumpSumAtFire,
-    manualPostFireFirstYearExtraExpense,
-    useAutoFirstYearExtra,
-    autoPostFireFirstYearExtraExpense,
-    monthlyInvestment,
-    mortgageMonthlyPayment,
-    mortgagePayoffDate,
-    monthlyExpense,
-    monthlyIncome,
-    past12MonthSummary,
-  } = storeToRefs(fireSimulatorStore);
-
-  // FIRE計算画面と同じ決め方（自動推計 or 手入力）。
-  const postFireFirstYearExtraExpense = computed(() =>
-    useAutoFirstYearExtra.value
-      ? autoPostFireFirstYearExtraExpense.value
-      : manualPostFireFirstYearExtraExpense.value,
-  );
+  // 前提パラメータの組み立てはホーム画面と共通（useFireBaseParams）。
+  const { baseParams, currentAge } = useFireBaseParams();
 
   const shareMode = computed(() => portfolioStore.shareMode);
-
-  // FIRE計算画面の simulationParams と同じ組み立て（initialAssets/riskAssets は
-  // ドメイン側で主指標・補助指標それぞれに差し替える）。
-  const baseParams = computed(() => ({
-    annualReturnRate: annualReturnRate.value / 100,
-    monthlyExpense: monthlyExpense.value,
-    monthlyIncome: monthlyIncome.value,
-    currentAge: currentAge.value,
-    includeInflation: includeInflation.value,
-    inflationRate: inflationRate.value / 100,
-    includeTax: includeTax.value,
-    taxRate: taxRate.value / 100,
-    withdrawalRate: withdrawalRate.value / 100,
-    mortgageMonthlyPayment: mortgageMonthlyPayment.value,
-    mortgagePayoffDate: mortgagePayoffDate.value || null,
-    postFireExtraExpense: postFireExtraExpense.value,
-    postFireFirstYearExtraExpense: postFireFirstYearExtraExpense.value,
-    retirementLumpSumAtFire: retirementLumpSumAtFire.value,
-    includePension: true,
-    monthlyInvestment: monthlyInvestment.value,
-    expenseBreakdown: past12MonthSummary.value.monthlyLivingExpenses.breakdown,
-  }));
 
   const progress = computed(() =>
     data.value
