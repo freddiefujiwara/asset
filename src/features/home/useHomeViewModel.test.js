@@ -128,9 +128,12 @@ describe("useHomeViewModel", () => {
     expect(vm.assetDaily.value.hasData).toBe(true);
     expect(vm.assetDaily.value.totalDailyChangeYen).toBe(70000);
     expect(vm.assetDaily.value.contributors).toEqual([
-      { name: "投信A", changeYen: 120000 },
-      { name: "株式A", changeYen: -50000 },
+      { name: "投信A", changeYen: 120000, changeRatePct: (120000 / (49569663 - 120000)) * 100 },
+      { name: "株式A", changeYen: -50000, changeRatePct: (-50000 / (17538769 + 50000)) * 100 },
     ]);
+    expect(vm.assetDaily.value.totalChangeRatePct).toBeCloseTo(
+      (70000 / (67108432 - 70000)) * 100,
+    );
     // リスク資産の現在額（株式＋投信＋年金）
     expect(vm.assetDaily.value.riskAssetsYen).toBe(70566144);
   });

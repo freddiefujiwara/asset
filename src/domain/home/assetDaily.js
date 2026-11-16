@@ -1,4 +1,5 @@
 import { toNumber } from "../parse";
+import { diffRatePct } from "../signed";
 
 /**
  * トップページの「資産推移」ブロックの材料。
@@ -37,11 +38,17 @@ function holdingRows(holdings, key) {
 }
 
 /**
+ * 前日比％は「前日比の金額 ÷ 前日の値（現在の評価額 − 前日比の金額）」で出す。
+ * 合計の％も集計範囲（前日比がある行だけ）ベースで計算し、金額の集計範囲と
+ * 一致させる。評価額が無い行が集計範囲に混ざる場合は、その銘柄・合計の
+ * ％は算出不能として null にする（分母が0の場合も null）。
+ *
  * @param {object} holdings normalize済みの保有明細
  * @returns {{
  *   hasData: boolean,
  *   totalDailyChangeYen: number,
- *   contributors: Array<{name: string, changeYen: number}>,
+ *   totalChangeRatePct: number|null,
+ *   contributors: Array<{name: string, changeYen: number, changeRatePct: number|null}>,
  *   rowsWithData: number,
  *   rowsTotal: number,
  * }}
@@ -50,6 +57,8 @@ export function buildAssetDailyChange(holdings) {
   const rows = [...holdingRows(holdings, "stocks"), ...holdingRows(holdings, "funds")];
   const byName = new Map();
   let totalDailyChangeYen = 0;
+  let totalCurrentYen = 0;
+  let totalRateKnown = true;
   let rowsWithData = 0;
 
   rows.forEach((row) => {
@@ -57,17 +66,40 @@ export function buildAssetDailyChange(holdings) {
     if (changeYen == null) return;
     rowsWithData += 1;
     totalDailyChangeYen += changeYen;
+    const currentYen = "評価額" in row ? toNumber(row["評価額"]) : null;
+    if (currentYen == null) {
+      totalRateKnown = false;
+    } else {
+      totalCurrentYen += currentYen;
+    }
     const name = row["銘柄名"] || row["銘柄コード"] || "名称未設定";
-    byName.set(name, (byName.get(name) ?? 0) + changeYen);
+    const entry = byName.get(name) ?? { changeYen: 0, currentYen: 0, rateKnown: true };
+    entry.changeYen += changeYen;
+    if (currentYen == null) {
+      entry.rateKnown = false;
+    } else {
+      entry.currentYen += currentYen;
+    }
+    byName.set(name, entry);
   });
 
-  const contributors = Array.from(byName, ([name, changeYen]) => ({ name, changeYen }))
+  const contributors = Array.from(byName, ([name, entry]) => ({
+    name,
+    changeYen: entry.changeYen,
+    changeRatePct: entry.rateKnown
+      ? diffRatePct(entry.changeYen, entry.currentYen - entry.changeYen)
+      : null,
+  }))
     .sort((a, b) => Math.abs(b.changeYen) - Math.abs(a.changeYen))
     .slice(0, ASSET_DAILY_CONTRIBUTOR_LIMIT);
 
   return {
     hasData: rowsWithData > 0,
     totalDailyChangeYen,
+    totalChangeRatePct:
+      rowsWithData > 0 && totalRateKnown
+        ? diffRatePct(totalDailyChangeYen, totalCurrentYen - totalDailyChangeYen)
+        : null,
     contributors,
     rowsWithData,
     rowsTotal: rows.length,

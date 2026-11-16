@@ -1,6 +1,7 @@
 import { computed, ref } from "vue";
 import { dailyChangeYen, formatSignedYen, formatYen } from "@/domain/format";
 import { toNumber } from "@/domain/parse";
+import { diffRatePct, formatSignedPercent } from "@/domain/signed";
 
 const amountLikePattern = /金額|残高|評価額|価値|損益/i;
 const nonAmountPattern = /コード|率|割合|比/i;
@@ -85,7 +86,13 @@ export function useHoldingTableViewModel(props) {
   const formatCell = (column, row) => {
     if (column.key === "__dailyChange") {
       const daily = dailyChangeYen(row);
-      return daily == null ? "-" : formatSignedYen(daily);
+      if (daily == null) return "-";
+      // 前日比％ = 前日比 ÷ 前日の値（現在の評価額 − 前日比）。算出不能なら金額のみ。
+      const current = row?.["評価額"] ?? row?.["現在価値"];
+      const rate = current == null ? null : diffRatePct(daily, toNumber(current) - daily);
+      return rate == null
+        ? formatSignedYen(daily)
+        : `${formatSignedYen(daily)} (${formatSignedPercent(rate, 1)})`;
     }
 
     const rawValue = row[column.key];

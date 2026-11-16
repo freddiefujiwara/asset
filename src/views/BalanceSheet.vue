@@ -33,6 +33,7 @@ const {
   dailyMoves,
   dailyMoveTotal,
   dailyMoveClass,
+  dailyMoveRatePct,
   totalProfitYen,
   totalProfitClass,
   totalProfitRatePct,
@@ -90,7 +91,7 @@ const {
             <tr v-for="row in balanceMonthlyChanges.rows" :key="row.key">
               <td>{{ row.label }}</td>
               <td class="amount-value">{{ formatYen(row.currentYen) }}</td>
-              <td class="amount-value">{{ formatSignedYen(row.diffYen) }}</td>
+              <td class="amount-value">{{ formatSignedYen(row.diffYen) }}<template v-if="row.diffRatePct != null">（{{ formatSignedPercent(row.diffRatePct, 1) }}）</template></td>
             </tr>
           </tbody>
         </table>
@@ -146,7 +147,7 @@ const {
         <span>
           前日比合計:
           <strong :class="dailyMoveClass">
-            {{ dailyMoves.length ? formatSignedYen(dailyMoveTotal) : "-" }}
+            {{ dailyMoves.length ? formatSignedYen(dailyMoveTotal) : "-" }}<template v-if="dailyMoves.length && dailyMoveRatePct != null">（{{ formatSignedPercent(dailyMoveRatePct, 1) }}）</template>
           </strong>
         </span>
       </div>

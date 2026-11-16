@@ -3,7 +3,7 @@ import { useRoute, useRouter } from "vue-router";
 import { compressToEncodedURIComponent } from "@/lib/lzString";
 import { toNumber } from "@/domain/parse";
 import { balanceSheetLayout } from "@/domain/dashboard";
-import { signedClass } from "@/domain/signed";
+import { diffRatePct, signedClass } from "@/domain/signed";
 import { usePortfolioData } from "@/composables/usePortfolioData";
 import { filterHoldingsByOwner, OWNER_FILTERS, summarizeByCategory } from "@/domain/assetOwners";
 import { assetAmountYen } from "@/domain/family";
@@ -150,6 +150,12 @@ export function useBalanceSheetViewModel() {
   const dailyMoves = computed(() => summary.value.dailyMoves);
   const dailyMoveTotal = computed(() => summary.value.dailyMoveTotal);
   const dailyMoveClass = computed(() => signedClass(dailyMoveTotal.value));
+  // 前日比％ = 前日比合計 ÷ 前日の評価額合計（現在の評価額合計 − 前日比合計）。
+  const dailyMoveRatePct = computed(() =>
+    dailyMoves.value.length
+      ? diffRatePct(dailyMoveTotal.value, riskAssetsTotal.value - dailyMoveTotal.value)
+      : null,
+  );
   const totalProfitYen = computed(() => summary.value.totalProfitYen);
   const totalProfitClass = computed(() => signedClass(totalProfitYen.value));
   const totalProfitRatePct = computed(() => summary.value.totalProfitRatePct);
@@ -214,6 +220,7 @@ export function useBalanceSheetViewModel() {
     dailyMoves,
     dailyMoveTotal,
     dailyMoveClass,
+    dailyMoveRatePct,
     totalProfitYen,
     totalProfitClass,
     totalProfitRatePct,

@@ -10,6 +10,8 @@
  * スナップショットが2件未満の間は hasComparison=false とし、現在の純資産
  * （ポートフォリオの totals）でフォールバックする。
  */
+import { diffRatePct } from "../signed";
+
 export function buildHeadline({
   snapshots,
   currentNetAssetsYen = 0,
@@ -28,6 +30,7 @@ export function buildHeadline({
       previousMonth: "",
       netAssetsYen: currentNetAssetsYen || latest?.netAssetsYen || 0,
       diffYen: null,
+      diffRatePct: null,
       pace: null,
       projectionDeltaMonths: null,
     };
@@ -42,12 +45,14 @@ export function buildHeadline({
           ? "worsening"
           : "steady";
 
+  const diffYen = latest.netAssetsYen - previous.netAssetsYen;
   return {
     hasComparison: true,
     month: latest.month,
     previousMonth: previous.month,
     netAssetsYen: latest.netAssetsYen,
-    diffYen: latest.netAssetsYen - previous.netAssetsYen,
+    diffYen,
+    diffRatePct: diffRatePct(diffYen, previous.netAssetsYen),
     pace,
     projectionDeltaMonths,
   };
