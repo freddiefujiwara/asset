@@ -17,6 +17,25 @@ export function checklistStorageKey(now = new Date()) {
 }
 
 /**
+ * 表示用のチェックリスト項目を組み立てる。
+ * データで判定できる項目は autoCheckedIds に含めて渡すと、保存状態によらず
+ * チェック済みになり、auto=true（画面では「自動確認済み」と表示し、
+ * 手動では切り替えられない）になる。それ以外は従来どおり保存状態で決まる。
+ *
+ * @param {string[]} storedCheckedIds parseChecklistState で正規化した保存済みID
+ * @param {string[]} autoCheckedIds データ判定で確認済みになった項目のID
+ */
+export function buildMonthlyChecklist(storedCheckedIds, autoCheckedIds = []) {
+  const stored = new Set(storedCheckedIds ?? []);
+  const auto = new Set(autoCheckedIds ?? []);
+  return MONTHLY_CHECKLIST_ITEMS.map((item) => ({
+    ...item,
+    auto: auto.has(item.id),
+    checked: auto.has(item.id) || stored.has(item.id),
+  }));
+}
+
+/**
  * 保存済みの生値をチェック済みIDの配列に正規化する（未知のIDは捨てる）。
  */
 export function parseChecklistState(raw) {
