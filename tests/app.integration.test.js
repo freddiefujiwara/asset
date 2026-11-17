@@ -161,7 +161,8 @@ describe("App cross-screen integration", () => {
 
     await nextTick();
 
-    expect(wrapper.text()).toContain("閲覧用リンクの有効期限が切れています");
+    expect(wrapper.text()).toContain("リンクの有効期限が切れています");
+    expect(wrapper.text()).toContain("この一時アクセスリンクは無効か、期限切れです。発行者に新しいリンクを依頼してください。");
     expect(wrapper.text()).not.toContain("Googleログインが必要です");
     expect(wrapper.text()).not.toContain("balance-sheet-view");
   });

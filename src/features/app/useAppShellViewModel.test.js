@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { ref } from "vue";
+import { nextTick, ref } from "vue";
 
 const portfolioState = ref({
   data: null,
@@ -69,6 +69,60 @@ describe("useAppShellViewModel", () => {
       vm.idToken.value = "token";
       portfolioState.value = { source: "live", rawResponse: { data: {} }, data: {}, error: "" };
       expect(vm.isFireEnabled.value).toBe(true);
+    });
+  });
+
+  describe("gateErrorMessage", () => {
+    const baseState = {
+      data: null,
+      loading: false,
+      source: "",
+      rawResponse: null,
+      shareMode: false,
+      shareExpiresAt: "",
+    };
+
+    it("is empty when there is no AUTH error", () => {
+      portfolioState.value = { ...baseState, error: "" };
+      const vm = useAppShellViewModel();
+      expect(vm.gateErrorMessage.value).toBe("");
+    });
+
+    it("shows the generic failure message for a plain AUTH error without leaking it", () => {
+      portfolioState.value = { ...baseState, error: "AUTH 401: missing id token" };
+      const vm = useAppShellViewModel();
+      expect(vm.gateErrorMessage.value).toBe("ログインに失敗しました。もう一度お試しください。");
+    });
+
+    it("shows the not-allowed message when the API rejects the account", () => {
+      portfolioState.value = { ...baseState, error: "AUTH 403: forbidden email" };
+      const vm = useAppShellViewModel();
+      expect(vm.gateErrorMessage.value).toBe("このアカウントでは利用できません。");
+    });
+
+    it("shows the expired message when the saved session has expired", () => {
+      portfolioState.value = { ...baseState, error: "AUTH 401: session expired or invalid" };
+      const vm = useAppShellViewModel();
+      expect(vm.gateErrorMessage.value).toBe("ログインの有効期限が切れました。再度ログインしてください。");
+    });
+
+    it("does not treat a share-session expiry as an owner-session expiry", () => {
+      portfolioState.value = { ...baseState, error: "AUTH 401: share session expired or invalid" };
+      const vm = useAppShellViewModel();
+      expect(vm.gateErrorMessage.value).toBe("ログインに失敗しました。もう一度お試しください。");
+    });
+
+    it("keeps the expired message after the automatic logout refetch replaces the error", async () => {
+      portfolioState.value = { ...baseState, error: "" };
+      const vm = useAppShellViewModel();
+      vm.idToken.value = "stale-token";
+      portfolioState.value = { ...baseState, error: "AUTH 401: session expired or invalid" };
+      await nextTick();
+      await nextTick();
+      // The watcher logged out and the refetch replaced the error with
+      // a generic one; the gate must still explain the expiry.
+      portfolioState.value = { ...baseState, error: "AUTH 401: missing id token" };
+      expect(vm.gateErrorMessage.value).toBe("ログインの有効期限が切れました。再度ログインしてください。");
     });
   });
 

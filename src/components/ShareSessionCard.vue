@@ -112,7 +112,7 @@ const copyUrl = async () => {
     </template>
     <div v-else class="share-actions">
       <button class="theme-toggle" type="button" :disabled="busy" @click="issue">
-        {{ busy ? "発行中..." : "1か月間有効な閲覧用URLを発行" }}
+        {{ busy ? "発行中…" : "1か月間有効な閲覧用URLを発行" }}
       </button>
     </div>
   </section>

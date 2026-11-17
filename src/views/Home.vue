@@ -32,7 +32,7 @@ const signedClass = (value) => (value > 0 ? "is-positive" : value < 0 ? "is-nega
 
 <template>
   <section>
-    <p v-if="loading">読み込み中...</p>
+    <p v-if="loading">読み込み中…</p>
     <p v-if="error" class="error">{{ error }}</p>
 
     <!-- 1. 一行の結論 -->

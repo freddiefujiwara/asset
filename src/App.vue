@@ -8,7 +8,7 @@ const {
   themeLabel,
   privacyLabel,
   hasGoogleClientId,
-  authError,
+  gateErrorMessage,
   initialLoading,
   showLoginGate,
   showShareExpired,
@@ -53,13 +53,14 @@ const {
       </div>
     </header>
     <main>
-      <p v-if="initialLoading">読み込み中...</p>
+      <section v-if="initialLoading" class="table-wrap auth-gate" aria-busy="true">
+        <div class="spinner" aria-hidden="true"></div>
+        <p class="meta">読み込んでいます…</p>
+      </section>
       <section v-else-if="showLoginGate" class="table-wrap auth-gate">
         <h2 class="section-title">Googleログインが必要です</h2>
         <p class="meta">許可されたアカウントでサインインしてください。</p>
-        <p v-if="authError" class="error">
-          認証エラーが発生しました。別アカウントで再ログインしてください。({{ portfolioStore.error }})
-        </p>
+        <p v-if="gateErrorMessage" class="error">{{ gateErrorMessage }}</p>
         <p v-if="googleScriptError" class="error">
           Googleログインスクリプトの読み込みに失敗しました。広告ブロック等を解除して再読み込みしてください。
         </p>
@@ -69,8 +70,8 @@ const {
         </p>
       </section>
       <section v-else-if="showShareExpired" class="table-wrap auth-gate">
-        <h2 class="section-title">閲覧用リンクの有効期限が切れています</h2>
-        <p class="meta">このリンクは発行から1か月間だけ有効です。発行者に再発行を依頼してください。</p>
+        <h2 class="section-title">リンクの有効期限が切れています</h2>
+        <p class="meta">この一時アクセスリンクは無効か、期限切れです。発行者に新しいリンクを依頼してください。</p>
       </section>
       <template v-else>
         <p v-if="portfolioStore.shareMode" class="meta">
