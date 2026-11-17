@@ -7,7 +7,10 @@ import {
   PROGRESS_MILESTONES,
   SIDE_FIRE_ANNUAL_INCOME_YEN,
   UNIVERSITY_FUND_YEN,
+  buildAssetGoalTrend,
+  buildAssetGoals,
   buildFireProgress,
+  buildGoalChartData,
   buildProjectionTrend,
   buildProgressTrend,
 } from "@/domain/progress";
@@ -120,10 +123,60 @@ export function useFireProgressViewModel() {
     return `${year}年${month}月`;
   };
 
+  // 1億円目標（金融資産・純金融資産）の現在の達成度と見込み。
+  const assetGoals = computed(() =>
+    data.value
+      ? buildAssetGoals({ portfolio: data.value, baseParams: baseParams.value })
+      : null,
+  );
+
+  const describeGoal = (goal) => {
+    if (!goal) return null;
+    return {
+      ...goal,
+      progressRatePct: goal.progressRate != null ? goal.progressRate * 100 : null,
+      durationLabel: goal.reached ? formatMonths(goal.monthsToReach) : null,
+      dateLabel: goal.reached ? fireDate(goal.monthsToReach) : null,
+      ageLabel: goal.reached
+        ? `${Math.floor(currentAge.value + goal.monthsToReach / 12)}歳`
+        : null,
+    };
+  };
+
+  const totalGoal = computed(() => describeGoal(assetGoals.value?.total));
+  const netGoal = computed(() => describeGoal(assetGoals.value?.net));
+
+  // 1億円目標の到達見込みの推移（スナップショットでの振り返り計算）。
+  const goalTrend = computed(() =>
+    buildAssetGoalTrend(data.value?.snapshots ?? [], {
+      baseParams: baseParams.value,
+    }),
+  );
+
+  // 3目標を1つのグラフで見るための系列（実績＋見込み＋目標ライン）。
+  const goalChart = computed(() =>
+    buildGoalChartData({
+      snapshots: data.value?.snapshots ?? [],
+      assetGoals: assetGoals.value,
+      fullRequiredAssetsYen: progress.value?.full?.requiredAssetsYen ?? null,
+    }),
+  );
+
+  const describeGoalProjection = (projection) => {
+    if (!projection) return "—";
+    if (projection.alreadyReached) return "達成済み";
+    if (!projection.reached || !projection.projectedMonth) return "見込みなし";
+    const [year, month] = projection.projectedMonth.split("-").map(Number);
+    return `${year}年${month}月`;
+  };
+
   // 到達率の推移と到達見込みの推移を月で突き合わせた表示行。
   const trendRows = computed(() => {
     const rateByMonth = new Map(
       trend.value.points.map((point) => [point.month, point]),
+    );
+    const goalByMonth = new Map(
+      goalTrend.value.points.map((point) => [point.month, point]),
     );
     return projectionTrend.value.points.map((point) => ({
       month: point.month,
@@ -132,6 +185,8 @@ export function useFireProgressViewModel() {
       progressRate: rateByMonth.get(point.month)?.progressRate ?? null,
       sideProjectedLabel: describeProjection(point.side),
       fullProjectedLabel: describeProjection(point.full),
+      totalGoalProjectedLabel: describeGoalProjection(goalByMonth.get(point.month)?.total),
+      netGoalProjectedLabel: describeGoalProjection(goalByMonth.get(point.month)?.net),
     }));
   });
 
@@ -151,6 +206,12 @@ export function useFireProgressViewModel() {
   );
   const fullDeltaLabel = computed(() =>
     describeDelta(projectionTrend.value.delta.full),
+  );
+  const totalGoalDeltaLabel = computed(() =>
+    describeDelta(goalTrend.value.delta.total),
+  );
+  const netGoalDeltaLabel = computed(() =>
+    describeDelta(goalTrend.value.delta.net),
   );
 
   const milestones = computed(() =>
@@ -183,6 +244,13 @@ export function useFireProgressViewModel() {
     hasAnyTrend,
     sideDeltaLabel,
     fullDeltaLabel,
+    assetGoals,
+    totalGoal,
+    netGoal,
+    goalTrend,
+    goalChart,
+    totalGoalDeltaLabel,
+    netGoalDeltaLabel,
     milestones,
     universityFundYen: UNIVERSITY_FUND_YEN,
   };

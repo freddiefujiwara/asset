@@ -148,3 +148,22 @@ describe("useHomeViewModel", () => {
     expect(vm.recentExpenses.value.groups[0].items[0]).toMatchObject({ name: "最新明細", amountYen: 100 });
   });
 });
+
+describe("useHomeViewModel asset goals in fire summary", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    localStorage.clear();
+    shareModeRef.value = false;
+    dataRef.value = buildData();
+  });
+
+  it("includes the two 100M goals in the fire summary", () => {
+    const vm = useHomeViewModel();
+    expect(vm.fireSummary.value.totalGoal).not.toBe(null);
+    expect(vm.fireSummary.value.totalGoal.progressRatePct).toBeCloseTo(78.1, 0);
+    expect(vm.fireSummary.value.totalGoal.reached).toBe(true);
+    expect(vm.fireSummary.value.totalGoal.dateLabel).toMatch(/^\d{4}年\d{1,2}月$/);
+    expect(vm.fireSummary.value.netGoal.progressRatePct).toBeCloseTo(66.6, 0);
+    expect(vm.fireSummary.value.netGoal.reached).toBe(true);
+  });
+});
