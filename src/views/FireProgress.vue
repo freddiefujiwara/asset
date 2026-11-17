@@ -1,6 +1,7 @@
 <script setup>
 import { RouterLink } from "vue-router";
 import { formatYen } from "@/domain/format";
+import GoalProgressChart from "@/components/GoalProgressChart.vue";
 import { useFireProgressViewModel } from "@/features/progress/useFireProgressViewModel";
 
 const {
@@ -17,6 +18,12 @@ const {
   hasAnyTrend,
   sideDeltaLabel,
   fullDeltaLabel,
+  assetGoals,
+  totalGoal,
+  netGoal,
+  goalChart,
+  totalGoalDeltaLabel,
+  netGoalDeltaLabel,
   milestones,
   universityFundYen,
 } = useFireProgressViewModel();
@@ -155,6 +162,75 @@ const monthLabel = (monthKey) => {
         </p>
       </section>
 
+      <section v-if="assetGoals && totalGoal && netGoal" class="table-wrap">
+        <h2 class="section-title">目標別の達成度</h2>
+        <table>
+          <thead>
+            <tr><th>目標</th><th>現在の額</th><th>達成度</th><th>達成見込み</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th>完全FIRE</th>
+              <td class="amount-value">{{ formatYen(progress.totalAssetsYen) }}</td>
+              <td>
+                {{ fullProgress?.progressRatePct != null ? `${fullProgress.progressRatePct.toFixed(1)}%` : "—" }}
+              </td>
+              <td>
+                <template v-if="fullProgress?.alreadyReached">達成済み（現在の前提では到達可能な水準です）</template>
+                <template v-else-if="fullProgress?.reached">{{ fullProgress.dateLabel }}（あと{{ fullProgress.durationLabel }}）</template>
+                <template v-else>現在の前提では見込みが立ちません</template>
+              </td>
+            </tr>
+            <tr>
+              <th>金融資産1億円</th>
+              <td class="amount-value">{{ formatYen(assetGoals.totalAssetsYen) }}</td>
+              <td>
+                {{ totalGoal.progressRatePct != null ? `${totalGoal.progressRatePct.toFixed(1)}%` : "—" }}
+              </td>
+              <td>
+                <template v-if="totalGoal.alreadyReached">達成済み</template>
+                <template v-else-if="totalGoal.reached">{{ totalGoal.dateLabel }}（あと{{ totalGoal.durationLabel }}）</template>
+                <template v-else>現在の前提では見込みが立ちません</template>
+              </td>
+            </tr>
+            <tr>
+              <th>純金融資産1億円</th>
+              <td class="amount-value">{{ formatYen(assetGoals.netAssetsYen) }}</td>
+              <td>
+                {{ netGoal.progressRatePct != null ? `${netGoal.progressRatePct.toFixed(1)}%` : "—" }}
+              </td>
+              <td>
+                <template v-if="netGoal.alreadyReached">達成済み</template>
+                <template v-else-if="netGoal.reached">{{ netGoal.dateLabel }}（あと{{ netGoal.durationLabel }}）</template>
+                <template v-else>現在の前提では見込みが立ちません</template>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="meta">
+          1億円目標の見込みは、FIRE計算と同じ前提（月額投資・想定利回り・収入・支出）で
+          働き続けた場合のシミュレーションです。純資産の見込みでは、住宅ローン残高が
+          毎月の返済額ずつ均等に減るものとして近似しています（利息を分離できないため、
+          実際の残高推移とは異なります）。ローン以外の負債は一定とみなしています。
+        </p>
+      </section>
+
+      <section class="table-wrap">
+        <h2 class="section-title">推移グラフ（3目標）</h2>
+        <GoalProgressChart
+          :actual-total="goalChart.actualTotal"
+          :actual-net="goalChart.actualNet"
+          :projected-total="goalChart.projectedTotal"
+          :projected-net="goalChart.projectedNet"
+          :goal-yen="goalChart.goalYen"
+          :full-required-assets-yen="goalChart.fullRequiredAssetsYen"
+        />
+        <p class="meta">
+          実績は月次スナップショット、見込みは現在の前提でのシミュレーションです。
+          完全FIREの必要資産ラインは、現在の前提で計算した必要資産（固定）です。
+        </p>
+      </section>
+
       <section class="table-wrap">
         <h2 class="section-title">推移（到達率と到達見込み）</h2>
         <template v-if="hasAnyTrend">
@@ -163,6 +239,7 @@ const monthLabel = (monthKey) => {
               <tr>
                 <th>月</th><th>FIRE対象資産</th><th>到達率</th>
                 <th>到達見込み（サイドFIRE）</th><th>到達見込み（完全FIRE）</th>
+                <th>到達見込み（金融資産1億円）</th><th>到達見込み（純金融資産1億円）</th>
               </tr>
             </thead>
             <tbody>
@@ -172,11 +249,15 @@ const monthLabel = (monthKey) => {
                 <td>{{ row.progressRate != null ? `${(row.progressRate * 100).toFixed(1)}%` : "—" }}</td>
                 <td>{{ row.sideProjectedLabel }}</td>
                 <td>{{ row.fullProjectedLabel }}</td>
+                <td>{{ row.totalGoalProjectedLabel }}</td>
+                <td>{{ row.netGoalProjectedLabel }}</td>
               </tr>
             </tbody>
           </table>
           <p v-if="sideDeltaLabel" class="meta">サイドFIRE: {{ sideDeltaLabel }}</p>
           <p v-if="fullDeltaLabel" class="meta">完全FIRE: {{ fullDeltaLabel }}</p>
+          <p v-if="totalGoalDeltaLabel" class="meta">金融資産1億円: {{ totalGoalDeltaLabel }}</p>
+          <p v-if="netGoalDeltaLabel" class="meta">純金融資産1億円: {{ netGoalDeltaLabel }}</p>
           <p class="meta">到達率は、必要資産を現在の前提で計算した値で固定して比較しています。</p>
           <p class="meta">
             到達見込みは、各月の資産・収支（12か月平均）を現在の前提（利回り・月額投資など）で
