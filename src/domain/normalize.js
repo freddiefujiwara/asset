@@ -68,6 +68,33 @@ function normalizeSnapshots(rows) {
     .sort((a, b) => a.month.localeCompare(b.month));
 }
 
+/**
+ * 実質地域配分の重み（asset-gas の region-weights.csv 由来）を
+ * 内部形へ変換する。取れない場合は null を返し、ドメイン層の
+ * フォールバック初期値に委ねる。
+ */
+function normalizeRegionWeights(raw) {
+  if (!raw || typeof raw !== "object") {
+    return null;
+  }
+  const sets = {};
+  for (const setName of ["acwi", "developed", "emerging"]) {
+    const set = raw[setName];
+    if (!set || typeof set !== "object") {
+      continue;
+    }
+    sets[setName] = {
+      japan: toNumber(set.japan),
+      us: toNumber(set.us),
+      developed_other: toNumber(set.developed_other),
+      emerging: toNumber(set.emerging),
+      other: toNumber(set.other),
+      effectiveDate: normalizeText(set.effective_date),
+    };
+  }
+  return Object.keys(sets).length ? sets : null;
+}
+
 function normalizeCashFlowRows(rows) {
   const normalized = rows.map((item) => ({
     date: normalizeText(item?.date),
@@ -133,5 +160,6 @@ export function normalizePortfolio(api) {
     },
     cashFlow: normalizeCashFlowRows(asArray(safeApi.mfcf)),
     snapshots: normalizeSnapshots(safeApi.snapshots),
+    weights: normalizeRegionWeights(safeApi.weights),
   };
 }

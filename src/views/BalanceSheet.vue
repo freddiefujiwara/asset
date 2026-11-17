@@ -41,6 +41,8 @@ const {
   totals,
   assetPie,
   liabilityPie,
+  regionAllocation,
+  regionPie,
   totalRiskTiles,
   configs,
   stockTiles,
@@ -190,6 +192,37 @@ const {
     <div class="chart-grid">
       <PieChart title="資産内訳（円グラフ）" :data="assetPie" />
       <PieChart title="負債内訳（円グラフ）" :data="liabilityPie" />
+    </div>
+
+    <div class="chart-grid">
+      <PieChart title="実質地域配分（円グラフ）" :data="regionPie" />
+      <section class="table-wrap">
+        <h3 class="section-title">実質地域配分の見方</h3>
+        <p class="meta">
+          保有銘柄を「実質的にどの地域の資産か」で読み替えた概算です。
+          現金・預金・ポイントと日本株は日本、米国株式ファンドは米国として集計し、
+          オールカントリー等の指数ファンドは指数の国別構成比で按分しています。
+          <template v-if="regionAllocation.effectiveDate">
+            按分に使った重みの基準日は {{ regionAllocation.effectiveDate }} で、重みは毎月見直されます。
+          </template>
+        </p>
+        <details v-if="regionAllocation.unclassified.length">
+          <summary>その他・未分類の内訳（{{ regionAllocation.unclassified.length }}件）</summary>
+          <table>
+            <thead>
+              <tr><th>銘柄・名称</th><th>金額</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in regionAllocation.unclassified" :key="`${item.categoryKey}-${item.name}`">
+                <td>{{ item.name }}</td>
+                <td class="amount-value">{{ formatYen(item.amountYen) }}</td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="meta">読み替えルールに当たらない銘柄は「その他・未分類」に入ります。新しい銘柄を買ったときは、ここに増えていないか確認してください。</p>
+        </details>
+        <p v-else class="meta">読み替えルールに当たらない銘柄はありません。</p>
+      </section>
     </div>
 
     <AssetTreemap

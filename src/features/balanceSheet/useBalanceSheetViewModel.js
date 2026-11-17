@@ -23,6 +23,7 @@ import {
   buildBalanceMonthlyChanges,
   findLargestHolding,
 } from "@/domain/assetSummary";
+import { buildRegionAllocation } from "@/domain/region";
 
 const KEY_MAP = {
   breakdown: "asset_breakdown",
@@ -206,6 +207,19 @@ export function useBalanceSheetViewModel() {
   const assetPie = computed(() => assetsByClass.value.map((item) => ({ label: item.name, value: item.amountYen })));
   const liabilityPie = computed(() => liabilitiesByCategory.value.map((item) => ({ label: item.category, value: item.amountYen })));
 
+  // 実質地域配分（ルックスルー概算）。金額は表示時点の保有額、
+  // 按分の重みはAPI（region-weights.csv）の月次値をそのまま使う。
+  const regionAllocation = computed(() =>
+    buildRegionAllocation(filteredHoldings.value, data.value?.weights ?? null),
+  );
+  const regionPie = computed(() =>
+    regionAllocation.value.buckets.map((bucket) => ({
+      label: bucket.label,
+      value: bucket.amountYen,
+      color: bucket.color,
+    })),
+  );
+
   return {
     loading,
     error,
@@ -228,6 +242,8 @@ export function useBalanceSheetViewModel() {
     totals,
     assetPie,
     liabilityPie,
+    regionAllocation,
+    regionPie,
     totalRiskTiles,
     configs,
     stockTiles,

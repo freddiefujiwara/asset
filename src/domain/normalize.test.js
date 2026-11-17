@@ -198,6 +198,27 @@ describe("normalizePortfolio", () => {
     expect(normalizePortfolio({}).snapshots).toEqual([]);
   });
 
+  it("parses region weights into camelCase sets with numeric buckets", () => {
+    const normalized = normalizePortfolio({
+      weights: {
+        acwi: { japan: "5.08", us: 64.63, developed_other: "19.1", emerging: 11.19, other: 0, effective_date: "2026-10-30" },
+        developed: { japan: 0, us: "77.19", developed_other: 22.81, emerging: 0, other: 0, effective_date: "2026-10-30" },
+      },
+    });
+
+    expect(normalized.weights).toEqual({
+      acwi: { japan: 5.08, us: 64.63, developed_other: 19.1, emerging: 11.19, other: 0, effectiveDate: "2026-10-30" },
+      developed: { japan: 0, us: 77.19, developed_other: 22.81, emerging: 0, other: 0, effectiveDate: "2026-10-30" },
+    });
+  });
+
+  it("weights fall back to null when missing, empty, or malformed", () => {
+    expect(normalizePortfolio({}).weights).toBeNull();
+    expect(normalizePortfolio({ weights: {} }).weights).toBeNull();
+    expect(normalizePortfolio({ weights: "nope" }).weights).toBeNull();
+    expect(normalizePortfolio({ weights: { acwi: "nope", developed: null } }).weights).toBeNull();
+  });
+
 });
 
 describe("normalizePortfolio currency fallback", () => {

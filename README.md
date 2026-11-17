@@ -104,6 +104,13 @@ The app expects JSON from a Google Apps Script endpoint. Main keys (raw format) 
 - `details__portfolio_det_po__t0`: point holdings
 - `details__liability_det__t0-liability`: detailed liabilities
 - `mfcf`: cash flow rows
+- `weights`: region weight sets for the look-through regional
+  allocation (`acwi` / `developed` / `emerging`, each with
+  `japan` / `us` / `developed_other` / `emerging` / `other`
+  percentages and `effective_date`), served by asset-gas from
+  `region-weights.csv` and refreshed monthly there. When the
+  key is unusable, `src/domain/region.js` falls back to
+  embedded seed weights.
 
 Special server-side auth error shape:
 

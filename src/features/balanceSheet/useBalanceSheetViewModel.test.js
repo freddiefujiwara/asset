@@ -74,4 +74,30 @@ describe("useBalanceSheetViewModel", () => {
     expect(vm.getMappedAssetStatusJson()).not.toContain("mfcf");
     expect(vm.stockTreemapUrl.value).toContain("portfolio-treemap");
   });
+
+  it("builds the look-through region allocation and pie data", () => {
+    portfolioDataRef.value = {
+      holdings: {
+        stocks: [],
+        funds: [{ "銘柄名": "オールカントリー株式", "評価額": "1000000" }],
+        pensions: [],
+        points: [],
+        cashLike: [{ "種類・名称": "普通預金", "残高": "1000000" }],
+        liabilitiesDetail: [],
+      },
+      weights: {
+        acwi: { japan: 10, us: 50, developed_other: 20, emerging: 20, other: 0, effectiveDate: "2026-11-02" },
+      },
+    };
+    const vm = useBalanceSheetViewModel();
+    const japan = vm.regionAllocation.value.buckets.find((bucket) => bucket.key === "japan");
+    // 日本 = 現金100万 + オルカン按分10%
+    expect(japan.amountYen).toBe(1100000);
+    expect(vm.regionAllocation.value.effectiveDate).toBe("2026-11-02");
+    expect(vm.regionPie.value.find((slice) => slice.label === "日本")).toEqual({
+      label: "日本",
+      value: 1100000,
+      color: "#38bdf8",
+    });
+  });
 });
