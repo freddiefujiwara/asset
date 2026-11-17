@@ -16,6 +16,7 @@ import { buildCashFlowReview } from "@/domain/cashFlow/review";
 import {
   SIDE_FIRE_ANNUAL_INCOME_YEN,
   UNIVERSITY_FUND_YEN,
+  buildAssetGoals,
   buildFireProgress,
   buildProjectionTrend,
 } from "@/domain/progress";
@@ -76,6 +77,23 @@ export function useHomeViewModel() {
       : { hasTrend: false, points: [], delta: { side: null, full: null } },
   );
 
+  // 1億円目標（金融資産・純金融資産）の要点。FIRE進捗の要点に併記する。
+  const assetGoals = computed(() =>
+    !shareMode.value && data.value
+      ? buildAssetGoals({ portfolio: data.value, baseParams: baseParams.value })
+      : null,
+  );
+
+  const describeGoalSummary = (goal) => {
+    if (!goal) return null;
+    return {
+      progressRatePct: goal.progressRate != null ? goal.progressRate * 100 : null,
+      alreadyReached: goal.alreadyReached,
+      reached: goal.reached,
+      dateLabel: goal.reached ? fireDate(goal.monthsToReach) : null,
+    };
+  };
+
   const fireSummary = computed(() => {
     const full = fireProgress.value?.full;
     if (!full) return null;
@@ -99,6 +117,8 @@ export function useHomeViewModel() {
       projectedMonthLabel: projectedMonth ? `${projYear}年${projMonth}月` : null,
       deltaMonths: projectionTrend.value.delta.full,
       hasTrend: projectionTrend.value.hasTrend,
+      totalGoal: describeGoalSummary(assetGoals.value?.total),
+      netGoal: describeGoalSummary(assetGoals.value?.net),
     };
   });
 

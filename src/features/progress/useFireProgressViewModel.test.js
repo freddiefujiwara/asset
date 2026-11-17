@@ -199,3 +199,46 @@ describe("useFireProgressViewModel", () => {
     expect(vm.shareMode.value).toBe(true);
   });
 });
+
+describe("useFireProgressViewModel asset goals", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    dataRef.value = buildPortfolio();
+    const portfolioStore = usePortfolioStore();
+    portfolioStore.data = dataRef.value;
+    portfolioStore.shareMode = false;
+  });
+
+  it("describes the two 100M goals with rate, date and age", () => {
+    const vm = useFireProgressViewModel();
+    expect(vm.assetGoals.value.goalYen).toBe(100000000);
+    expect(vm.assetGoals.value.totalAssetsYen).toBe(78139712);
+    expect(vm.assetGoals.value.netAssetsYen).toBe(66628825);
+    expect(vm.totalGoal.value.progressRatePct).toBeCloseTo(78.1, 0);
+    expect(vm.totalGoal.value.reached).toBe(true);
+    expect(vm.totalGoal.value.dateLabel).toMatch(/^\d{4}年\d{1,2}月$/);
+    expect(vm.totalGoal.value.ageLabel).toMatch(/^\d+歳$/);
+    expect(vm.netGoal.value.reached).toBe(true);
+    expect(vm.netGoal.value.monthsToReach).toBeGreaterThan(vm.totalGoal.value.monthsToReach);
+  });
+
+  it("builds the combined goal chart data and goal trend labels", () => {
+    const vm = useFireProgressViewModel();
+    expect(vm.goalChart.value.goalYen).toBe(100000000);
+    expect(vm.goalChart.value.actualTotal).toHaveLength(2);
+    expect(vm.goalChart.value.projectedTotal.length).toBeGreaterThan(0);
+    expect(vm.goalChart.value.fullRequiredAssetsYen).toBe(
+      vm.progress.value.full.requiredAssetsYen,
+    );
+    const lastRow = vm.trendRows.value[vm.trendRows.value.length - 1];
+    expect(lastRow.totalGoalProjectedLabel).toMatch(/^\d{4}年\d{1,2}月$/);
+    expect(lastRow.netGoalProjectedLabel).toMatch(/^\d{4}年\d{1,2}月$/);
+    expect(vm.goalTrend.value.hasTrend).toBe(true);
+  });
+
+  it("marks goals as achieved for a rich portfolio", () => {
+    const vm = useViewModelWith(buildRichPortfolio());
+    expect(vm.totalGoal.value.alreadyReached).toBe(true);
+    expect(vm.netGoal.value.alreadyReached).toBe(true);
+  });
+});

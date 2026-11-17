@@ -209,6 +209,24 @@ const signedClass = (value) => (value > 0 ? "is-positive" : value < 0 ? "is-nega
           <template v-else>先月から見込みは変わりません。</template>
         </template>
       </p>
+      <p v-if="fireSummary.totalGoal" class="meta">
+        金融資産1億円:
+        <template v-if="fireSummary.totalGoal.alreadyReached">達成済み</template>
+        <template v-else>
+          達成度 {{ fireSummary.totalGoal.progressRatePct != null ? `${fireSummary.totalGoal.progressRatePct.toFixed(1)}%` : "—" }}
+          <template v-if="fireSummary.totalGoal.reached">・見込み {{ fireSummary.totalGoal.dateLabel }}</template>
+          <template v-else>・現在の前提では見込みが立ちません</template>
+        </template>
+      </p>
+      <p v-if="fireSummary.netGoal" class="meta">
+        純金融資産1億円:
+        <template v-if="fireSummary.netGoal.alreadyReached">達成済み</template>
+        <template v-else>
+          達成度 {{ fireSummary.netGoal.progressRatePct != null ? `${fireSummary.netGoal.progressRatePct.toFixed(1)}%` : "—" }}
+          <template v-if="fireSummary.netGoal.reached">・見込み {{ fireSummary.netGoal.dateLabel }}</template>
+          <template v-else>・現在の前提では見込みが立ちません</template>
+        </template>
+      </p>
       <p class="meta"><RouterLink to="/progress">FIRE進捗の詳細を見る</RouterLink></p>
     </section>
   </section>

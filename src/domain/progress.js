@@ -13,6 +13,9 @@ export const UNIVERSITY_FUND_YEN = 10450000;
 /** サイドFIREの前提: 週3勤務で続く年収。 */
 export const SIDE_FIRE_ANNUAL_INCOME_YEN = 4000000;
 
+/** 金融資産・純金融資産の目標額。 */
+export const ASSET_GOAL_YEN = 100000000;
+
 /** 年表マーカー（月は YYYY-MM）。 */
 export const PROGRESS_MILESTONES = [
   { id: "age-50", label: "50歳", monthKey: "2029-09" },
@@ -364,5 +367,221 @@ export function buildProjectionTrend(
       side: hasTrend ? projectionDeltaMonths(previous?.side, latest?.side) : null,
       full: hasTrend ? projectionDeltaMonths(previous?.full, latest?.full) : null,
     },
+  };
+}
+
+/** 現在の月キー（YYYY-MM）。 */
+function currentMonthKey(now = new Date()) {
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
+/**
+ * 負債残高の将来推移の近似。
+ * 現在の負債のうち住宅ローン相当分は、完済月までの残り月数×毎月返済額を
+ * 現在残高の上限として見積もり、毎月返済額ずつ均等に減るものとする
+ * （利息を分離できないため元金均等返済の近似。実際の残高推移とは異なる）。
+ * ローン以外の負債は一定とみなす。返済額・完済月が無い場合は負債全体を一定とする。
+ */
+export function projectLiabilitiesYen({
+  currentLiabilitiesYen,
+  mortgageMonthlyPayment,
+  mortgagePayoffDate,
+  startMonthKey,
+  monthOffset,
+}) {
+  const total = Math.max(0, Number(currentLiabilitiesYen ?? 0));
+  const payment = Math.max(0, Number(mortgageMonthlyPayment ?? 0));
+  if (!payment || !mortgagePayoffDate || !parseMonthKey(mortgagePayoffDate) || !parseMonthKey(startMonthKey)) {
+    return total;
+  }
+  const remainingMonths = Math.max(
+    0,
+    monthKeyToIndex(mortgagePayoffDate) - monthKeyToIndex(startMonthKey) + 1,
+  );
+  const mortgageBalance = Math.min(total, payment * remainingMonths);
+  const otherLiabilities = total - mortgageBalance;
+  return otherLiabilities + Math.max(0, mortgageBalance - payment * monthOffset);
+}
+
+/**
+ * 資産目標（金融資産・純金融資産）の見込み計算の中核。
+ * FIREエンジンの蓄積フェーズ（リタイアせず働き続ける前提）をそのまま使い、
+ * 総資産と純資産（総資産−負債の近似推移）が目標額を最初に超える月を探す。
+ */
+function projectAssetGoals({ totalAssetsYen, liabilitiesYen, riskAssetsYen, params, startMonthKey }) {
+  const goalYen = ASSET_GOAL_YEN;
+  const totalMonths = (100 - Number(params.currentAge || 40)) * 12;
+  const { monthlyData } = performFireSimulation(
+    { ...params, initialAssets: totalAssetsYen, riskAssets: riskAssetsYen },
+    { forceFireMonth: totalMonths, recordMonthly: true },
+  );
+  const liabilitiesAt = (monthOffset) =>
+    projectLiabilitiesYen({
+      currentLiabilitiesYen: liabilitiesYen,
+      mortgageMonthlyPayment: params.mortgageMonthlyPayment,
+      mortgagePayoffDate: params.mortgagePayoffDate,
+      startMonthKey,
+      monthOffset,
+    });
+
+  const series = monthlyData.map((row) => {
+    const liabilities = liabilitiesAt(row.month);
+    return {
+      monthOffset: row.month,
+      monthKey: addMonthsToMonthKey(startMonthKey, row.month),
+      totalAssetsYen: Math.round(row.assets),
+      liabilitiesYen: Math.round(liabilities),
+      netAssetsYen: Math.round(row.assets - liabilities),
+    };
+  });
+
+  const summarize = (currentYen, pick) => {
+    const reachedIndex = series.findIndex((row) => pick(row) >= goalYen);
+    if (currentYen >= goalYen) {
+      return {
+        reached: true,
+        alreadyReached: true,
+        monthsToReach: 0,
+        projectedMonth: startMonthKey,
+        progressRate: currentYen / goalYen,
+      };
+    }
+    if (reachedIndex < 0) {
+      return {
+        reached: false,
+        alreadyReached: false,
+        monthsToReach: null,
+        projectedMonth: null,
+        progressRate: currentYen / goalYen,
+      };
+    }
+    return {
+      reached: true,
+      alreadyReached: false,
+      monthsToReach: reachedIndex,
+      projectedMonth: series[reachedIndex].monthKey,
+      progressRate: currentYen / goalYen,
+    };
+  };
+
+  const netAssetsYen = totalAssetsYen - liabilitiesYen;
+  return {
+    goalYen,
+    totalAssetsYen,
+    liabilitiesYen,
+    netAssetsYen,
+    total: summarize(totalAssetsYen, (row) => row.totalAssetsYen),
+    net: summarize(netAssetsYen, (row) => row.netAssetsYen),
+    series,
+  };
+}
+
+/**
+ * 現在の資産から、金融資産1億円・純金融資産1億円の達成度と見込みを作る。
+ * 対象資産は画面の「総資産」（totals）とし、リスク資産の内訳は完全FIREと
+ * 同じ集計（calculateFirePortfolio）を使う。
+ */
+export function buildAssetGoals({ portfolio, baseParams }) {
+  const totalAssetsYen = Number(portfolio?.totals?.assetsYen ?? 0);
+  const liabilitiesYen = Number(portfolio?.totals?.liabilitiesYen ?? 0);
+  const firePortfolio = calculateFirePortfolio(portfolio);
+  const riskAssetsYen = Math.min(firePortfolio.riskAssetsYen, totalAssetsYen);
+  return projectAssetGoals({
+    totalAssetsYen,
+    liabilitiesYen,
+    riskAssetsYen,
+    params: { ...baseParams },
+    startMonthKey: currentMonthKey(),
+  });
+}
+
+/**
+ * スナップショット各月について1億円目標の到達見込みを振り返り計算する。
+ * buildProjectionTrend と同じ流儀（資産・年齢・収支はその月の値、前提は現在）。
+ * 行が1件だけの間は hasTrend=false。
+ */
+export function buildAssetGoalTrend(snapshots, { baseParams } = {}) {
+  const rows = (Array.isArray(snapshots) ? snapshots : [])
+    .filter((row) => parseMonthKey(row?.month))
+    .sort((a, b) => a.month.localeCompare(b.month));
+  const points = rows.map((snapshot) => {
+    const totalAssetsYen = Math.max(0, Number(snapshot?.totalAssetsYen ?? 0));
+    const liabilitiesYen = Math.max(0, Number(snapshot?.totalLiabilitiesYen ?? 0));
+    const riskAssetsYen = Math.min(
+      Math.max(0, Number(snapshot?.riskAssetsYen ?? 0)),
+      totalAssetsYen,
+    );
+    const result = projectAssetGoals({
+      totalAssetsYen,
+      liabilitiesYen,
+      riskAssetsYen,
+      params: buildRetrospectiveParams({
+        snapshot,
+        baseParams,
+        initialAssetsYen: totalAssetsYen,
+        riskAssetsYen,
+      }),
+      startMonthKey: snapshot.month,
+    });
+    return { month: snapshot.month, total: result.total, net: result.net };
+  });
+  const hasTrend = points.length >= 2;
+  const previous = points[points.length - 2];
+  const latest = points[points.length - 1];
+  return {
+    hasTrend,
+    points,
+    delta: {
+      total: hasTrend ? projectionDeltaMonths(previous?.total, latest?.total) : null,
+      net: hasTrend ? projectionDeltaMonths(previous?.net, latest?.net) : null,
+    },
+  };
+}
+
+/**
+ * 3目標を1つのグラフで見るための系列を組み立てる。
+ * 実績はスナップショット（総資産・純資産）、見込みは buildAssetGoals の系列。
+ * 見込みは、両目標の到達月（遅い方）＋24か月で打ち切り、どちらも見込みが
+ * 立たない場合は開始から360か月（30年）までとする。
+ */
+export function buildGoalChartData({ snapshots, assetGoals, fullRequiredAssetsYen }) {
+  const rows = (Array.isArray(snapshots) ? snapshots : [])
+    .filter((row) => parseMonthKey(row?.month))
+    .sort((a, b) => a.month.localeCompare(b.month));
+  const actualTotal = rows.map((row) => ({
+    month: row.month,
+    value: Math.max(0, Number(row.totalAssetsYen ?? 0)),
+  }));
+  const actualNet = rows.map((row) => ({
+    month: row.month,
+    value: Math.max(
+      0,
+      Number(row.totalAssetsYen ?? 0) - Number(row.totalLiabilitiesYen ?? 0),
+    ),
+  }));
+
+  const series = Array.isArray(assetGoals?.series) ? assetGoals.series : [];
+  const reachOffsets = [assetGoals?.total, assetGoals?.net]
+    .filter((goal) => goal?.reached)
+    .map((goal) => goal.monthsToReach);
+  const cutoff =
+    reachOffsets.length === 2 ? Math.max(...reachOffsets) + 24 : 360;
+  const projected = series.filter((row) => row.monthOffset <= cutoff);
+  const projectedTotal = projected.map((row) => ({
+    month: row.monthKey,
+    value: row.totalAssetsYen,
+  }));
+  const projectedNet = projected.map((row) => ({
+    month: row.monthKey,
+    value: row.netAssetsYen,
+  }));
+
+  return {
+    goalYen: ASSET_GOAL_YEN,
+    fullRequiredAssetsYen: fullRequiredAssetsYen ?? null,
+    actualTotal,
+    actualNet,
+    projectedTotal,
+    projectedNet,
   };
 }
