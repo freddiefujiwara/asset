@@ -55,7 +55,7 @@ const {
 
 <template>
   <section id="balance-sheet-top">
-    <p v-if="loading">読み込み中...</p>
+    <p v-if="loading">読み込み中…</p>
     <p v-if="error" class="error">{{ error }}</p>
 
     <section class="card-grid">

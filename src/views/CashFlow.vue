@@ -45,7 +45,7 @@ const {
 
 <template>
   <section>
-    <p v-if="loading">読み込み中...</p>
+    <p v-if="loading">読み込み中…</p>
     <p v-if="error" class="error">{{ error }}</p>
 
     <div class="table-wrap review-section">

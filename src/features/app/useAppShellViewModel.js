@@ -9,6 +9,21 @@ import { formatShareExpiry } from "@/domain/share";
 const THEME_STORAGE_KEY = "asset-theme";
 const LEGACY_ID_TOKEN_STORAGE_KEY = "asset-google-id-token";
 
+// Unified sign-in gate messages (same wording across all the apps).
+// The raw API error is categorized here so internal "AUTH ..." strings
+// never reach the screen.
+const LOGIN_FAILED_MESSAGE = "ログインに失敗しました。もう一度お試しください。";
+const ACCOUNT_NOT_ALLOWED_MESSAGE = "このアカウントでは利用できません。";
+const SESSION_EXPIRED_MESSAGE = "ログインの有効期限が切れました。再度ログインしてください。";
+
+// The API reports an expired owner session as "AUTH 401: session
+// expired or invalid" (the share variant reads "share session expired
+// or invalid" and lands on the share-expired screen instead).
+const isSessionExpiredError = (error) => error.includes(": session expired or invalid");
+// A Google account that is not the owner is rejected by the API as
+// "AUTH 403: forbidden email".
+const isAccountNotAllowedError = (error) => error.includes("forbidden");
+
 /**
  * Manage app shell state for auth, theme, and privacy.
  * The idToken ref holds the 30-day owner session token exchanged at
@@ -20,6 +35,7 @@ export function useAppShellViewModel() {
   const googleReady = ref(false);
   const googleScriptError = ref(false);
   const googleButtonRoot = ref(null);
+  const sessionExpiredNotice = ref(false);
 
   const portfolioStore = usePortfolioStore();
   const uiStore = useUiStore();
@@ -30,6 +46,20 @@ export function useAppShellViewModel() {
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
   const hasGoogleClientId = computed(() => Boolean(googleClientId));
   const authError = computed(() => portfolioStore.error.startsWith("AUTH "));
+  /**
+   * The single sign-in gate error line, mapped from the raw API error.
+   * An expired saved session keeps its message even after the
+   * automatic logout refetch replaces the store error with a generic
+   * one.
+   */
+  const gateErrorMessage = computed(() => {
+    if (sessionExpiredNotice.value) return SESSION_EXPIRED_MESSAGE;
+    const error = portfolioStore.error;
+    if (!error.startsWith("AUTH ")) return "";
+    if (isSessionExpiredError(error)) return SESSION_EXPIRED_MESSAGE;
+    if (isAccountNotAllowedError(error)) return ACCOUNT_NOT_ALLOWED_MESSAGE;
+    return LOGIN_FAILED_MESSAGE;
+  });
   const hasData = computed(() => Boolean(portfolioStore.data));
   const initialLoading = computed(() => portfolioStore.loading && !hasData.value);
   const canUseApp = computed(() => hasData.value || Boolean(idToken.value));
@@ -96,6 +126,7 @@ export function useAppShellViewModel() {
   const handleGoogleCredential = async (response) => {
     const credential = response?.credential;
     if (!credential) return;
+    sessionExpiredNotice.value = false;
     const sessionToken = await portfolioStore.exchangeSession(credential);
     if (!sessionToken) return;
     idToken.value = sessionToken;
@@ -167,6 +198,9 @@ export function useAppShellViewModel() {
     () => portfolioStore.error,
     (newError) => {
       if (newError.startsWith("AUTH ") && idToken.value) {
+        if (isSessionExpiredError(newError)) {
+          sessionExpiredNotice.value = true;
+        }
         logout();
       }
     },
@@ -196,6 +230,7 @@ export function useAppShellViewModel() {
     privacyLabel,
     hasGoogleClientId,
     authError,
+    gateErrorMessage,
     initialLoading,
     showLoginGate,
     showShareExpired,
