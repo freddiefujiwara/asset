@@ -1,13 +1,18 @@
 import { describe, expect, it } from "vitest";
 import {
+  ASSET_GOAL_YEN,
   PROGRESS_MILESTONES,
   SIDE_FIRE_ANNUAL_INCOME_YEN,
   UNIVERSITY_FUND_YEN,
   ageAtSnapshotMonth,
+  buildAssetGoalTrend,
+  buildAssetGoals,
   buildFireProgress,
+  buildGoalChartData,
   buildProgressTrend,
   buildProjectionTrend,
   computeFireTargetAssetsYen,
+  projectLiabilitiesYen,
   selectProgressFocus,
 } from "./progress";
 
@@ -440,5 +445,222 @@ describe("buildProjectionTrend edge cases", () => {
     expect(trend.hasTrend).toBe(true);
     expect(trend.points).toHaveLength(2);
     expect(trend.points[0].fireTargetAssetsYen).toBe(0);
+  });
+});
+
+describe("projectLiabilitiesYen", () => {
+  const base = {
+    currentLiabilitiesYen: 11510887,
+    mortgageMonthlyPayment: 61089,
+    mortgagePayoffDate: "2042-05",
+    startMonthKey: "2026-11",
+    monthOffset: 0,
+  };
+
+  it("keeps liabilities constant without a mortgage payment or payoff date", () => {
+    expect(projectLiabilitiesYen({ ...base, mortgageMonthlyPayment: 0 })).toBe(11510887);
+    expect(projectLiabilitiesYen({ ...base, mortgagePayoffDate: null })).toBe(11510887);
+  });
+
+  it("keeps liabilities constant for invalid month keys", () => {
+    expect(projectLiabilitiesYen({ ...base, mortgagePayoffDate: "2042/05" })).toBe(11510887);
+    expect(projectLiabilitiesYen({ ...base, startMonthKey: "x" })).toBe(11510887);
+  });
+
+  it("declines the mortgage portion by the monthly payment and floors at the other liabilities", () => {
+    // 残り187か月×61,089円 = 11,423,643円がローン相当分、その他は87,244円
+    expect(projectLiabilitiesYen({ ...base, monthOffset: 0 })).toBe(11510887);
+    expect(projectLiabilitiesYen({ ...base, monthOffset: 10 })).toBe(11510887 - 610890);
+    expect(projectLiabilitiesYen({ ...base, monthOffset: 500 })).toBe(87244);
+  });
+
+  it("treats a payoff date in the past as no mortgage balance", () => {
+    expect(
+      projectLiabilitiesYen({ ...base, mortgagePayoffDate: "2020-01", monthOffset: 30 }),
+    ).toBe(11510887);
+  });
+
+  it("tolerates missing liabilities", () => {
+    expect(projectLiabilitiesYen({ ...base, currentLiabilitiesYen: null })).toBe(0);
+    expect(
+      projectLiabilitiesYen({ monthOffset: 0, mortgagePayoffDate: "2042-05", startMonthKey: "2026-11" }),
+    ).toBe(0);
+  });
+});
+
+describe("buildAssetGoals", () => {
+  it("projects both 100M goals from the current portfolio", () => {
+    const goals = buildAssetGoals({ portfolio, baseParams });
+    expect(ASSET_GOAL_YEN).toBe(100000000);
+    expect(goals.goalYen).toBe(100000000);
+    expect(goals.totalAssetsYen).toBe(40000000);
+    expect(goals.netAssetsYen).toBe(40000000 - 11510887);
+    expect(goals.total.progressRate).toBeCloseTo(0.4);
+    expect(goals.net.progressRate).toBeCloseTo(0.28489113);
+    expect(goals.total.reached).toBe(true);
+    expect(goals.net.reached).toBe(true);
+    expect(goals.total.alreadyReached).toBe(false);
+    expect(goals.net.monthsToReach).toBeGreaterThan(goals.total.monthsToReach);
+    expect(goals.series.length).toBeGreaterThan(0);
+    expect(goals.series[0].totalAssetsYen).toBe(40000000);
+  });
+
+  it("marks goals already reached when the current amount is at or above 100M", () => {
+    const richPortfolio = {
+      totals: { assetsYen: 120000000, liabilitiesYen: 10000000, netWorthYen: 110000000 },
+      holdings: {
+        cashLike: [{ "名称": "銀行預金", "残高": 20000000 }],
+        stocks: [],
+        funds: [{ "名称": "投信A", "評価額": 100000000 }],
+        pensions: [],
+        points: [],
+        liabilitiesDetail: [],
+      },
+    };
+    const goals = buildAssetGoals({ portfolio: richPortfolio, baseParams });
+    expect(goals.total).toMatchObject({ reached: true, alreadyReached: true, monthsToReach: 0 });
+    expect(goals.net).toMatchObject({ reached: true, alreadyReached: true, monthsToReach: 0 });
+    expect(goals.total.progressRate).toBeCloseTo(1.2);
+  });
+
+  it("reports no projection when assets never reach the goal", () => {
+    const poorPortfolio = {
+      totals: { assetsYen: 1000000, liabilitiesYen: 500000, netWorthYen: 500000 },
+      holdings: {
+        cashLike: [{ "名称": "銀行預金", "残高": 1000000 }],
+        stocks: [],
+        funds: [],
+        pensions: [],
+        points: [],
+        liabilitiesDetail: [],
+      },
+    };
+    const poorParams = {
+      ...baseParams,
+      monthlyIncome: 100000,
+      monthlyInvestment: 0,
+      annualReturnRate: 0,
+    };
+    const goals = buildAssetGoals({ portfolio: poorPortfolio, baseParams: poorParams });
+    expect(goals.total.reached).toBe(false);
+    expect(goals.total.monthsToReach).toBeNull();
+    expect(goals.total.projectedMonth).toBeNull();
+    expect(goals.net.reached).toBe(false);
+  });
+
+  it("tolerates a missing portfolio and a missing current age", () => {
+    const { currentAge, ...paramsWithoutAge } = baseParams;
+    const goals = buildAssetGoals({ portfolio: null, baseParams: paramsWithoutAge });
+    expect(goals.totalAssetsYen).toBe(0);
+    expect(goals.total.progressRate).toBe(0);
+    // 資産ゼロからでも収入の余剰が積み上がる前提のため、到達見込み自体は立つ
+    expect(goals.total.reached).toBe(true);
+    expect(goals.series[0].totalAssetsYen).toBe(0);
+  });
+});
+
+describe("buildAssetGoalTrend", () => {
+  const snapshotA = {
+    month: "2026-10",
+    totalAssetsYen: 77000000,
+    totalLiabilitiesYen: 11600000,
+    riskAssetsYen: 69000000,
+    livingCost12mAvgYen: 470000,
+    income12mAvgYen: 1050000,
+  };
+  const snapshotB = {
+    month: "2026-11",
+    totalAssetsYen: 78139712,
+    totalLiabilitiesYen: 11510887,
+    riskAssetsYen: 70630234,
+    livingCost12mAvgYen: 461012,
+    income12mAvgYen: 1056465,
+  };
+
+  it("builds per-month goal projections with deltas", () => {
+    const trend = buildAssetGoalTrend([snapshotB, snapshotA], { baseParams });
+    expect(trend.hasTrend).toBe(true);
+    expect(trend.points.map((p) => p.month)).toEqual(["2026-10", "2026-11"]);
+    expect(trend.points[1].total.projectedMonth).not.toBeNull();
+    expect(trend.delta.total).not.toBeNull();
+    expect(trend.delta.net).not.toBeNull();
+  });
+
+  it("has no trend with a single snapshot and tolerates non-array input", () => {
+    const single = buildAssetGoalTrend([snapshotA], { baseParams });
+    expect(single.hasTrend).toBe(false);
+    expect(single.delta).toEqual({ total: null, net: null });
+    const empty = buildAssetGoalTrend(null, { baseParams });
+    expect(empty.points).toEqual([]);
+    expect(empty.hasTrend).toBe(false);
+  });
+
+  it("skips snapshots with invalid months and missing amounts", () => {
+    const trend = buildAssetGoalTrend(
+      [{ month: "bad" }, { month: "2026-10" }],
+      { baseParams },
+    );
+    expect(trend.points).toHaveLength(1);
+    expect(trend.points[0].total.progressRate).toBe(0);
+  });
+});
+
+describe("buildGoalChartData", () => {
+  const snapshots = [
+    { month: "2026-10", totalAssetsYen: 77000000, totalLiabilitiesYen: 11600000 },
+    { month: "2026-11", totalAssetsYen: 78139712, totalLiabilitiesYen: 11510887 },
+  ];
+
+  it("combines actuals, projections and goal lines", () => {
+    const assetGoals = buildAssetGoals({ portfolio, baseParams });
+    const chart = buildGoalChartData({
+      snapshots,
+      assetGoals,
+      fullRequiredAssetsYen: 128643042,
+    });
+    expect(chart.goalYen).toBe(100000000);
+    expect(chart.fullRequiredAssetsYen).toBe(128643042);
+    expect(chart.actualTotal).toEqual([
+      { month: "2026-10", value: 77000000 },
+      { month: "2026-11", value: 78139712 },
+    ]);
+    expect(chart.actualNet[1]).toEqual({ month: "2026-11", value: 66628825 });
+    // 両目標とも到達見込みがあるため、遅い方の到達+24か月で打ち切る
+    const lastNet = chart.projectedNet[chart.projectedNet.length - 1];
+    expect(chart.projectedTotal.length).toBeLessThan(assetGoals.series.length);
+    expect(lastNet.value).toBeGreaterThan(100000000);
+  });
+
+  it("caps the projection at 360 months when a goal is unreachable", () => {
+    const assetGoals = {
+      total: { reached: false, monthsToReach: null },
+      net: { reached: true, monthsToReach: 10 },
+      series: Array.from({ length: 400 }, (_, i) => ({
+        monthOffset: i,
+        monthKey: "2030-01",
+        totalAssetsYen: i,
+        netAssetsYen: i,
+      })),
+    };
+    const chart = buildGoalChartData({ snapshots: [], assetGoals, fullRequiredAssetsYen: null });
+    expect(chart.projectedTotal).toHaveLength(361);
+    expect(chart.fullRequiredAssetsYen).toBeNull();
+    expect(chart.actualTotal).toEqual([]);
+  });
+
+  it("tolerates missing asset goals and snapshots", () => {
+    const chart = buildGoalChartData({ snapshots: null, assetGoals: null, fullRequiredAssetsYen: undefined });
+    expect(chart.projectedTotal).toEqual([]);
+    expect(chart.projectedNet).toEqual([]);
+    expect(chart.fullRequiredAssetsYen).toBeNull();
+    const partial = buildGoalChartData({ snapshots, assetGoals: {}, fullRequiredAssetsYen: 1 });
+    expect(partial.projectedTotal).toEqual([]);
+    const sparse = buildGoalChartData({
+      snapshots: [{ month: "bad" }, null, { month: "2026-10" }],
+      assetGoals: null,
+      fullRequiredAssetsYen: null,
+    });
+    expect(sparse.actualTotal).toEqual([{ month: "2026-10", value: 0 }]);
+    expect(sparse.actualNet).toEqual([{ month: "2026-10", value: 0 }]);
   });
 });
