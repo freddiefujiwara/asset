@@ -34,7 +34,7 @@ function livingCostByLargeCategory(cashFlow, monthKey) {
 }
 
 /** カテゴリ別に表示する、その月の支出トップ件数。 */
-export const REVIEW_TOP_EXPENSE_LIMIT = 3;
+const REVIEW_TOP_EXPENSE_LIMIT = 3;
 
 /**
  * 対象月の大カテゴリごとに、金額の大きい支出をトップ3まで返す。

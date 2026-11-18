@@ -14,8 +14,8 @@ import { diffRatePct } from "./signed";
  * 年金（iDeCo・確定給付/確定拠出年金など）は原則60歳まで受給・引き出しが
  * できないため、「60歳前に使いやすい資産」から除く。
  */
-export const AGE_LOCKED_CATEGORY_KEYS = ["pensions"];
-export const AGE_LOCKED_LABEL = "年金（60歳まで引き出し不可）";
+const AGE_LOCKED_CATEGORY_KEYS = ["pensions"];
+const AGE_LOCKED_LABEL = "年金（60歳まで引き出し不可）";
 
 /**
  * 3区分サマリ。
@@ -50,7 +50,7 @@ export function buildAssetSegments({
 }
 
 /** 集中表示の対象カテゴリ（リスク資産）。 */
-export const CONCENTRATION_CATEGORY_DEFS = [
+const CONCENTRATION_CATEGORY_DEFS = [
   { key: "stocks", title: "株式" },
   { key: "funds", title: "投資信託" },
   { key: "pensions", title: "年金" },

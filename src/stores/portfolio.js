@@ -106,32 +106,29 @@ export const usePortfolioStore = defineStore("portfolio", {
           ? buildApiUrlWithShare(shareToken)
           : API_URL;
       try {
-        while (true) {
-          const response = await fetch(apiUrl);
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-          }
-
-          const json = await response.json();
-          if (json?.status === 401 || json?.status === 403) {
-            const authMessage = json.error ?? "unauthorized";
-            if (sessionToken && authMessage === "session expired or invalid") {
-              // The stored owner session is gone or expired; drop it so
-              // the shell returns to the Google sign-in gate.
-              setSessionToken("");
-              this.hasSession = false;
-            }
-
-            throw new Error(`AUTH ${json.status}: ${authMessage}`);
-          }
-
-          this.rawResponse = json;
-          this.shareExpiresAt = json?._share?.expires_at ?? "";
-          const payload = json?.data ?? json;
-          this.data = normalizePortfolio(payload);
-          this.source = "live";
-          break;
+        const response = await fetch(apiUrl);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
         }
+
+        const json = await response.json();
+        if (json?.status === 401 || json?.status === 403) {
+          const authMessage = json.error ?? "unauthorized";
+          if (sessionToken && authMessage === "session expired or invalid") {
+            // The stored owner session is gone or expired; drop it so
+            // the shell returns to the Google sign-in gate.
+            setSessionToken("");
+            this.hasSession = false;
+          }
+
+          throw new Error(`AUTH ${json.status}: ${authMessage}`);
+        }
+
+        this.rawResponse = json;
+        this.shareExpiresAt = json?._share?.expires_at ?? "";
+        const payload = json?.data ?? json;
+        this.data = normalizePortfolio(payload);
+        this.source = "live";
       } catch (error) {
         const message = error?.message ?? "unknown error";
         if (message.startsWith("AUTH ")) {
