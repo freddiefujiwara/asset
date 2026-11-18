@@ -17,7 +17,7 @@ export const REGION_BUCKETS = [
   { key: "other", label: "その他・未分類", color: "#f87171" },
 ];
 
-export const REGION_WEIGHT_SET_NAMES = ["acwi", "developed", "emerging"];
+export const REGION_WEIGHT_SET_NAMES = ["acwi", "acwi_ex_japan", "developed", "emerging"];
 
 /**
  * フォールバック初期値（asset-gas 側のシードと同値）。
@@ -25,9 +25,12 @@ export const REGION_WEIGHT_SET_NAMES = ["acwi", "developed", "emerging"];
  * 国別構成から導出: ACWI は米国 64.63・日本 5.08、新興国比率
  * 11.19 は2つのファクトシートから逆算した先進国比率の残差。
  * developed は MSCI World（除く日本）を 100 に正規化したもの。
+ * acwi_ex_japan は acwi から日本を除いて 100 に正規化したもの
+ * （米国 68.09・その他先進国 20.12・新興国 11.79）。
  */
 export const FALLBACK_REGION_WEIGHTS = {
   acwi: { japan: 5.08, us: 64.63, developed_other: 19.1, emerging: 11.19, other: 0, effectiveDate: "2026-10-30" },
+  acwi_ex_japan: { japan: 0, us: 68.09, developed_other: 20.12, emerging: 11.79, other: 0, effectiveDate: "2026-10-30" },
   developed: { japan: 0, us: 77.19, developed_other: 22.81, emerging: 0, other: 0, effectiveDate: "2026-10-30" },
   emerging: { japan: 0, us: 0, developed_other: 0, emerging: 100, other: 0, effectiveDate: "2026-10-30" },
 };
@@ -37,10 +40,14 @@ const HOLDING_CATEGORIES = ["cashLike", "stocks", "funds", "pensions", "points"]
 // 重みセットで按分するルール（上から順に最初に当たったものを採用）。
 // 新興国を全世界より先に見るのは「新興国株式」を含む名称の誤判定を
 // 防ぐため。先進国は「先進国株式」等に限定し、先進国債券・リートを
-// 巻き込まない。
+// 巻き込まない。mustMatch を持つルールは patterns のいずれかに加えて
+// mustMatch の全てに当たった場合だけ採用する（全世界株式（除く日本）
+// は日本を 0 にした専用セットへ振るため、汎用の acwi より先に置く）。
+const WORLD_PATTERNS = [/オールカントリー/, /オール・カントリー/, /全世界株式/, /全世界株/, /ACWI/i];
 const WEIGHTED_RULES = [
   { set: "emerging", patterns: [/新興国株式/, /新興国株/, /エマージング/] },
-  { set: "acwi", patterns: [/オールカントリー/, /オール・カントリー/, /全世界株式/, /全世界株/, /ACWI/i] },
+  { set: "acwi_ex_japan", patterns: WORLD_PATTERNS, mustMatch: [/除く日本/] },
+  { set: "acwi", patterns: WORLD_PATTERNS },
   { set: "developed", patterns: [/先進国株式/, /先進国株/, /コクサイ/, /ワールド株式/, /MSCI\s*World/i] },
 ];
 
@@ -72,9 +79,13 @@ export function classifyRegion(name, categoryKey) {
   }
 
   for (const rule of WEIGHTED_RULES) {
-    if (rule.patterns.some((pattern) => pattern.test(text))) {
-      return { kind: "weighted", set: rule.set };
+    if (!rule.patterns.some((pattern) => pattern.test(text))) {
+      continue;
     }
+    if (rule.mustMatch && !rule.mustMatch.every((pattern) => pattern.test(text))) {
+      continue;
+    }
+    return { kind: "weighted", set: rule.set };
   }
   for (const rule of FIXED_RULES) {
     if (rule.patterns.some((pattern) => pattern.test(text))) {

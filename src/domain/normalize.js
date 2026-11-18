@@ -78,7 +78,7 @@ function normalizeRegionWeights(raw) {
     return null;
   }
   const sets = {};
-  for (const setName of ["acwi", "developed", "emerging"]) {
+  for (const setName of ["acwi", "acwi_ex_japan", "developed", "emerging"]) {
     const set = raw[setName];
     if (!set || typeof set !== "object") {
       continue;
