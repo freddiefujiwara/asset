@@ -43,12 +43,9 @@ const {
   monthlyIncome,
   annualInvestment,
   annualSavings,
-  postFireFirstYearExtraExpense,
-  growthData,
   annualSimulationData,
   fireAchievementMonth,
   fireAchievementAge,
-  pensionAnnualAtFire,
   estimatedMonthlyPensionAt60,
   requiredAssetsAtFire,
   chartAnnotations,
@@ -60,7 +57,6 @@ const {
   algorithmExplanationSegments,
   copyConditionsAndAlgorithm,
   copyAnnualTable,
-  copyText,
   mortgageOptions,
 } = useFireSimulatorViewModel();
 </script>

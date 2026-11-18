@@ -193,6 +193,13 @@ export function buildProgressTrend(snapshots, { universityFundYen, requiredAsset
   return { hasTrend: points.length >= 2, points };
 }
 
+/** 月キーが妥当なスナップショット行だけを、月の昇順に並べて返す。 */
+function sortedSnapshotRows(snapshots) {
+  return (Array.isArray(snapshots) ? snapshots : [])
+    .filter((row) => parseMonthKey(row?.month))
+    .sort((a, b) => a.month.localeCompare(b.month));
+}
+
 /** "YYYY-MM" を { year, month } に分解する。不正な形式は null。 */
 function parseMonthKey(monthKey) {
   const match = /^(\d{4})-(\d{2})$/.exec(String(monthKey ?? ""));
@@ -351,9 +358,7 @@ export function buildProjectionTrend(
     sideFireAnnualIncomeYen = SIDE_FIRE_ANNUAL_INCOME_YEN,
   } = {},
 ) {
-  const rows = (Array.isArray(snapshots) ? snapshots : [])
-    .filter((row) => parseMonthKey(row?.month))
-    .sort((a, b) => a.month.localeCompare(b.month));
+  const rows = sortedSnapshotRows(snapshots);
   const points = rows.map((row) =>
     projectAtSnapshot(row, { baseParams, universityFundYen, sideFireAnnualIncomeYen }),
   );
@@ -501,9 +506,7 @@ export function buildAssetGoals({ portfolio, baseParams }) {
  * 行が1件だけの間は hasTrend=false。
  */
 export function buildAssetGoalTrend(snapshots, { baseParams } = {}) {
-  const rows = (Array.isArray(snapshots) ? snapshots : [])
-    .filter((row) => parseMonthKey(row?.month))
-    .sort((a, b) => a.month.localeCompare(b.month));
+  const rows = sortedSnapshotRows(snapshots);
   const points = rows.map((snapshot) => {
     const totalAssetsYen = Math.max(0, Number(snapshot?.totalAssetsYen ?? 0));
     const liabilitiesYen = Math.max(0, Number(snapshot?.totalLiabilitiesYen ?? 0));
@@ -545,9 +548,7 @@ export function buildAssetGoalTrend(snapshots, { baseParams } = {}) {
  * 立たない場合は開始から360か月（30年）までとする。
  */
 export function buildGoalChartData({ snapshots, assetGoals, fullRequiredAssetsYen }) {
-  const rows = (Array.isArray(snapshots) ? snapshots : [])
-    .filter((row) => parseMonthKey(row?.month))
-    .sort((a, b) => a.month.localeCompare(b.month));
+  const rows = sortedSnapshotRows(snapshots);
   const actualTotal = rows.map((row) => ({
     month: row.month,
     value: Math.max(0, Number(row.totalAssetsYen ?? 0)),

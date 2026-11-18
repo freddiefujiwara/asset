@@ -125,6 +125,20 @@ export function riskAssetSummary(holdings) {
 }
 
 /**
+ * Extract a row's value and profit. When the profit is missing but a
+ * profit rate is present, back out the profit from the rate.
+ */
+function rowValueAndProfit(row) {
+  const value = toNumber(row?.["評価額"]) || toNumber(row?.["現在価値"]) || 0;
+  let profit = toNumber(row?.["評価損益"]) || 0;
+  const profitRate = toNumber(row?.["評価損益率"]);
+  if (!profit && profitRate && value > 0) {
+    profit = (profitRate * value) / (100 + profitRate);
+  }
+  return { value, profit };
+}
+
+/**
  * Aggregates rows by name and builds treemap tiles.
  */
 function buildTiles(rows, { aggregate = false } = {}) {
@@ -135,12 +149,7 @@ function buildTiles(rows, { aggregate = false } = {}) {
     const map = new Map();
     safeRows.forEach((row) => {
       const name = row?.["銘柄名"] || row?.["名称"] || "名称未設定";
-      const value = toNumber(row?.["評価額"]) || toNumber(row?.["現在価値"]) || 0;
-      let profit = toNumber(row?.["評価損益"]) || 0;
-      const profitRate = toNumber(row?.["評価損益率"]);
-      if (!profit && profitRate && value > 0) {
-        profit = (profitRate * value) / (100 + profitRate);
-      }
+      const { value, profit } = rowValueAndProfit(row);
       const dailyChange = dailyChangeYen(row) || 0;
       const useProfitRate = !!row?.__useProfitRate;
       const institution = row?.["保有金融機関"] || "不明";
@@ -170,12 +179,7 @@ function buildTiles(rows, { aggregate = false } = {}) {
     processedRows = Array.from(map.values());
   } else {
     processedRows = safeRows.map((row, idx) => {
-      const value = toNumber(row?.["評価額"]) || toNumber(row?.["現在価値"]) || 0;
-      let profit = toNumber(row?.["評価損益"]) || 0;
-      const profitRate = toNumber(row?.["評価損益率"]);
-      if (!profit && profitRate && value > 0) {
-        profit = (profitRate * value) / (100 + profitRate);
-      }
+      const { value, profit } = rowValueAndProfit(row);
       return {
         name: row?.["銘柄名"] ?? row?.["銘柄コード"] ?? row?.["名称"] ?? "名称未設定",
         symbol: row?.["銘柄コード"] ?? "",

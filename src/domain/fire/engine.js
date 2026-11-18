@@ -1,4 +1,4 @@
-import { getUniqueMonths, getExpenseType } from "../cashFlow";
+import { getExpenseType } from "../cashFlow";
 import { formatYen } from "../format";
 import { FIRE_ALGORITHM_CONSTANTS, calculateMonthlyPension } from "./pension";
 import {
@@ -127,9 +127,6 @@ function processLookbackCashFlow(cashFlow, callback) {
  * Returns a breakdown by category and excludes special expenses.
  * Also excludes "Cash" and "Card" related categories as requested.
  */
-/**
- * Estimate monthly expenses from past cash flow rows.
- */
 export function estimateMonthlyExpenses(cashFlow) {
   const divisor = TWELVE_MONTH_LOOKBACK_COUNT;
   const breakdownMap = {};
@@ -184,9 +181,6 @@ export function estimateMonthlyExpenses(cashFlow) {
 /**
  * Estimate monthly average income from cash flow (previous 12 months, excluding current month).
  */
-/**
- * Estimate monthly income from past cash flow rows.
- */
 export function estimateMonthlyIncome(cashFlow) {
   const divisor = TWELVE_MONTH_LOOKBACK_COUNT;
   let totalIncome = 0;
@@ -203,9 +197,6 @@ export function estimateMonthlyIncome(cashFlow) {
  * Estimate income split by regular (給与等) and bonus (賞与/ボーナス) from cash flow.
  * - regularMonthly: average monthly regular income
  * - bonusAnnual: total annualized bonus estimated from the target window
- */
-/**
- * Split income into regular and bonus values.
  */
 export function estimateIncomeSplit(cashFlow) {
   const divisor = TWELVE_MONTH_LOOKBACK_COUNT;
@@ -274,9 +265,6 @@ export function estimateIncomeSplit(cashFlow) {
 /**
  * Aggregate past 12 months summary (excluding current month) for copying and simulation.
  */
-/**
- * Build one summary object for the past twelve months.
- */
 export function getPast12MonthSummary(cashFlow) {
   const expenses = estimateMonthlyExpenses(cashFlow);
   const income = estimateIncomeSplit(cashFlow);
@@ -304,9 +292,6 @@ export function getPast12MonthSummary(cashFlow) {
 /**
  * Estimate mortgage monthly payment from category "住宅/ローン返済".
  */
-/**
- * Estimate mortgage payment per month from cash flow.
- */
 export function estimateMortgageMonthlyPayment(cashFlow) {
   const divisor = TWELVE_MONTH_LOOKBACK_COUNT;
   let totalMortgage = 0;
@@ -325,9 +310,6 @@ export function estimateMortgageMonthlyPayment(cashFlow) {
  * Calculate required assets to last until age 100.
  * Account for inflation, pension, and the 4% withdrawal floor rule.
  * Uses a simplified numerical approximation for the target asset.
- */
-/**
- * Calculate required assets at one month by backward method.
  */
 function calculateRequiredAssets({
   monthlyExpense,
@@ -425,9 +407,6 @@ function calculateCurrentMonthlyExpense({
  * - Daily goods (日用品): x2/3
  * - Others: No change
  */
-/**
- * Compute lifestyle reduction factor after daughter independence.
- */
 export function calculateLifestyleReduction(breakdown) {
   if (!breakdown || !Array.isArray(breakdown) || breakdown.length === 0) {
     return 1.0;
@@ -457,9 +436,6 @@ export function calculateLifestyleReduction(breakdown) {
 /**
  * Normalizes and validates simulation parameters.
  */
-/**
- * Normalize user params and apply defaults.
- */
 export function normalizeFireParams(params) {
   if (!params) return normalizeFireParams({});
   const monthlyExpense = params.monthlyExpense ?? (params.monthlyExpenses ? params.monthlyExpenses / 12 : 0);
@@ -488,8 +464,24 @@ export function normalizeFireParams(params) {
 }
 
 /**
- * Internal simulation engine.
+ * Take `needed` yen (net) out of risk assets, taxing only the gain portion.
+ * Returns the net/gross amounts and the updated balances.
  */
+function withdrawFromRiskAssets(riskAssets, costBasis, needed, includeTax, taxRate) {
+  // Correct Tax Logic: Only tax the gain portion
+  const gainRatio = riskAssets > 0 ? Math.max(0, (riskAssets - costBasis) / riskAssets) : 0;
+  const taxFactor = includeTax ? gainRatio * taxRate : 0;
+  const maxNet = Math.max(0, riskAssets * (1 - taxFactor));
+  const net = Math.min(needed, maxNet);
+  const gross = net / (1 - taxFactor);
+  return {
+    net,
+    gross,
+    riskAssets: Math.max(0, riskAssets - gross),
+    costBasis: Math.max(0, costBasis - gross * (1 - gainRatio)),
+  };
+}
+
 /**
  * Run core month-by-month FIRE simulation.
  */
@@ -610,22 +602,14 @@ function _runCoreSimulation(params, { recordMonthly = false, fireMonth = -1, ret
 
       if (cashAfterFlow < 0) {
         // Shortfall: take from risk (capped by available risk)
-        const needed = Math.abs(cashAfterFlow);
+        const withdrawal = withdrawFromRiskAssets(
+          currentRisk, currentCostBasis, Math.abs(cashAfterFlow), includeTax, taxRate,
+        );
+        currentRisk = withdrawal.riskAssets;
+        currentCostBasis = withdrawal.costBasis;
 
-        // Correct Tax Logic: Only tax the gain portion
-        const gainRatio = currentRisk > 0 ? Math.max(0, (currentRisk - currentCostBasis) / currentRisk) : 0;
-        const maxNetFromRisk = Math.max(0, currentRisk * (1 - (includeTax ? gainRatio * taxRate : 0)));
-        const actualNetFromRisk = Math.min(needed, maxNetFromRisk);
-        const grossFromRisk = actualNetFromRisk / (1 - (includeTax ? gainRatio * taxRate : 0));
-
-        const costBasisWithdrawn = grossFromRisk * (1 - gainRatio);
-        currentCostBasis -= costBasisWithdrawn;
-        currentRisk -= grossFromRisk;
-        currentRisk = Math.max(0, currentRisk);
-        currentCostBasis = Math.max(0, currentCostBasis);
-
-        currentCash = cashAfterFlow + actualNetFromRisk;
-        monthlyWithdrawal = actualNetFromRisk > 0 ? grossFromRisk : 0;
+        currentCash = cashAfterFlow + withdrawal.net;
+        monthlyWithdrawal = withdrawal.net > 0 ? withdrawal.gross : 0;
       } else {
         // Surplus: invest
         monthlyInvest = Math.min(monthlyInvestment, cashAfterFlow);
@@ -645,17 +629,13 @@ function _runCoreSimulation(params, { recordMonthly = false, fireMonth = -1, ret
       const remainingShortfall = netToTakeFromAssets - takenFromCash;
 
       // 2. Take from Risk if Cash is insufficient (capped by available risk)
-      // Correct Tax Logic: Only tax the gain portion
-      const gainRatio = currentRisk > 0 ? Math.max(0, (currentRisk - currentCostBasis) / currentRisk) : 0;
-      const maxNetFromRisk = Math.max(0, currentRisk * (1 - (includeTax ? gainRatio * taxRate : 0)));
-      const actualNetFromRisk = Math.min(remainingShortfall, maxNetFromRisk);
-      const grossFromRisk = actualNetFromRisk / (1 - (includeTax ? gainRatio * taxRate : 0));
-
-      const costBasisWithdrawn = grossFromRisk * (1 - gainRatio);
-      currentCostBasis -= costBasisWithdrawn;
-      currentRisk -= grossFromRisk;
-      currentRisk = Math.max(0, currentRisk);
-      currentCostBasis = Math.max(0, currentCostBasis);
+      const withdrawal = withdrawFromRiskAssets(
+        currentRisk, currentCostBasis, remainingShortfall, includeTax, taxRate,
+      );
+      currentRisk = withdrawal.riskAssets;
+      currentCostBasis = withdrawal.costBasis;
+      const actualNetFromRisk = withdrawal.net;
+      const grossFromRisk = withdrawal.gross;
 
       // 3. Ledger balance
       // Any withdrawal exceeding the expense shortfall (due to asset withdrawal rate rule)
@@ -685,9 +665,6 @@ function _runCoreSimulation(params, { recordMonthly = false, fireMonth = -1, ret
 
 /**
  * Find the earliest retirement month that survives until age 100.
- */
-/**
- * Find first month where assets reach zero.
  */
 function findSurvivalMonth(params, returnsArray = null) {
   const { currentAge, maxMonths } = params;
@@ -726,9 +703,6 @@ function findSurvivalMonth(params, returnsArray = null) {
 /**
  * Core simulation engine. Finds survival month if not forced.
  */
-/**
- * Execute FIRE simulation and return summary.
- */
 export function performFireSimulation(inputParams, options = {}) {
   const params = normalizeFireParams(inputParams);
   const { forceFireMonth = null, returnsArray = null, recordMonthly = false } = options;
@@ -760,9 +734,6 @@ export function performFireSimulation(inputParams, options = {}) {
 /**
  * Generate a deterministic growth table for charting.
  */
-/**
- * Generate monthly growth table for chart use.
- */
 export function generateGrowthTable(params) {
   const { monthlyData, fireReachedMonth } = performFireSimulation(params, { recordMonthly: true });
   return {
@@ -779,9 +750,6 @@ export function generateGrowthTable(params) {
 
 /**
  * Generate annual simulation data for a representative scenario until age 100.
- */
-/**
- * Convert monthly simulation rows to annual rows.
  */
 export function generateAnnualSimulation(params) {
   const { monthlyData, fireReachedMonth } = performFireSimulation(params, { recordMonthly: true });
@@ -822,9 +790,6 @@ export function generateAnnualSimulation(params) {
 /**
  * Seeded random number generator (Mulberry32).
  */
-/**
- * Create deterministic pseudo random generator.
- */
 function createRandom(seed) {
   return function() {
     let t = seed += 0x6D2B79F5;
@@ -837,9 +802,6 @@ function createRandom(seed) {
 /**
  * Standard Normal Random Variable using Box-Muller transform.
  */
-/**
- * Generate normal random value from uniform random input.
- */
 function nextGaussian(rand) {
   let u = 0, v = 0;
   while(u === 0) u = rand();
@@ -847,9 +809,6 @@ function nextGaussian(rand) {
   return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
 }
 
-/**
- * Execute Monte Carlo simulation.
- */
 /**
  * Run Monte Carlo trials and return percentiles.
  */
