@@ -30,6 +30,12 @@ describe("classifyRegion", () => {
     expect(classifyRegion("楽天・全世界株式インデックス・ファンド", "pensions")).toEqual({ kind: "weighted", set: "acwi" });
   });
 
+  it("classifies all-country funds excluding Japan to the acwi_ex_japan weight set", () => {
+    expect(classifyRegion("eMAXIS 全世界株式インデックス(除く日本)", "funds")).toEqual({ kind: "weighted", set: "acwi_ex_japan" });
+    expect(classifyRegion("eMAXIS 全世界株式インデックス（除く日本）", "funds")).toEqual({ kind: "weighted", set: "acwi_ex_japan" });
+    expect(classifyRegion("オールカントリー株式（除く日本）", "pensions")).toEqual({ kind: "weighted", set: "acwi_ex_japan" });
+  });
+
   it("classifies developed-market funds to the developed weight set", () => {
     expect(classifyRegion("eMAXIS Slim 先進国株式インデックス", "funds")).toEqual({ kind: "weighted", set: "developed" });
     expect(classifyRegion("たわらノーロード 先進国株式", "pensions")).toEqual({ kind: "weighted", set: "developed" });
@@ -87,6 +93,41 @@ describe("buildRegionAllocation", () => {
     expect(allocation.unclassified).toEqual([]);
     expect(allocation.effectiveDate).toBe("2026-10-30");
     expect(bucketOf(allocation, "japan").ratioPct).toBeCloseTo((1650800 / 4600000) * 100, 5);
+  });
+
+  it("allocates an ex-Japan all-country fund with no Japan share", () => {
+    const allocation = buildRegionAllocation(
+      {
+        funds: [{ "銘柄名": "eMAXIS 全世界株式インデックス(除く日本)", "評価額": "1,000,000" }],
+      },
+      null,
+    );
+
+    expect(allocation.totalYen).toBe(1000000);
+    expect(bucketOf(allocation, "japan").amountYen).toBe(0);
+    // フォールバックの acwi_ex_japan: 米国 68.09 / その他先進国 20.12 / 新興国 11.79
+    expect(bucketOf(allocation, "us").amountYen).toBe(680900);
+    expect(bucketOf(allocation, "developed_other").amountYen).toBe(201200);
+    expect(bucketOf(allocation, "emerging").amountYen).toBe(117900);
+    expect(allocation.effectiveDate).toBe("2026-10-30");
+  });
+
+  it("uses API weights for the acwi_ex_japan set when provided", () => {
+    const allocation = buildRegionAllocation(
+      { funds: [{ "銘柄名": "全世界株式インデックス(除く日本)", "評価額": "1000000" }] },
+      { acwi_ex_japan: { japan: 0, us: 70, developed_other: 20, emerging: 10, other: 0, effectiveDate: "2026-11-02" } },
+    );
+
+    expect(bucketOf(allocation, "us").amountYen).toBe(700000);
+    expect(bucketOf(allocation, "japan").amountYen).toBe(0);
+    expect(allocation.effectiveDate).toBe("2026-11-02");
+  });
+
+  it("fallback weight sets each sum to 100", () => {
+    for (const set of Object.values(FALLBACK_REGION_WEIGHTS)) {
+      const total = set.japan + set.us + set.developed_other + set.emerging + set.other;
+      expect(total).toBeCloseTo(100, 5);
+    }
   });
 
   it("uses API weights when provided and reports the latest effective date", () => {

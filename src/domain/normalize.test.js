@@ -202,12 +202,14 @@ describe("normalizePortfolio", () => {
     const normalized = normalizePortfolio({
       weights: {
         acwi: { japan: "5.08", us: 64.63, developed_other: "19.1", emerging: 11.19, other: 0, effective_date: "2026-10-30" },
+        acwi_ex_japan: { japan: 0, us: "68.09", developed_other: 20.12, emerging: "11.79", other: 0, effective_date: "2026-10-30" },
         developed: { japan: 0, us: "77.19", developed_other: 22.81, emerging: 0, other: 0, effective_date: "2026-10-30" },
       },
     });
 
     expect(normalized.weights).toEqual({
       acwi: { japan: 5.08, us: 64.63, developed_other: 19.1, emerging: 11.19, other: 0, effectiveDate: "2026-10-30" },
+      acwi_ex_japan: { japan: 0, us: 68.09, developed_other: 20.12, emerging: 11.79, other: 0, effectiveDate: "2026-10-30" },
       developed: { japan: 0, us: 77.19, developed_other: 22.81, emerging: 0, other: 0, effectiveDate: "2026-10-30" },
     });
   });
