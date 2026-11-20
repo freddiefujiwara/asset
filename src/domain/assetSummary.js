@@ -33,11 +33,19 @@ export function buildAssetSegments({
   categoryCards,
   universityFundYen = UNIVERSITY_FUND_YEN,
 }) {
-  const total = Number(totalAssetsYen ?? 0);
+  // toNumber (the parse layer), not bare Number(): Number(true) is 1
+  // and Number([65]) is 65, which would turn deformed view-model values
+  // into real readings, and Number("abc") leaks NaN into every segment.
+  const total = toNumber(totalAssetsYen);
   const cards = Array.isArray(categoryCards) ? categoryCards : [];
   const ageLockedYen = cards
-    .filter((card) => AGE_LOCKED_CATEGORY_KEYS.includes(card.key))
-    .reduce((sum, card) => sum + Number(card.amountYen ?? 0), 0);
+    .filter(
+      (card) =>
+        card !== null &&
+        typeof card === "object" &&
+        AGE_LOCKED_CATEGORY_KEYS.includes(card.key),
+    )
+    .reduce((sum, card) => sum + toNumber(card.amountYen), 0);
 
   return {
     totalAssetsYen: total,
@@ -66,7 +74,7 @@ const CONCENTRATION_CATEGORY_DEFS = [
  * @param {number} riskAssetsTotalYen リスク資産合計（画面表示値）
  */
 export function findLargestHolding(holdings, riskAssetsTotalYen) {
-  const total = Number(riskAssetsTotalYen ?? 0);
+  const total = toNumber(riskAssetsTotalYen);
   let largest = null;
   CONCENTRATION_CATEGORY_DEFS.forEach(({ key, title }) => {
     const rows = Array.isArray(holdings?.[key]) ? holdings[key] : [];

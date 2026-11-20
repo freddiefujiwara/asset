@@ -13,7 +13,13 @@ export function parseShareToken(hash) {
   for (const part of fragment.split("&")) {
     const eq = part.indexOf("=");
     if (eq > 0 && part.slice(0, eq) === "share") {
-      return decodeURIComponent(part.slice(eq + 1));
+      try {
+        return decodeURIComponent(part.slice(eq + 1));
+      } catch {
+        // A truncated or hand-edited fragment is not a usable token;
+        // treat it as no token instead of aborting the caller's load.
+        return "";
+      }
     }
   }
   return "";
@@ -26,7 +32,9 @@ export function buildShareUrl(baseUrl, token) {
 
 /** Whole seconds until the session expires; null when the date is invalid. */
 export function shareSecondsLeft(expiresAt, nowMs) {
-  const expiresMs = Date.parse(expiresAt);
+  // Date.parse coerces its argument, which throws for values whose
+  // toString is not callable; only strings are valid expiry values.
+  const expiresMs = typeof expiresAt === "string" ? Date.parse(expiresAt) : NaN;
   if (Number.isNaN(expiresMs)) {
     return null;
   }
@@ -35,7 +43,12 @@ export function shareSecondsLeft(expiresAt, nowMs) {
 
 /** Expiry label as "20261202 07:53" (local time); "" when invalid. */
 export function formatShareExpiry(expiresAt) {
-  const date = new Date(expiresAt);
+  // Same coercion hazard as shareSecondsLeft: new Date() throws on
+  // unstringifiable values, so reject non-string/non-number input first.
+  const date =
+    typeof expiresAt === "string" || typeof expiresAt === "number"
+      ? new Date(expiresAt)
+      : new Date(NaN);
   if (Number.isNaN(date.getTime())) {
     return "";
   }
@@ -46,7 +59,7 @@ export function formatShareExpiry(expiresAt) {
 
 /** Human label such as "残り約30日" / "残り約30分" / "残り約1分未満" / "期限切れ". */
 export function formatShareRemaining(seconds) {
-  if (seconds === null) {
+  if (seconds === null || Number.isNaN(seconds) || seconds === Infinity) {
     return "";
   }
   if (seconds <= 0) {
