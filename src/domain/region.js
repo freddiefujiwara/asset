@@ -66,7 +66,13 @@ const FOREIGN_CURRENCY_PATTERNS = [/外貨/, /米ドル/, /ドル建て/, /USD/i
  *   null は未分類（その他・未分類バケットに入り、内訳に残る）。
  */
 export function classifyRegion(name, categoryKey) {
-  const text = String(name ?? "");
+  let text;
+  try {
+    text = String(name ?? "");
+  } catch {
+    // Unstringifiable names carry no classification signal.
+    text = "";
+  }
 
   if (categoryKey === "cashLike") {
     // 円の現金・預金は日本。外貨預金だけは通貨で寄せる。

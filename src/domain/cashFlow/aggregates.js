@@ -1,12 +1,16 @@
 import { getCategoryLabel, getExpenseType, isSpecialExpense } from "./classifiers";
 import { getMonthKey } from "./shared";
 
+// A non-array history (deformed payload, missing section) reads as an
+// empty history rather than throwing in every aggregate.
+const asRows = (cashFlow) => (Array.isArray(cashFlow) ? cashFlow : []);
+
 export function getKPIs(cashFlow) {
   let income = 0;
   let expense = 0;
   let transfers = 0;
 
-  cashFlow.forEach((item) => {
+  asRows(cashFlow).forEach((item) => {
     if (item.isTransfer) {
       transfers += item.amount;
     } else {
@@ -28,7 +32,7 @@ export function getKPIs(cashFlow) {
 
 export function aggregateByMonth(cashFlow, { includeNet = true } = {}) {
   const months = {};
-  cashFlow.forEach((item) => {
+  asRows(cashFlow).forEach((item) => {
     if (item.isTransfer) {
       return;
     }
@@ -79,7 +83,8 @@ export function aggregateByMonth(cashFlow, { includeNet = true } = {}) {
 }
 
 export function getRecentAverages(monthlyData, months = 6) {
-  if (!monthlyData.length) {
+  const rows = asRows(monthlyData);
+  if (!rows.length) {
     return {
       income: 0,
       expense: 0,
@@ -91,7 +96,7 @@ export function getRecentAverages(monthlyData, months = 6) {
     };
   }
 
-  const recent = monthlyData.slice(-months);
+  const recent = rows.slice(-months);
   const totals = recent.reduce(
     (acc, item) => ({
       income: acc.income + item.income,
@@ -144,7 +149,7 @@ function getTargetRowsForAverage(cashFlow, averageMonths, excludeCurrentMonth) {
 }
 
 export function aggregateByCategory(cashFlow, { averageMonths = 0, excludeCurrentMonth = false } = {}) {
-  const targetCashFlow = getTargetRowsForAverage(cashFlow, averageMonths, excludeCurrentMonth);
+  const targetCashFlow = getTargetRowsForAverage(asRows(cashFlow), averageMonths, excludeCurrentMonth);
 
   const categories = {};
   targetCashFlow.forEach((item) => {
@@ -168,7 +173,7 @@ export function aggregateByCategory(cashFlow, { averageMonths = 0, excludeCurren
 }
 
 export function aggregateByType(cashFlow, { averageMonths = 0, excludeCurrentMonth = false } = {}) {
-  const targetCashFlow = getTargetRowsForAverage(cashFlow, averageMonths, excludeCurrentMonth);
+  const targetCashFlow = getTargetRowsForAverage(asRows(cashFlow), averageMonths, excludeCurrentMonth);
 
   const types = {
     fixed: { label: "固定費", value: 0, color: "#38bdf8" },

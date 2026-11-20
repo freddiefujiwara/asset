@@ -51,14 +51,23 @@ export function dailyChangeYen(row) {
   return null;
 }
 
+function asKeyText(value) {
+  try {
+    return String(value ?? "");
+  } catch {
+    return "";
+  }
+}
+
 /**
  * @param {Record<string, unknown>|null|undefined} row
  * @returns {string}
  */
 export function holdingRowKey(row) {
-  const institution = row?.["保有金融機関"] ?? "";
-  const name =
-    row?.["名称・説明"] ?? row?.["種類・名称"] ?? row?.["銘柄名"] ?? row?.["名称"] ?? "";
+  const institution = asKeyText(row?.["保有金融機関"]);
+  const name = asKeyText(
+    row?.["名称・説明"] ?? row?.["種類・名称"] ?? row?.["銘柄名"] ?? row?.["名称"],
+  );
   return `${institution}__${name}`;
 }
 

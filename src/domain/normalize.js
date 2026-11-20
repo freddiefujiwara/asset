@@ -45,7 +45,26 @@ function withDerivedPensionProfit(row) {
 
 
 function normalizeText(value, fallback = "") {
-  return String(value ?? fallback).trim();
+  try {
+    return String(value ?? fallback).trim();
+  } catch {
+    // JSON can carry values whose toString is not callable; one such
+    // field must not fail the whole payload conversion.
+    return String(fallback).trim();
+  }
+}
+
+/**
+ * 文字列化できない値が来ても例外にせず空文字として読む。
+ * @param {unknown} value
+ * @returns {string}
+ */
+function asText(value) {
+  try {
+    return String(value ?? "");
+  } catch {
+    return "";
+  }
 }
 
 /**
@@ -96,14 +115,16 @@ function normalizeRegionWeights(raw) {
 }
 
 function normalizeCashFlowRows(rows) {
-  const normalized = rows.map((item) => ({
-    date: normalizeText(item?.date),
-    amount: toNumber(item?.amount),
-    currency: normalizeText(item?.currency, "JPY") || "JPY",
-    name: normalizeText(item?.name),
-    category: normalizeText(item?.category),
-    isTransfer: Boolean(item?.is_transfer),
-  }));
+  const normalized = rows
+    .filter((item) => item !== null && typeof item === "object" && !Array.isArray(item))
+    .map((item) => ({
+      date: normalizeText(item?.date),
+      amount: toNumber(item?.amount),
+      currency: normalizeText(item?.currency, "JPY") || "JPY",
+      name: normalizeText(item?.name),
+      category: normalizeText(item?.category),
+      isTransfer: Boolean(item?.is_transfer),
+    }));
 
   const seen = new Set();
   return normalized.flatMap((item) => {
@@ -126,13 +147,13 @@ export function normalizePortfolio(api) {
   const safeApi = api ?? {};
 
   const assetsByClass = asArray(safeApi.breakdown).map((item) => ({
-    name: String(item?.category ?? ""),
+    name: asText(item?.category),
     amountYen: toNumber(item?.amount_yen),
     percentage: toPercent(item?.percentage),
   }));
 
   const liabilitiesByCategory = asArray(safeApi["breakdown-liability"]).map((item) => ({
-    category: String(item?.category ?? ""),
+    category: asText(item?.category),
     amountYen: toNumber(item?.amount_yen),
     percentage: toPercent(item?.percentage),
   }));

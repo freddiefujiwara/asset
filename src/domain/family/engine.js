@@ -79,10 +79,22 @@ export function assetAmountYen(row) {
   return 0;
 }
 
+const ASSET_NAME_FIELDS = ["名称・説明", "種類・名称", "銘柄名", "名称", "種類"];
+
 export function assetDisplayName(row) {
-  return (
-    row?.["名称・説明"] ?? row?.["種類・名称"] ?? row?.["銘柄名"] ?? row?.["名称"] ?? row?.["種類"] ?? "-"
-  );
+  // Always returns a string: raw API rows can carry non-string name
+  // fields, and consumers interpolate the result or feed it to
+  // String()-based classifiers that throw on unstringifiable values.
+  for (const key of ASSET_NAME_FIELDS) {
+    const value = row?.[key];
+    if (typeof value === "string") {
+      return value;
+    }
+    if (typeof value === "number" || typeof value === "boolean") {
+      return String(value);
+    }
+  }
+  return "-";
 }
 
 export function summarizeFamilyAssets(holdings) {
