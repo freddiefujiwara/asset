@@ -1,0 +1,169 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { mount } from "@vue/test-utils";
+import { createRouter, createMemoryHistory } from "vue-router";
+import { defineComponent, reactive, nextTick } from "vue";
+import App from "@/App.vue";
+
+let portfolioStore;
+let uiStore;
+let fireSimulatorStore;
+let fetchPortfolioMock;
+
+vi.mock("@/stores/portfolio", () => ({
+  SESSION_TOKEN_STORAGE_KEY: "asset-session-token",
+  usePortfolioStore: () => portfolioStore,
+}));
+
+vi.mock("@/stores/ui", () => ({
+  useUiStore: () => uiStore,
+}));
+
+vi.mock("@/stores/fireSimulator", () => ({
+  useFireSimulatorStore: () => fireSimulatorStore,
+}));
+
+function makeRouter(initialPath = "/") {
+  const Dummy = (name) => defineComponent({ template: `<div>${name}</div>` });
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      { path: "/", redirect: "/balance-sheet" },
+      { path: "/balance-sheet", component: Dummy("balance-sheet-view") },
+      { path: "/holdings", redirect: "/balance-sheet" },
+      { path: "/cash-flow", component: Dummy("cash-flow-view") },
+      { path: "/fire", component: Dummy("fire-view") },
+    ],
+  });
+  router.push(initialPath);
+  return router;
+}
+
+describe("App cross-screen integration", () => {
+  beforeEach(() => {
+    fetchPortfolioMock = vi.fn();
+    portfolioStore = reactive({
+      data: null,
+      loading: false,
+      error: "",
+      source: "",
+      shareMode: false,
+      shareExpiresAt: "",
+      fetchPortfolio: fetchPortfolioMock,
+      revokeSession: vi.fn(() => {
+        localStorage.removeItem("asset-session-token");
+      }),
+    });
+
+    uiStore = reactive({
+      privacyMode: false,
+      togglePrivacy: vi.fn(),
+      setPrivacySuspended: vi.fn(),
+    });
+
+    fireSimulatorStore = reactive({});
+
+    localStorage.clear();
+  });
+
+  it("shows login gate when token is missing and live data is unavailable", async () => {
+    const router = makeRouter("/balance-sheet");
+    await router.isReady();
+
+    const wrapper = mount(App, {
+      global: {
+        plugins: [router],
+      },
+    });
+
+    expect(wrapper.text()).toContain("Googleログインが必要です");
+    expect(wrapper.text()).not.toContain("balance-sheet-view");
+  });
+
+  it("renders route content when token exists", async () => {
+    localStorage.setItem("asset-session-token", "dummy-token");
+
+    const router = makeRouter("/cash-flow");
+    await router.isReady();
+
+    const wrapper = mount(App, {
+      global: {
+        plugins: [router],
+      },
+    });
+
+    await nextTick();
+    await nextTick();
+
+    expect(wrapper.text()).toContain("cash-flow-view");
+    expect(wrapper.text()).not.toContain("Googleログインが必要です");
+  });
+
+  it("logs out and refetches when auth error occurs with existing token", async () => {
+    localStorage.setItem("asset-session-token", "dummy-token");
+    const removeSpy = vi.spyOn(Storage.prototype, "removeItem");
+
+    const router = makeRouter("/fire");
+    await router.isReady();
+
+    mount(App, {
+      global: {
+        plugins: [router],
+      },
+    });
+
+    expect(fetchPortfolioMock).toHaveBeenCalledTimes(1);
+
+    portfolioStore.error = "AUTH 401";
+    await nextTick();
+    await nextTick();
+
+    expect(removeSpy).toHaveBeenCalledWith("asset-session-token");
+    expect(fetchPortfolioMock).toHaveBeenCalledTimes(2);
+
+    removeSpy.mockRestore();
+  });
+
+  it("renders share content with the share banner and no login gate", async () => {
+    portfolioStore.shareMode = true;
+    portfolioStore.data = { totals: {} };
+    portfolioStore.source = "live";
+    portfolioStore.shareExpiresAt = new Date(2026, 11, 2, 7, 53).toISOString();
+
+    const router = makeRouter("/balance-sheet");
+    await router.isReady();
+
+    const wrapper = mount(App, {
+      global: {
+        plugins: [router],
+      },
+    });
+
+    await nextTick();
+
+    expect(wrapper.text()).toContain("balance-sheet-view");
+    expect(wrapper.text()).toContain("一時リンクで表示中です（20261202 07:53 まで有効）");
+    expect(wrapper.text()).not.toContain("Googleログインが必要です");
+    expect(uiStore.setPrivacySuspended).toHaveBeenCalledWith(true);
+  });
+
+  it("shows the expired share state instead of the login gate", async () => {
+    portfolioStore.shareMode = true;
+    portfolioStore.error = "AUTH 401: share session expired or invalid";
+
+    const router = makeRouter("/balance-sheet");
+    await router.isReady();
+
+    const wrapper = mount(App, {
+      global: {
+        plugins: [router],
+      },
+    });
+
+    await nextTick();
+
+    expect(wrapper.text()).toContain("リンクの有効期限が切れています");
+    expect(wrapper.text()).toContain("この一時アクセスリンクは無効か、期限切れです。発行者に新しいリンクを依頼してください。");
+    expect(wrapper.text()).not.toContain("Googleログインが必要です");
+    expect(wrapper.text()).not.toContain("balance-sheet-view");
+  });
+});

@@ -1,0 +1,48 @@
+name: Node.js CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v7
+    - name: Use Node.js 20.x
+      uses: actions/setup-node@v7
+      with:
+        node-version: '24'
+    - run: npm install
+    - run: npm test -- --run
+    - run: npm run build
+      env:
+        VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
+    - name: Build staging variant into dist/staging
+      env:
+        VITE_GAS_ENDPOINT: "https://script.google.com/macros/s/AKfycbwaNgQjqAJCOKt8ReWAE6uhEZzEBuRRsnRbRFsa16RpVQSs6KSRVCPNZnalOXZWy0CE/exec"
+        VITE_STAGING: "1"
+        VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
+      run: |
+        npm run build:staging
+        mkdir -p dist/staging
+        cp -r dist-staging/* dist/staging/
+    - name: Generate OGP Image from GAS JSON
+      run: |
+        # URL-encoded title: 資産可視化
+        JSON_RESPONSE=$(curl -L -s "https://script.google.com/macros/s/AKfycbzbMAKxkzHlwN8SY7ygJA34xYESMNNdkGNt8vv1XMcZSksgHsUwOxCCdP-wgg6fv7M/exec?t=%E8%B3%87%E7%94%A3%E5%8F%AF%E8%A6%96%E5%8C%96")
+        echo $JSON_RESPONSE | jq -r '.png' | base64 -d > ./dist/ogp.png
+        ls -lh ./dist/ogp.png
+
+    - name: Deploy to GitHub Pages
+      if: github.event_name == 'push'
+      uses: peaceiris/actions-gh-pages@v4
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./dist

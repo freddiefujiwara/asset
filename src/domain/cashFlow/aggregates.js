@@ -1,0 +1,202 @@
+import { getCategoryLabel, getExpenseType, isSpecialExpense } from "./classifiers";
+import { getMonthKey } from "./shared";
+
+// A non-array history (deformed payload, missing section) reads as an
+// empty history rather than throwing in every aggregate.
+const asRows = (cashFlow) => (Array.isArray(cashFlow) ? cashFlow : []);
+
+export function getKPIs(cashFlow) {
+  let income = 0;
+  let expense = 0;
+  let transfers = 0;
+
+  asRows(cashFlow).forEach((item) => {
+    if (item.isTransfer) {
+      transfers += item.amount;
+    } else {
+      if (item.amount > 0) {
+        income += item.amount;
+      } else {
+        expense += item.amount;
+      }
+    }
+  });
+
+  return {
+    income,
+    expense,
+    net: income + expense,
+    transfers,
+  };
+}
+
+export function aggregateByMonth(cashFlow, { includeNet = true } = {}) {
+  const months = {};
+  asRows(cashFlow).forEach((item) => {
+    if (item.isTransfer) {
+      return;
+    }
+    const month = getMonthKey(item);
+    if (!month) {
+      return;
+    }
+    if (!months[month]) {
+      months[month] = {
+        month,
+        income: 0,
+        expense: 0,
+        net: 0,
+        fixed: 0,
+        variable: 0,
+        special: 0,
+        exclude: 0,
+      };
+    }
+    if (item.amount > 0) {
+      months[month].income += item.amount;
+    } else {
+      const absAmount = Math.abs(item.amount);
+      months[month].expense += absAmount;
+
+      // 特別支出は "exclude" の一部だが、月次グラフで通常の生活費・
+      // その他の除外と分けて見せるため独立したバケットに分離する。
+      // fixed + variable + special + exclude = expense の関係は維持する。
+      const type = isSpecialExpense(item) ? "special" : getExpenseType(item);
+      if (type === "special") {
+        months[month].special += absAmount;
+      } else if (type === "fixed") {
+        months[month].fixed += absAmount;
+      } else if (type === "variable") {
+        months[month].variable += absAmount;
+      } else {
+        // type は special/fixed/variable のいずれでもなければ exclude のみ
+        // （getExpenseType の戻り値がこの3値＋special に限られるため）
+        months[month].exclude += absAmount;
+      }
+    }
+    if (includeNet) {
+      months[month].net += item.amount;
+    }
+  });
+
+  return Object.values(months).sort((a, b) => a.month.localeCompare(b.month));
+}
+
+export function getRecentAverages(monthlyData, months = 6) {
+  const rows = asRows(monthlyData);
+  if (!rows.length) {
+    return {
+      income: 0,
+      expense: 0,
+      net: 0,
+      fixed: 0,
+      variable: 0,
+      exclude: 0,
+      count: 0,
+    };
+  }
+
+  const recent = rows.slice(-months);
+  const totals = recent.reduce(
+    (acc, item) => ({
+      income: acc.income + item.income,
+      expense: acc.expense + item.expense,
+      net: acc.net + item.net,
+      fixed: acc.fixed + (item.fixed || 0),
+      variable: acc.variable + (item.variable || 0),
+      exclude: acc.exclude + (item.exclude || 0),
+    }),
+    {
+      income: 0,
+      expense: 0,
+      net: 0,
+      fixed: 0,
+      variable: 0,
+      exclude: 0,
+    },
+  );
+
+  const count = recent.length;
+  return {
+    income: totals.income / count,
+    expense: totals.expense / count,
+    net: totals.net / count,
+    fixed: totals.fixed / count,
+    variable: totals.variable / count,
+    exclude: totals.exclude / count,
+    count,
+  };
+}
+
+function getTargetRowsForAverage(cashFlow, averageMonths, excludeCurrentMonth) {
+  if (averageMonths <= 0) {
+    return cashFlow;
+  }
+
+  const expenseRows = cashFlow.filter((item) => item.amount < 0 && !item.isTransfer);
+  const now = new Date();
+
+  // Pick exactly the last N months from now to match fire.js logic
+  const targetMonths = [];
+  const startOffset = excludeCurrentMonth ? 1 : 0;
+  for (let i = startOffset; i < startOffset + averageMonths; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    targetMonths.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  }
+
+  const monthSet = new Set(targetMonths);
+  return expenseRows.filter((item) => monthSet.has(getMonthKey(item)));
+}
+
+export function aggregateByCategory(cashFlow, { averageMonths = 0, excludeCurrentMonth = false } = {}) {
+  const targetCashFlow = getTargetRowsForAverage(asRows(cashFlow), averageMonths, excludeCurrentMonth);
+
+  const categories = {};
+  targetCashFlow.forEach((item) => {
+    if (item.isTransfer || item.amount >= 0) {
+      return;
+    }
+    const categoryLabel = getCategoryLabel(item);
+    if (!categories[categoryLabel]) {
+      categories[categoryLabel] = { label: categoryLabel, value: 0 };
+    }
+    categories[categoryLabel].value += Math.abs(item.amount);
+  });
+  const items = Object.values(categories);
+  if (averageMonths > 0) {
+    items.forEach((item) => {
+      item.value /= averageMonths;
+    });
+  }
+
+  return items.sort((a, b) => b.value - a.value);
+}
+
+export function aggregateByType(cashFlow, { averageMonths = 0, excludeCurrentMonth = false } = {}) {
+  const targetCashFlow = getTargetRowsForAverage(asRows(cashFlow), averageMonths, excludeCurrentMonth);
+
+  const types = {
+    fixed: { label: "固定費", value: 0, color: "#38bdf8" },
+    variable: { label: "変動費", value: 0, color: "#f59e0b" },
+    exclude: { label: "除外", value: 0, color: "#4b5563" },
+  };
+
+  targetCashFlow.forEach((item) => {
+    if (item.isTransfer || item.amount >= 0) {
+      return;
+    }
+    const type = getExpenseType(item);
+    /* v8 ignore else -- getExpenseType の戻り値は types のキー（fixed/variable/exclude）のいずれか */
+    if (types[type]) {
+      types[type].value += Math.abs(item.amount);
+    }
+  });
+
+  if (averageMonths > 0) {
+    Object.values(types).forEach((t) => {
+      t.value /= averageMonths;
+    });
+  }
+
+  return Object.values(types).filter((t) => t.value > 0);
+}

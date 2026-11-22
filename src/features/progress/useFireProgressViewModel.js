@@ -1,0 +1,259 @@
+import { computed } from "vue";
+import { usePortfolioData } from "@/composables/usePortfolioData";
+import { usePortfolioStore } from "@/stores/portfolio";
+import { useFireBaseParams } from "@/features/fireSimulator/useFireBaseParams";
+import { calculateAge, getUserBirthDate } from "@/domain/family";
+import {
+  getProgressMilestones,
+  getSideFireAnnualIncomeYen,
+  getUniversityFundYen,
+} from "@/domain/familyConfig";
+import {
+  buildAssetGoalTrend,
+  buildAssetGoals,
+  buildFireProgress,
+  buildGoalChartData,
+  buildProjectionTrend,
+  buildProgressTrend,
+} from "@/domain/progress";
+import { fireDate, formatMonths } from "@/features/fireSimulator/formatters";
+
+/**
+ * FIRE進捗画面のビューモデル。
+ * 前提（利回り・生活費・収入・ローン等）はFIRE計算画面と共有の
+ * fireSimulator ストアの既定値を使い、入力は持たない。
+ */
+export function useFireProgressViewModel() {
+  const { data, loading, error } = usePortfolioData();
+  const portfolioStore = usePortfolioStore();
+
+  // 前提パラメータの組み立てはホーム画面と共通（useFireBaseParams）。
+  const { baseParams, currentAge } = useFireBaseParams();
+
+  const shareMode = computed(() => portfolioStore.shareMode);
+
+  const progress = computed(() =>
+    data.value
+      ? buildFireProgress({ portfolio: data.value, baseParams: baseParams.value })
+      : null,
+  );
+
+  const describeRun = (run) => {
+    if (!run) return null;
+    if (!run.reached) {
+      return { ...run, durationLabel: "見込みなし", dateLabel: "—", ageLabel: "—" };
+    }
+    return {
+      ...run,
+      durationLabel: formatMonths(run.monthsToReach),
+      dateLabel: fireDate(run.monthsToReach),
+      ageLabel: `${Math.floor(currentAge.value + run.monthsToReach / 12)}歳`,
+      progressRatePct: run.progressRate != null ? run.progressRate * 100 : null,
+    };
+  };
+
+  const sideProgress = computed(() => describeRun(progress.value?.side));
+  const fullProgress = computed(() => describeRun(progress.value?.full));
+
+  // 主指標の振り分け（ドメインの selectProgressFocus）。
+  // サイドFIREが到達可能な水準になったら完全FIREが主指標に昇格する。
+  const focus = computed(() => progress.value?.focus ?? null);
+  const bothReached = computed(() => focus.value?.focus === "both");
+
+  const labelForKind = (kind) => (kind === "side" ? "サイドFIRE" : "完全FIRE");
+  const runForKind = (kind) =>
+    kind === "side" ? progress.value?.side : progress.value?.full;
+
+  const primaryProgress = computed(() => {
+    const kind = focus.value?.primaryKind;
+    if (!kind || !progress.value) return null;
+    const run = describeRun(runForKind(kind));
+    if (!run) return null;
+    const isSide = kind === "side";
+    return {
+      ...run,
+      kind,
+      label: labelForKind(kind),
+      // 主指標の対象資産。サイドFIREは大学資金を除いた対象資産、
+      // 完全FIREは総資産そのものが対象（対象資産の行はサイドのときだけ出す）。
+      baseAssetsLabel: isSide ? "FIRE対象資産（大学資金を除く）" : null,
+      baseAssetsYen: isSide
+        ? progress.value.fireTargetAssetsYen
+        : progress.value.totalAssetsYen,
+      rateLabel: isSide
+        ? "到達率（FIRE対象資産 ÷ 必要資産）"
+        : "到達率（総資産 ÷ 必要資産）",
+    };
+  });
+
+  const secondaryProgress = computed(() => {
+    const kind = focus.value?.secondaryKind;
+    if (!kind || !progress.value) return null;
+    const run = describeRun(runForKind(kind));
+    if (!run) return null;
+    return {
+      ...run,
+      kind,
+      label: labelForKind(kind),
+      achieved: run.alreadyReached === true,
+    };
+  });
+
+  const trend = computed(() => {
+    const requiredAssetsYen = progress.value?.side?.requiredAssetsYen;
+    if (!requiredAssetsYen) return { hasTrend: false, points: [] };
+    return buildProgressTrend(data.value?.snapshots ?? [], {
+      universityFundYen: getUniversityFundYen(),
+      requiredAssetsYen,
+    });
+  });
+
+  // 到達見込み時期の推移（各月の資産・収支を現在の前提で振り返り計算）。
+  const projectionTrend = computed(() =>
+    buildProjectionTrend(data.value?.snapshots ?? [], {
+      baseParams: baseParams.value,
+      universityFundYen: getUniversityFundYen(),
+      sideFireAnnualIncomeYen: getSideFireAnnualIncomeYen(),
+    }),
+  );
+
+  const describeProjection = (projection) => {
+    if (!projection) return "—";
+    if (projection.alreadyReached) return "到達可能な水準";
+    if (!projection.reached || !projection.projectedMonth) return "見込みなし";
+    const [year, month] = projection.projectedMonth.split("-").map(Number);
+    return `${year}年${month}月`;
+  };
+
+  // 1億円目標（金融資産・純金融資産）の現在の達成度と見込み。
+  const assetGoals = computed(() =>
+    data.value
+      ? buildAssetGoals({ portfolio: data.value, baseParams: baseParams.value })
+      : null,
+  );
+
+  const describeGoal = (goal) => {
+    if (!goal) return null;
+    return {
+      ...goal,
+      progressRatePct: goal.progressRate != null ? goal.progressRate * 100 : null,
+      durationLabel: goal.reached ? formatMonths(goal.monthsToReach) : null,
+      dateLabel: goal.reached ? fireDate(goal.monthsToReach) : null,
+      ageLabel: goal.reached
+        ? `${Math.floor(currentAge.value + goal.monthsToReach / 12)}歳`
+        : null,
+    };
+  };
+
+  const totalGoal = computed(() => describeGoal(assetGoals.value?.total));
+  const netGoal = computed(() => describeGoal(assetGoals.value?.net));
+
+  // 1億円目標の到達見込みの推移（スナップショットでの振り返り計算）。
+  const goalTrend = computed(() =>
+    buildAssetGoalTrend(data.value?.snapshots ?? [], {
+      baseParams: baseParams.value,
+    }),
+  );
+
+  // 3目標を1つのグラフで見るための系列（実績＋見込み＋目標ライン）。
+  const goalChart = computed(() =>
+    buildGoalChartData({
+      snapshots: data.value?.snapshots ?? [],
+      assetGoals: assetGoals.value,
+      fullRequiredAssetsYen: progress.value?.full?.requiredAssetsYen ?? null,
+    }),
+  );
+
+  const describeGoalProjection = (projection) => {
+    if (!projection) return "—";
+    if (projection.alreadyReached) return "達成済み";
+    if (!projection.reached || !projection.projectedMonth) return "見込みなし";
+    const [year, month] = projection.projectedMonth.split("-").map(Number);
+    return `${year}年${month}月`;
+  };
+
+  // 到達率の推移と到達見込みの推移を月で突き合わせた表示行。
+  const trendRows = computed(() => {
+    const rateByMonth = new Map(
+      trend.value.points.map((point) => [point.month, point]),
+    );
+    const goalByMonth = new Map(
+      goalTrend.value.points.map((point) => [point.month, point]),
+    );
+    return projectionTrend.value.points.map((point) => ({
+      month: point.month,
+      fireTargetAssetsYen:
+        rateByMonth.get(point.month)?.fireTargetAssetsYen ?? point.fireTargetAssetsYen,
+      progressRate: rateByMonth.get(point.month)?.progressRate ?? null,
+      sideProjectedLabel: describeProjection(point.side),
+      fullProjectedLabel: describeProjection(point.full),
+      totalGoalProjectedLabel: describeGoalProjection(goalByMonth.get(point.month)?.total),
+      netGoalProjectedLabel: describeGoalProjection(goalByMonth.get(point.month)?.net),
+    }));
+  });
+
+  const hasAnyTrend = computed(
+    () => trend.value.hasTrend || projectionTrend.value.hasTrend,
+  );
+
+  const describeDelta = (delta) => {
+    if (delta == null) return null;
+    if (delta > 0) return `先月より見込みが${delta}か月近づきました`;
+    if (delta < 0) return `先月より見込みが${-delta}か月遠のきました`;
+    return "先月から見込みは変わりません";
+  };
+
+  const sideDeltaLabel = computed(() =>
+    describeDelta(projectionTrend.value.delta.side),
+  );
+  const fullDeltaLabel = computed(() =>
+    describeDelta(projectionTrend.value.delta.full),
+  );
+  const totalGoalDeltaLabel = computed(() =>
+    describeDelta(goalTrend.value.delta.total),
+  );
+  const netGoalDeltaLabel = computed(() =>
+    describeDelta(goalTrend.value.delta.net),
+  );
+
+  const milestones = computed(() =>
+    getProgressMilestones().map((milestone) => {
+      const [year, month] = milestone.monthKey.split("-").map(Number);
+      // 年齢はその月の末日時点（節目の月に到達する年齢）で出す。
+      const endOfMonth = new Date(year, month, 0);
+      return {
+        ...milestone,
+        dateLabel: `${year}年${month}月`,
+        ageLabel: `${calculateAge(getUserBirthDate(), endOfMonth)}歳`,
+      };
+    }),
+  );
+
+  return {
+    loading,
+    error,
+    shareMode,
+    progress,
+    sideProgress,
+    fullProgress,
+    focus,
+    bothReached,
+    primaryProgress,
+    secondaryProgress,
+    trend,
+    projectionTrend,
+    trendRows,
+    hasAnyTrend,
+    sideDeltaLabel,
+    fullDeltaLabel,
+    assetGoals,
+    totalGoal,
+    netGoal,
+    goalTrend,
+    goalChart,
+    totalGoalDeltaLabel,
+    netGoalDeltaLabel,
+    milestones,
+    universityFundYen: getUniversityFundYen(),
+  };
+}

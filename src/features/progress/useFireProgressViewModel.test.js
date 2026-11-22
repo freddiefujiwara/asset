@@ -1,0 +1,244 @@
+import { createPinia, setActivePinia } from "pinia";
+import { ref } from "vue";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const dataRef = ref(null);
+
+vi.mock("@/composables/usePortfolioData", () => ({
+  usePortfolioData: () => ({
+    data: dataRef,
+    loading: ref(false),
+    error: ref(""),
+    rawResponse: ref(null),
+  }),
+}));
+
+import { useFireProgressViewModel } from "@/features/progress/useFireProgressViewModel";
+import { usePortfolioStore } from "@/stores/portfolio";
+import { shiftMonthKey } from "@/domain/home";
+
+function monthKey(offset) {
+  const now = new Date();
+  return shiftMonthKey(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`, offset);
+}
+
+function buildPortfolio() {
+  const cashFlow = [];
+  for (let i = 1; i <= 12; i++) {
+    const month = monthKey(-i);
+    cashFlow.push({ date: `${month}-25`, amount: 830660, name: "給与", category: "収入/給与", isTransfer: false });
+    cashFlow.push({ date: `${month}-05`, amount: -483688, name: "生活費", category: "食費/食料品", isTransfer: false });
+    cashFlow.push({ date: `${month}-27`, amount: -61089, name: "返済", category: "住宅/ローン返済", isTransfer: false });
+  }
+  // 賞与（ピーク月 x2 の推計に使う）
+  cashFlow.push({ date: `${monthKey(-5)}-15`, amount: 1445229, name: "賞与", category: "収入/一時所得", isTransfer: false });
+
+  return {
+    totals: { assetsYen: 78139712, liabilitiesYen: 11510887, netWorthYen: 66628825 },
+    holdings: {
+      cashLike: [{ "名称": "銀行預金", "残高": 7502164 }],
+      stocks: [{ "名称": "株式A", "評価額": 17538769 }],
+      funds: [{ "名称": "投信A", "評価額": 49569663 }],
+      pensions: [{ "名称": "確定拠出年金", "現在価値": 3457712 }],
+      points: [],
+      liabilitiesDetail: [],
+    },
+    cashFlow,
+    snapshots: [
+      { month: monthKey(-2), totalAssetsYen: 77000000, totalLiabilitiesYen: 11600000, netAssetsYen: 65400000, cashYen: 7000000, riskAssetsYen: 69000000, livingCost12mAvgYen: 470000, income12mAvgYen: 1050000 },
+      { month: monthKey(-1), totalAssetsYen: 78139712, totalLiabilitiesYen: 11510887, netAssetsYen: 66628825, cashYen: 7502164, riskAssetsYen: 70630234, livingCost12mAvgYen: 461012, income12mAvgYen: 1056465 },
+    ],
+  };
+}
+
+function buildSmallPortfolio() {
+  // サイドFIREにも完全FIREにもまだ届いていない水準（25M）。
+  // VMの前提（expenseBreakdown あり）では 40M だとサイドFIREが
+  // 到達可能な水準になってしまうため、この規模にしている。
+  return {
+    ...buildPortfolio(),
+    totals: { assetsYen: 25000000, liabilitiesYen: 11510887, netWorthYen: 13489113 },
+    holdings: {
+      cashLike: [{ "名称": "銀行預金", "残高": 3000000 }],
+      stocks: [{ "名称": "株式A", "評価額": 1000000 }],
+      funds: [{ "名称": "投信A", "評価額": 15000000 }],
+      pensions: [{ "名称": "確定拠出年金", "現在価値": 500000 }],
+      points: [],
+      liabilitiesDetail: [],
+    },
+    snapshots: [],
+  };
+}
+
+function buildRichPortfolio() {
+  // サイドFIRE・完全FIREともに到達可能な水準（200M）
+  return {
+    ...buildPortfolio(),
+    totals: { assetsYen: 200000000, liabilitiesYen: 0, netWorthYen: 200000000 },
+    holdings: {
+      cashLike: [{ "名称": "銀行預金", "残高": 50000000 }],
+      stocks: [],
+      funds: [{ "名称": "投信A", "評価額": 150000000 }],
+      pensions: [],
+      points: [],
+      liabilitiesDetail: [],
+    },
+    snapshots: [],
+  };
+}
+
+function useViewModelWith(portfolio) {
+  dataRef.value = portfolio;
+  const portfolioStore = usePortfolioStore();
+  portfolioStore.data = portfolio;
+  portfolioStore.shareMode = false;
+  return useFireProgressViewModel();
+}
+
+describe("useFireProgressViewModel", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    const portfolio = buildPortfolio();
+    dataRef.value = portfolio;
+    const portfolioStore = usePortfolioStore();
+    portfolioStore.data = portfolio;
+    portfolioStore.shareMode = false;
+  });
+
+  it("describes side FIRE progress with duration, date and age", () => {
+    const vm = useFireProgressViewModel();
+    expect(vm.progress.value.fireTargetAssetsYen).toBe(78139712 - 9000000);
+    expect(vm.sideProgress.value.reached).toBe(true);
+    expect(vm.sideProgress.value.durationLabel).toMatch(/年|ヶ月/);
+    expect(vm.sideProgress.value.dateLabel).toMatch(/^\d{4}年\d{1,2}月$/);
+    expect(vm.sideProgress.value.ageLabel).toMatch(/^\d+歳$/);
+    expect(vm.sideProgress.value.progressRatePct).toBeGreaterThan(0);
+    // サイドFIREは完全FIREより早く届く
+    expect(vm.sideProgress.value.monthsToReach).toBeLessThan(vm.fullProgress.value.monthsToReach);
+  });
+
+  it("builds the trend from snapshots and formats milestones", () => {
+    const vm = useFireProgressViewModel();
+    expect(vm.trend.value.hasTrend).toBe(true);
+    expect(vm.trend.value.points).toHaveLength(2);
+    expect(vm.milestones.value).toEqual([
+      { id: "age-50", label: "50歳", monthKey: "2030-01", dateLabel: "2030年1月", ageLabel: "50歳" },
+      { id: "daughter-independence", label: "娘の独立", monthKey: "2039-04", dateLabel: "2039年4月", ageLabel: "59歳" },
+      { id: "mortgage-payoff", label: "住宅ローン完済", monthKey: "2044-06", dateLabel: "2044年6月", ageLabel: "64歳" },
+    ]);
+  });
+
+  it("builds the projection trend with per-month reach estimates and delta labels", () => {
+    const vm = useFireProgressViewModel();
+    expect(vm.projectionTrend.value.hasTrend).toBe(true);
+    expect(vm.projectionTrend.value.points).toHaveLength(2);
+    expect(vm.hasAnyTrend.value).toBe(true);
+    expect(vm.trendRows.value).toHaveLength(2);
+    for (const row of vm.trendRows.value) {
+      expect(row.sideProjectedLabel).toMatch(/^\d{4}年\d{1,2}月$|到達可能な水準|見込みなし/);
+      expect(row.fullProjectedLabel).toMatch(/^\d{4}年\d{1,2}月$|到達可能な水準|見込みなし/);
+      expect(row.progressRate).toBeGreaterThan(0);
+    }
+    // 先月比ラベルは、差分が算出できた場合のみ文言になる
+    expect(vm.sideDeltaLabel.value === null || /先月/.test(vm.sideDeltaLabel.value)).toBe(true);
+    expect(vm.fullDeltaLabel.value === null || /先月/.test(vm.fullDeltaLabel.value)).toBe(true);
+  });
+
+  it("promotes full FIRE to primary when side FIRE is already reachable", () => {
+    // 既定フィクスチャ（78M）はサイドFIREが到達可能な水準、完全FIREは未到達
+    const vm = useFireProgressViewModel();
+    expect(vm.sideProgress.value.alreadyReached).toBe(true);
+    expect(vm.fullProgress.value.alreadyReached).toBe(false);
+    expect(vm.focus.value.focus).toBe("full");
+    expect(vm.bothReached.value).toBe(false);
+    expect(vm.primaryProgress.value.kind).toBe("full");
+    expect(vm.primaryProgress.value.label).toBe("完全FIRE");
+    expect(vm.primaryProgress.value.progressRatePct).toBeCloseTo(
+      vm.fullProgress.value.progressRatePct,
+    );
+    expect(vm.primaryProgress.value.requiredAssetsYen).toBe(
+      vm.fullProgress.value.requiredAssetsYen,
+    );
+    expect(vm.primaryProgress.value.baseAssetsLabel).toBeNull();
+    // サイドFIREは達成済みとして補助に回る
+    expect(vm.secondaryProgress.value.kind).toBe("side");
+    expect(vm.secondaryProgress.value.label).toBe("サイドFIRE");
+    expect(vm.secondaryProgress.value.achieved).toBe(true);
+    expect(vm.secondaryProgress.value.progressRatePct).toBe(100);
+  });
+
+  it("keeps side FIRE as primary while it is not yet reached", () => {
+    const vm = useViewModelWith(buildSmallPortfolio());
+    expect(vm.sideProgress.value.alreadyReached).toBe(false);
+    expect(vm.focus.value.focus).toBe("side");
+    expect(vm.bothReached.value).toBe(false);
+    expect(vm.primaryProgress.value.kind).toBe("side");
+    expect(vm.primaryProgress.value.label).toBe("サイドFIRE");
+    expect(vm.primaryProgress.value.baseAssetsLabel).toBe("FIRE対象資産（大学資金を除く）");
+    expect(vm.primaryProgress.value.baseAssetsYen).toBe(
+      vm.progress.value.fireTargetAssetsYen,
+    );
+    expect(vm.secondaryProgress.value.kind).toBe("full");
+    expect(vm.secondaryProgress.value.achieved).toBe(false);
+  });
+
+  it("has no primary when both side and full FIRE are reachable", () => {
+    const vm = useViewModelWith(buildRichPortfolio());
+    expect(vm.sideProgress.value.alreadyReached).toBe(true);
+    expect(vm.fullProgress.value.alreadyReached).toBe(true);
+    expect(vm.focus.value.focus).toBe("both");
+    expect(vm.bothReached.value).toBe(true);
+    expect(vm.primaryProgress.value).toBeNull();
+    expect(vm.secondaryProgress.value).toBeNull();
+  });
+
+  it("reflects share mode from the portfolio store", () => {
+    const portfolioStore = usePortfolioStore();
+    portfolioStore.shareMode = true;
+    const vm = useFireProgressViewModel();
+    expect(vm.shareMode.value).toBe(true);
+  });
+});
+
+describe("useFireProgressViewModel asset goals", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    dataRef.value = buildPortfolio();
+    const portfolioStore = usePortfolioStore();
+    portfolioStore.data = dataRef.value;
+    portfolioStore.shareMode = false;
+  });
+
+  it("describes the two 100M goals with rate, date and age", () => {
+    const vm = useFireProgressViewModel();
+    expect(vm.assetGoals.value.goalYen).toBe(100000000);
+    expect(vm.assetGoals.value.totalAssetsYen).toBe(78139712);
+    expect(vm.assetGoals.value.netAssetsYen).toBe(66628825);
+    expect(vm.totalGoal.value.progressRatePct).toBeCloseTo(78.1, 0);
+    expect(vm.totalGoal.value.reached).toBe(true);
+    expect(vm.totalGoal.value.dateLabel).toMatch(/^\d{4}年\d{1,2}月$/);
+    expect(vm.totalGoal.value.ageLabel).toMatch(/^\d+歳$/);
+    expect(vm.netGoal.value.reached).toBe(true);
+    expect(vm.netGoal.value.monthsToReach).toBeGreaterThan(vm.totalGoal.value.monthsToReach);
+  });
+
+  it("builds the combined goal chart data and goal trend labels", () => {
+    const vm = useFireProgressViewModel();
+    expect(vm.goalChart.value.goalYen).toBe(100000000);
+    expect(vm.goalChart.value.actualTotal).toHaveLength(2);
+    expect(vm.goalChart.value.projectedTotal.length).toBeGreaterThan(0);
+    expect(vm.goalChart.value.fullRequiredAssetsYen).toBe(
+      vm.progress.value.full.requiredAssetsYen,
+    );
+    const lastRow = vm.trendRows.value[vm.trendRows.value.length - 1];
+    expect(lastRow.totalGoalProjectedLabel).toMatch(/^\d{4}年\d{1,2}月$/);
+    expect(lastRow.netGoalProjectedLabel).toMatch(/^\d{4}年\d{1,2}月$/);
+    expect(vm.goalTrend.value.hasTrend).toBe(true);
+  });
+
+  it("marks goals as achieved for a rich portfolio", () => {
+    const vm = useViewModelWith(buildRichPortfolio());
+    expect(vm.totalGoal.value.alreadyReached).toBe(true);
+    expect(vm.netGoal.value.alreadyReached).toBe(true);
+  });
+});
