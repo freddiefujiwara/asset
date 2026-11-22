@@ -130,17 +130,16 @@ export const usePortfolioStore = defineStore("portfolio", {
           throw new Error(`AUTH ${json.status}: ${authMessage}`);
         }
 
-        this.rawResponse = json;
-        this.shareExpiresAt = json?._share?.expires_at ?? "";
-        const payload = json?.data ?? json;
-        this.data = normalizePortfolio(payload);
-        this.source = "live";
-
         // The family config (owner suffixes, birth dates, FIRE
         // assumptions) is served by the API only to authenticated
         // callers and is required before any view may compute with
-        // it. If it cannot be loaded, fall back to the error state
-        // rather than rendering numbers from wrong assumptions.
+        // it. It must be loaded BEFORE this.data is assigned: views
+        // react to the data assignment immediately and their
+        // computations read the config synchronously, so publishing
+        // the data first lets a view render while the config is
+        // still in flight and throw. If the config cannot be
+        // loaded, fall back to the error state rather than
+        // rendering numbers from wrong assumptions.
         try {
           await this.fetchFamilyConfig({ sessionToken, shareToken });
         } catch (configError) {
@@ -150,6 +149,12 @@ export const usePortfolioStore = defineStore("portfolio", {
           this.rawResponse = null;
           return;
         }
+
+        this.rawResponse = json;
+        this.shareExpiresAt = json?._share?.expires_at ?? "";
+        const payload = json?.data ?? json;
+        this.data = normalizePortfolio(payload);
+        this.source = "live";
       } catch (error) {
         const message = error?.message ?? "unknown error";
         if (message.startsWith("AUTH ")) {
