@@ -176,6 +176,7 @@ export function normalizePortfolio(api) {
       stocks: asArray(safeApi.details__portfolio_det_eq__t0),
       funds: asArray(safeApi.details__portfolio_det_mf__t0),
       pensions: asArray(safeApi.details__portfolio_det_pns__t0).map((row) => withDerivedPensionProfit(row)),
+      crypto: asArray(safeApi.details__portfolio_det_crpt__t0),
       points: asArray(safeApi.details__portfolio_det_po__t0),
       liabilitiesDetail: asArray(safeApi["details__liability_det__t0-liability"]),
     },

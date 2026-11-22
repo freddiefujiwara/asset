@@ -102,7 +102,7 @@ export function useBalanceSheetViewModel() {
   });
 
   const totalRiskAssetsYen = computed(() => {
-    const riskKeys = ["stocks", "funds", "pensions"];
+    const riskKeys = ["stocks", "funds", "pensions", "crypto"];
     return categoryCards.value.filter((c) => riskKeys.includes(c.key)).reduce((sum, c) => sum + c.amountYen, 0);
   });
 

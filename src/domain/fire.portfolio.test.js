@@ -95,6 +95,18 @@ describe("fire domain", () => {
       // Risk: 2000 + 3000 + 5000 + 6000 = 16000
       expect(calculateRiskAssets(portfolio)).toBe(16000);
     });
+
+    it("counts crypto assets as risk assets", () => {
+      const portfolio = {
+        summary: {
+          assetsByClass: [
+            { name: "預金・現金", amountYen: 1000 },
+            { name: "暗号資産", amountYen: 700 },
+          ],
+        },
+      };
+      expect(calculateRiskAssets(portfolio)).toBe(700);
+    });
   });
 
   describe("calculateExcludedOwnerAssets", () => {

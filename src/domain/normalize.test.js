@@ -28,7 +28,14 @@ describe("normalizePortfolio", () => {
     expect(normalized.summary.assetsByClass).toEqual([]);
     expect(normalized.holdings.cashLike).toEqual([]);
     expect(normalized.holdings.stocks).toEqual([]);
+    expect(normalized.holdings.crypto).toEqual([]);
     expect(normalized.holdings.liabilitiesDetail).toEqual([]);
+  });
+
+  it("maps crypto detail rows into holdings.crypto", () => {
+    const rows = [{ 種類・名称: "ビットコイン残高", 残高: "52107", 保有金融機関: "Coincheck" }];
+    const normalized = normalizePortfolio({ details__portfolio_det_crpt__t0: rows });
+    expect(normalized.holdings.crypto).toEqual(rows);
   });
 
 

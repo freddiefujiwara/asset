@@ -34,10 +34,11 @@ describe("holdings domain", () => {
       "stocks",
       "funds",
       "pensions",
+      "crypto",
       "points",
       "liabilitiesDetail",
     ]);
-    expect(HOLDING_TABLE_CONFIGS).toHaveLength(6);
+    expect(HOLDING_TABLE_CONFIGS).toHaveLength(7);
 
     const stocks = HOLDING_TABLE_CONFIGS.find((c) => c.key === "stocks");
     expect(stocks.columns.some((c) => c.key === "__riskAssetRatio")).toBe(true);
@@ -65,6 +66,20 @@ describe("holdings domain", () => {
     expect(summary.totalProfitYen).toBe(40);
     // totalProfitRatePct: principal = 900 - 40 = 860. 40 / 860 * 100 = 4.651...
     expect(summary.totalProfitRatePct).toBeCloseTo(4.65, 2);
+  });
+
+  it("includes crypto balances in the risk asset total", () => {
+    const summary = riskAssetSummary({
+      ...EMPTY_HOLDINGS,
+      stocks: [{ 評価額: "100", 前日比: "10", 評価損益: "20" }],
+      crypto: [{ 種類・名称: "ビットコイン残高", 残高: "250" }],
+    });
+
+    // totalYen: 100 (stocks) + 250 (crypto 残高) = 350
+    expect(summary.totalYen).toBe(350);
+    // Crypto carries no daily change or profit figures.
+    expect(summary.dailyMoves).toEqual([10]);
+    expect(summary.totalProfitYen).toBe(20);
   });
 
   it("builds stock tiles sorted by valuation", () => {
