@@ -68,6 +68,40 @@ describe("portfolio store", () => {
     expect(store.familyConfig).toEqual(DUMMY_FAMILY_CONFIG);
   });
 
+  it("does not publish data before the family config has loaded", async () => {
+    // Regression: views react to store.data immediately and read the
+    // family config synchronously while rendering. Publishing the
+    // data first let a view render (and throw) while the config
+    // request was still in flight, leaving a blank screen.
+    let resolveConfig;
+    const configResponse = new Promise((resolve) => {
+      resolveConfig = resolve;
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url) =>
+        String(url).includes("action=family_config")
+          ? configResponse
+          : successResponse({ breakdown: [] }),
+      ),
+    );
+
+    const store = usePortfolioStore();
+    const pending = store.fetchPortfolio();
+    // Let the data fetch resolve and the config fetch begin.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(store.data).toBeNull();
+    expect(store.source).toBe("");
+
+    resolveConfig(successResponse(DUMMY_FAMILY_CONFIG));
+    await pending;
+
+    expect(store.source).toBe("live");
+    expect(store.data).not.toBeNull();
+    expect(store.familyConfig).toEqual(DUMMY_FAMILY_CONFIG);
+  });
+
   it("shows the error state when the family config fetch fails", async () => {
     vi.stubGlobal(
       "fetch",
