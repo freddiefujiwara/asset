@@ -35,7 +35,7 @@ export const FALLBACK_REGION_WEIGHTS = {
   emerging: { japan: 0, us: 0, developed_other: 0, emerging: 100, other: 0, effectiveDate: "2026-10-30" },
 };
 
-const HOLDING_CATEGORIES = ["cashLike", "stocks", "funds", "pensions", "points"];
+const HOLDING_CATEGORIES = ["cashLike", "stocks", "funds", "pensions", "crypto", "points"];
 
 // 重みセットで按分するルール（上から順に最初に当たったものを採用）。
 // 新興国を全世界より先に見るのは「新興国株式」を含む名称の誤判定を

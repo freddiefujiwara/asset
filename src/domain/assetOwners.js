@@ -13,6 +13,7 @@ const CATEGORY_SUMMARY_DEFS = [
   { key: "stocks", title: "株式" },
   { key: "funds", title: "投資信託" },
   { key: "pensions", title: "年金" },
+  { key: "crypto", title: "暗号資産" },
   { key: "points", title: "ポイント" },
   { key: "liabilitiesDetail", title: "負債", isLiability: true },
 ];

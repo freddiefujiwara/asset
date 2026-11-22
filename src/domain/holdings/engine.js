@@ -7,6 +7,7 @@ export const EMPTY_HOLDINGS = {
   stocks: [],
   funds: [],
   pensions: [],
+  crypto: [],
   points: [],
   liabilitiesDetail: [],
 };
@@ -72,6 +73,15 @@ export const HOLDING_TABLE_CONFIGS = [
     ],
   },
   {
+    title: "暗号資産",
+    key: "crypto",
+    columns: [
+      { key: "種類・名称", label: "名称" },
+      { key: "残高", label: "残高" },
+      { key: "保有金融機関", label: "金融機関" },
+    ],
+  },
+  {
     title: "負債詳細",
     key: "liabilitiesDetail",
     isLiability: true,
@@ -100,10 +110,18 @@ export function riskAssetSummary(holdings) {
   const pRows = Array.isArray(safe.pensions) ? safe.pensions : [];
   const allRows = [...sfRows, ...pRows];
 
-  const totalYen = allRows.reduce(
-    (sum, row) => sum + (toNumber(row?.["評価額"]) || toNumber(row?.["現在価値"])),
+  // 暗号資産はリスク資産に含める。明細の金額フィールドは「残高」で、
+  // 前日比・評価損益は持たないため、合計額にだけ加える。
+  const cryptoYen = holdingRows(safe, "crypto").reduce(
+    (sum, row) => sum + toNumber(row?.["残高"]),
     0,
   );
+
+  const totalYen =
+    allRows.reduce(
+      (sum, row) => sum + (toNumber(row?.["評価額"]) || toNumber(row?.["現在価値"])),
+      0,
+    ) + cryptoYen;
   const dailyMoves = sfRows.map((row) => dailyChangeYen(row)).filter((value) => value != null);
   const dailyMoveTotal = dailyMoves.reduce((sum, value) => sum + value, 0);
   const totalProfitYen = allRows.reduce((sum, row) => {

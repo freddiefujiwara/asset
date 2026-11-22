@@ -38,6 +38,10 @@ describe("assetOwners domain", () => {
 
     const liability = summary.find((entry) => entry.key === "liabilitiesDetail");
     expect(liability.isLiability).toBe(true);
+
+    const crypto = summary.find((entry) => entry.key === "crypto");
+    expect(crypto.title).toBe("暗号資産");
+    expect(crypto.isLiability).toBe(false);
   });
 
   it("returns original holdings for all filter and handles nullish input", () => {
@@ -63,6 +67,7 @@ describe("assetOwners domain", () => {
       stocks: [],
       funds: [],
       pensions: [],
+      crypto: [],
       points: [],
       liabilitiesDetail: [],
     });

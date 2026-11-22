@@ -9,6 +9,7 @@ export function calculateRiskAssets(portfolio) {
     "株式（信用）",
     "投資信託",
     "年金",
+    "暗号資産",
     "先物・オプション",
     "外貨預金",
     "債券",
@@ -27,8 +28,8 @@ export function calculateExcludedOwnerAssets(portfolio, excludedOwnerId = "daugh
     return { totalAssetsYen: 0, riskAssetsYen: 0 };
   }
 
-  const allAssetKeys = ["cashLike", "stocks", "funds", "pensions", "points"];
-  const riskAssetKeys = ["stocks", "funds", "pensions"];
+  const allAssetKeys = ["cashLike", "stocks", "funds", "pensions", "crypto", "points"];
+  const riskAssetKeys = ["stocks", "funds", "pensions", "crypto"];
 
   /**
    * Sum amount by selected holdings keys.
@@ -113,8 +114,8 @@ export function calculateFirePortfolio(portfolio, includedOwnerIds = ["me", "wif
     "債券",
   ];
 
-  const allAssetKeys = ["cashLike", "stocks", "funds", "pensions", "points"];
-  const riskAssetKeys = new Set(["stocks", "funds", "pensions"]);
+  const allAssetKeys = ["cashLike", "stocks", "funds", "pensions", "crypto", "points"];
+  const riskAssetKeys = new Set(["stocks", "funds", "pensions", "crypto"]);
 
   let totalAssetsYen = 0;
   let riskAssetsYen = 0;
