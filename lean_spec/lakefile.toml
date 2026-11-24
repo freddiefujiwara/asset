@@ -1,0 +1,11 @@
+name = "asset_spec"
+version = "0.1.0"
+defaultTargets = ["asset_oracle"]
+testDriver = "AssetSpec"
+
+[[lean_lib]]
+name = "AssetSpec"
+
+[[lean_exe]]
+name = "asset_oracle"
+root = "Main"
