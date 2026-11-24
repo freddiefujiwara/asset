@@ -10,7 +10,6 @@
     "preview": "vite preview",
     "test": "vitest run --coverage",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
     "test:staging": "playwright test e2e/staging.check.js",
     "test:oracle": "vitest run --config vitest.oracle.config.mjs"
   },

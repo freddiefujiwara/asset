@@ -9,7 +9,7 @@ import { assetAmountYen, assetDisplayName } from "./family";
  * API から重みが取れない場合は FALLBACK_REGION_WEIGHTS を使う。
  */
 
-export const REGION_BUCKETS = [
+const REGION_BUCKETS = [
   { key: "japan", label: "日本", color: "#38bdf8" },
   { key: "us", label: "米国", color: "#818cf8" },
   { key: "developed_other", label: "その他先進国", color: "#34d399" },
@@ -17,7 +17,7 @@ export const REGION_BUCKETS = [
   { key: "other", label: "その他・未分類", color: "#f87171" },
 ];
 
-export const REGION_WEIGHT_SET_NAMES = ["acwi", "acwi_ex_japan", "developed", "emerging"];
+const REGION_WEIGHT_SET_NAMES = ["acwi", "acwi_ex_japan", "developed", "emerging"];
 
 /**
  * フォールバック初期値（asset-gas 側のシードと同値）。
