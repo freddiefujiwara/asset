@@ -11,6 +11,7 @@ import {
   buildHeadline,
   buildInvestmentCard,
   buildLivingCostCard,
+  livingCostOfMonthWithMonthly,
   buildMilestoneCard,
   buildMonthlyChanges,
   buildRecentExpenses,
@@ -135,6 +136,68 @@ function livingCostFixture({ lastMonthExtra = [] } = {}) {
   }
   return [...rows, ...lastMonthExtra];
 }
+
+describe("livingCostOfMonthWithMonthly", () => {
+  const rows = [item({ date: "2026-10-05", amount: -100000, category: "食費/食料品" })];
+  const monthlyLiving = [
+    { month: "2026-09", byCategory: { "食費": 80000, "住宅": 60000 } },
+    { month: "2026-08", byCategory: {} },
+    { month: "2026-06", byCategory: { "食費": null, "住宅": 500 } },
+    null,
+  ];
+
+  it("uses the rows when the month has rows", () => {
+    expect(livingCostOfMonthWithMonthly(rows, "2026-10", monthlyLiving)).toEqual({
+      total: 100000,
+      byLargeCategory: { "食費": 100000 },
+    });
+  });
+
+  it("falls back to the monthly aggregate when the month has no rows", () => {
+    expect(livingCostOfMonthWithMonthly(rows, "2026-09", monthlyLiving)).toEqual({
+      total: 140000,
+      byLargeCategory: { "食費": 80000, "住宅": 60000 },
+    });
+    expect(livingCostOfMonthWithMonthly(rows, "2026-08", monthlyLiving)).toEqual({
+      total: 0,
+      byLargeCategory: {},
+    });
+    // Non-numeric aggregate values count as 0.
+    expect(livingCostOfMonthWithMonthly(rows, "2026-06", monthlyLiving)).toEqual({
+      total: 500,
+      byLargeCategory: { "食費": null, "住宅": 500 },
+    });
+  });
+
+  it("returns an empty result when neither rows nor an aggregate exist", () => {
+    expect(livingCostOfMonthWithMonthly(rows, "2026-07", monthlyLiving)).toEqual({
+      total: 0,
+      byLargeCategory: {},
+    });
+    expect(livingCostOfMonthWithMonthly(null, "2026-07", null)).toEqual({
+      total: 0,
+      byLargeCategory: {},
+    });
+    expect(
+      livingCostOfMonthWithMonthly([], "2026-07", [{ month: "2026-07" }]),
+    ).toEqual({ total: 0, byLargeCategory: {} });
+  });
+
+  it("lets buildLivingCostCard average over aggregates for row-less months", () => {
+    // Rows only for last month (2026-10); the other 11 window
+    // months come from the aggregates at 120,000 each.
+    const aggregates = [];
+    for (let i = 2; i <= 12; i++) {
+      const d = new Date(2026, 10 - i, 1);
+      const month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      aggregates.push({ month, byCategory: { "食費": 120000 } });
+    }
+    const card = buildLivingCostCard(rows, NOW, aggregates);
+    expect(card.lastMonth).toEqual({ month: "2026-10", amountYen: 100000 });
+    // (100,000 + 120,000 * 11) / 12 = 118,333
+    expect(card.averageYen).toBe(118333);
+  });
+});
 
 describe("buildLivingCostCard", () => {
   it("is ok when last month is within +10% of the 12 month average", () => {

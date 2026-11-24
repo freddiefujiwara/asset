@@ -4,6 +4,7 @@ import {
   LIVING_COST_ATTENTION_RATE,
   formatMonthKey,
   listSpecialExpenses,
+  livingCostOfMonthWithMonthly,
   shiftMonthKey,
 } from "../home/cards";
 
@@ -18,27 +19,12 @@ import {
  */
 export const REVIEW_CATEGORY_LIMIT = 3;
 
-function livingCostByLargeCategory(cashFlow, monthKey) {
-  const byLargeCategory = {};
-  let total = 0;
-  (cashFlow ?? []).forEach((item) => {
-    if (getMonthKey(item) !== monthKey) return;
-    if (item.isTransfer || Number(item.amount) >= 0) return;
-    if (getExpenseType(item) === "exclude") return;
-    const absAmount = Math.abs(Number(item.amount));
-    total += absAmount;
-    const largeCategory = String(item.category ?? "未分類").split("/")[0] || "未分類";
-    byLargeCategory[largeCategory] = (byLargeCategory[largeCategory] ?? 0) + absAmount;
-  });
-  return { total, byLargeCategory };
-}
-
 /** カテゴリ別に表示する、その月の支出トップ件数。 */
 const REVIEW_TOP_EXPENSE_LIMIT = 3;
 
 /**
  * 対象月の大カテゴリごとに、金額の大きい支出をトップ3まで返す。
- * 集計条件は livingCostByLargeCategory と揃える（振替・収入・除外分類は除く）。
+ * 集計条件は生活費の集計と揃える（振替・収入・除外分類は除く）。
  * 「なぜそのカテゴリが平均を上回ったか」を明細そのもので示すための材料。
  */
 function topExpensesByLargeCategory(cashFlow, monthKey) {
@@ -75,15 +61,19 @@ function topExpensesByLargeCategory(cashFlow, monthKey) {
  *   special: { totalYen: number, items: Array<{date: string, name: string, category: string, amountYen: number}> },
  * }}
  */
-export function buildCashFlowReview(cashFlow, now = new Date()) {
+export function buildCashFlowReview(cashFlow, now = new Date(), monthlyLiving = []) {
   const currentMonth = formatMonthKey(now);
   const targetMonth = shiftMonthKey(currentMonth, -1);
-  const target = livingCostByLargeCategory(cashFlow, targetMonth);
+  const target = livingCostOfMonthWithMonthly(cashFlow, targetMonth, monthlyLiving);
 
   let windowTotal = 0;
   const windowByCategory = {};
   for (let i = 1; i <= 12; i++) {
-    const monthResult = livingCostByLargeCategory(cashFlow, shiftMonthKey(currentMonth, -i));
+    const monthResult = livingCostOfMonthWithMonthly(
+      cashFlow,
+      shiftMonthKey(currentMonth, -i),
+      monthlyLiving,
+    );
     windowTotal += monthResult.total;
     Object.entries(monthResult.byLargeCategory).forEach(([label, value]) => {
       windowByCategory[label] = (windowByCategory[label] ?? 0) + value;

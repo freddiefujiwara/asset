@@ -37,12 +37,13 @@ export function useHomeViewModel() {
 
   const shareMode = computed(() => portfolioStore.shareMode);
   const cashFlow = computed(() => data.value?.cashFlow ?? []);
+  const monthlyLiving = computed(() => data.value?.cashFlowMonthlyLiving ?? []);
   const snapshots = computed(() => data.value?.snapshots ?? []);
 
   // 要確認リストの材料（既存のカード判定と収支の要確認リスト）。
   const investmentCard = computed(() => buildInvestmentCard(cashFlow.value, now));
   const freshnessCard = computed(() => buildFreshnessCard(cashFlow.value, now));
-  const review = computed(() => buildCashFlowReview(cashFlow.value, now));
+  const review = computed(() => buildCashFlowReview(cashFlow.value, now, monthlyLiving.value));
   const attention = computed(() =>
     buildAttentionItems({
       investmentCard: investmentCard.value,

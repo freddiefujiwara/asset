@@ -130,6 +130,22 @@ describe("normalizePortfolio", () => {
     });
   });
 
+  it("normalizes mfcfMonthlyLiving entries with defensive fallbacks", () => {
+    const normalized = normalizePortfolio({
+      mfcfMonthlyLiving: [
+        { month: "2026-10", byCategory: { "食費": 1000 } },
+        { month: 202610, byCategory: "not-an-object" },
+        null,
+      ],
+    });
+    expect(normalized.cashFlowMonthlyLiving).toEqual([
+      { month: "2026-10", byCategory: { "食費": 1000 } },
+      { month: "", byCategory: {} },
+      { month: "", byCategory: {} },
+    ]);
+    expect(normalizePortfolio({}).cashFlowMonthlyLiving).toEqual([]);
+  });
+
   it("deduplicates visually duplicated cashFlow rows", () => {
     const normalized = normalizePortfolio({
       mfcf: [

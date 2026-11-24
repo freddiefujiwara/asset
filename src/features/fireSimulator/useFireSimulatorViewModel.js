@@ -1,4 +1,4 @@
-import { computed, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { usePortfolioData } from "@/composables/usePortfolioData";
 import { useFireSimulatorStore } from "@/stores/fireSimulator";
@@ -25,8 +25,14 @@ import {
 } from "@/features/fireSimulator/formatters";
 
 export function useFireSimulatorViewModel() {
-  const { data, loading, error } = usePortfolioData();
+  const { data, loading, error, store } = usePortfolioData();
   const fireSimulatorStore = useFireSimulatorStore();
+
+  // The simulator's estimates run over the past 12 months of mfcf
+  // rows; upgrade a recent-scope dataset when the screen is shown.
+  onMounted(() => {
+    store.ensureFullData();
+  });
 
   const {
     monthlyInvestment,

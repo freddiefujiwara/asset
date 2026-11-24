@@ -68,6 +68,87 @@ describe("portfolio store", () => {
     expect(store.familyConfig).toEqual(DUMMY_FAMILY_CONFIG);
   });
 
+  it("requests the recent scope first and records the returned scope", async () => {
+    const payload = { breakdown: [], mfcfScope: "recent" };
+    const dataFetch = vi.fn().mockResolvedValue(successResponse(payload));
+    stubFetchWithFamilyConfig(dataFetch);
+
+    const store = usePortfolioStore();
+    await store.fetchPortfolio();
+
+    expect(String(dataFetch.mock.calls[0][0])).toContain("scope=recent");
+    expect(store.dataScope).toBe("recent");
+  });
+
+  it("falls back to the requested scope when the payload does not echo one", async () => {
+    const dataFetch = vi.fn().mockResolvedValue(successResponse({ breakdown: [] }));
+    stubFetchWithFamilyConfig(dataFetch);
+
+    const store = usePortfolioStore();
+    await store.fetchPortfolio();
+
+    expect(store.dataScope).toBe("recent");
+  });
+
+  it("ensureFullData upgrades a recent dataset to full without refetching the family config", async () => {
+    const payloads = [
+      { breakdown: [], mfcfScope: "recent" },
+      { breakdown: [], mfcfScope: "full" },
+    ];
+    const dataFetch = vi.fn(async () => successResponse(payloads.shift()));
+    stubFetchWithFamilyConfig(dataFetch);
+    const fetchSpy = globalThis.fetch;
+
+    const store = usePortfolioStore();
+    await store.fetchPortfolio();
+    expect(store.dataScope).toBe("recent");
+
+    await store.ensureFullData();
+    expect(store.dataScope).toBe("full");
+    expect(dataFetch).toHaveBeenCalledTimes(2);
+    expect(String(dataFetch.mock.calls[1][0])).toContain("scope=full");
+    const configCalls = fetchSpy.mock.calls.filter(([url]) =>
+      String(url).includes("action=family_config"),
+    );
+    expect(configCalls).toHaveLength(1);
+
+    // Already full: a second call fetches nothing.
+    await store.ensureFullData();
+    expect(dataFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps the full scope on later argument-less fetches", async () => {
+    const payloads = [
+      { breakdown: [], mfcfScope: "recent" },
+      { breakdown: [], mfcfScope: "full" },
+      { breakdown: [], mfcfScope: "full" },
+    ];
+    const dataFetch = vi.fn(async () => successResponse(payloads.shift()));
+    stubFetchWithFamilyConfig(dataFetch);
+
+    const store = usePortfolioStore();
+    await store.fetchPortfolio();
+    await store.ensureFullData();
+    await store.fetchPortfolio();
+
+    expect(dataFetch).toHaveBeenCalledTimes(3);
+    expect(String(dataFetch.mock.calls[2][0])).toContain("scope=full");
+    expect(store.dataScope).toBe("full");
+  });
+
+  it("ensureFullData does nothing for sample data", async () => {
+    const dataFetch = vi.fn().mockRejectedValue(new Error("network down"));
+    stubFetchWithFamilyConfig(dataFetch);
+
+    const store = usePortfolioStore();
+    await store.fetchPortfolio();
+    expect(store.source).toBe("mock");
+    expect(store.dataScope).toBe("full");
+
+    await store.ensureFullData();
+    expect(dataFetch).toHaveBeenCalledTimes(1);
+  });
+
   it("does not publish data before the family config has loaded", async () => {
     // Regression: views react to store.data immediately and read the
     // family config synchronously while rendering. Publishing the
