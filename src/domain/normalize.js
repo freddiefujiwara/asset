@@ -181,6 +181,11 @@ export function normalizePortfolio(api) {
       liabilitiesDetail: asArray(safeApi["details__liability_det__t0-liability"]),
     },
     cashFlow: normalizeCashFlowRows(asArray(safeApi.mfcf)),
+    cashFlowMonthlyLiving: asArray(safeApi.mfcfMonthlyLiving).map((entry) => ({
+      month: typeof entry?.month === "string" ? entry.month : "",
+      byCategory:
+        entry?.byCategory && typeof entry.byCategory === "object" ? entry.byCategory : {},
+    })),
     snapshots: normalizeSnapshots(safeApi.snapshots),
     weights: normalizeRegionWeights(safeApi.weights),
   };

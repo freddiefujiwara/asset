@@ -102,18 +102,44 @@ function livingCostOfMonth(cashFlow, monthKey) {
 }
 
 /**
+ * 明細がある月は明細から、無い月はサーバー集計（mfcfMonthlyLiving）
+ * から、その月の生活費を返す。ホームの初期取得は明細が直近2か月分
+ * しかないため、12か月平均の残りは集計でまかなう。
+ */
+export function livingCostOfMonthWithMonthly(cashFlow, monthKey, monthlyLiving = []) {
+  const rows = cashFlow ?? [];
+  if (rows.some((item) => getMonthKey(item) === monthKey)) {
+    return livingCostOfMonth(rows, monthKey);
+  }
+  const aggregate = (monthlyLiving ?? []).find((entry) => entry?.month === monthKey);
+  if (!aggregate) {
+    return livingCostOfMonth(cashFlow, monthKey);
+  }
+  const byLargeCategory = { ...(aggregate.byCategory ?? {}) };
+  const total = Object.values(byLargeCategory).reduce(
+    (sum, value) => sum + (Number(value) || 0),
+    0,
+  );
+  return { total, byLargeCategory };
+}
+
+/**
  * 生活費カード: 先月の生活費 vs 直近12か月平均（当月除く）。
  * 平均の窓と割り方は FIRE画面の12か月集計（getPast12MonthSummary）と同じ。
  */
-export function buildLivingCostCard(cashFlow, now = new Date()) {
+export function buildLivingCostCard(cashFlow, now = new Date(), monthlyLiving = []) {
   const currentMonth = formatMonthKey(now);
   const lastMonth = shiftMonthKey(currentMonth, -1);
-  const last = livingCostOfMonth(cashFlow, lastMonth);
+  const last = livingCostOfMonthWithMonthly(cashFlow, lastMonth, monthlyLiving);
 
   let windowTotal = 0;
   const windowByCategory = {};
   for (let i = 1; i <= 12; i++) {
-    const monthResult = livingCostOfMonth(cashFlow, shiftMonthKey(currentMonth, -i));
+    const monthResult = livingCostOfMonthWithMonthly(
+      cashFlow,
+      shiftMonthKey(currentMonth, -i),
+      monthlyLiving,
+    );
     windowTotal += monthResult.total;
     Object.entries(monthResult.byLargeCategory).forEach(([label, value]) => {
       windowByCategory[label] = (windowByCategory[label] ?? 0) + value;

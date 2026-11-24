@@ -1,4 +1,4 @@
-import { computed, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { usePortfolioData } from "@/composables/usePortfolioData";
 import {
   filterCashFlow,
@@ -22,7 +22,13 @@ const PAST_MONTH_LOOKBACK_COUNT = 12;
  * This keeps the Vue view simple.
  */
 export function useCashFlowViewModel() {
-  const { data, loading, error, rawResponse } = usePortfolioData();
+  const { data, loading, error, rawResponse, store } = usePortfolioData();
+
+  // This screen lists every mfcf row; upgrade a recent-scope
+  // dataset to the full history when the screen is shown.
+  onMounted(() => {
+    store.ensureFullData();
+  });
 
   const monthFilter = ref("");
   const typeFilter = ref("");
@@ -51,7 +57,10 @@ export function useCashFlowViewModel() {
     Boolean(monthFilter.value || typeFilter.value || largeCategoryFilter.value || smallCategoryFilter.value || searchFilter.value),
   );
 
-  const reviewList = computed(() => buildCashFlowReview(cashFlowRaw.value));
+  const monthlyLiving = computed(() => data.value?.cashFlowMonthlyLiving ?? []);
+  const reviewList = computed(() =>
+    buildCashFlowReview(cashFlowRaw.value, new Date(), monthlyLiving.value),
+  );
 
   /**
    * Jump from the review list to the month's detail rows for one category.

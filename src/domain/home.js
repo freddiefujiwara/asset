@@ -9,6 +9,7 @@ export {
   sumInvestmentExecutions,
   buildInvestmentCard,
   buildLivingCostCard,
+  livingCostOfMonthWithMonthly,
   listSpecialExpenses,
   buildSpecialExpenseCard,
   MILESTONE_DEFINITIONS,

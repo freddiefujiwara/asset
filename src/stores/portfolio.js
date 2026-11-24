@@ -44,7 +44,7 @@ function getShareToken() {
   return globalThis.sessionStorage?.getItem(SHARE_TOKEN_STORAGE_KEY) ?? "";
 }
 
-function buildApiUrlWithSession(sessionToken) {
+function buildApiUrlWithSession(sessionToken, scope) {
   /* v8 ignore start -- defensive: the only caller passes a non-empty token */
   if (!sessionToken) {
     return API_URL;
@@ -53,12 +53,20 @@ function buildApiUrlWithSession(sessionToken) {
 
   const url = new URL(API_URL);
   url.searchParams.set("session_token", sessionToken);
+  url.searchParams.set("scope", scope);
   return url.toString();
 }
 
-function buildApiUrlWithShare(shareToken) {
+function buildApiUrlWithShare(shareToken, scope) {
   const url = new URL(API_URL);
   url.searchParams.set("share_token", shareToken);
+  url.searchParams.set("scope", scope);
+  return url.toString();
+}
+
+function buildApiUrl(scope) {
+  const url = new URL(API_URL);
+  url.searchParams.set("scope", scope);
   return url.toString();
 }
 
@@ -89,9 +97,16 @@ export const usePortfolioStore = defineStore("portfolio", {
     hasSession: false,
     issuedShare: null,
     familyConfig: null,
+    dataScope: "",
   }),
   actions: {
-    async fetchPortfolio() {
+    // The first load uses the recent scope (mfcf rows for the
+    // latest two months plus the monthly living-cost aggregates),
+    // which is all the home screen needs. Screens that need every
+    // mfcf row (cash flow, FIRE simulator) call ensureFullData()
+    // to upgrade. Once full data is held, later fetches keep the
+    // full scope instead of silently downgrading.
+    async fetchPortfolio(scope = this.dataScope === "full" ? "full" : "recent") {
       if (this.loading) {
         return;
       }
@@ -107,10 +122,10 @@ export const usePortfolioStore = defineStore("portfolio", {
       this.shareMode = Boolean(shareToken);
       this.hasSession = Boolean(sessionToken);
       const apiUrl = sessionToken
-        ? buildApiUrlWithSession(sessionToken)
+        ? buildApiUrlWithSession(sessionToken, scope)
         : shareToken
-          ? buildApiUrlWithShare(shareToken)
-          : API_URL;
+          ? buildApiUrlWithShare(shareToken, scope)
+          : buildApiUrl(scope);
       try {
         const response = await fetch(apiUrl);
         if (!response.ok) {
@@ -140,19 +155,24 @@ export const usePortfolioStore = defineStore("portfolio", {
         // still in flight and throw. If the config cannot be
         // loaded, fall back to the error state rather than
         // rendering numbers from wrong assumptions.
-        try {
-          await this.fetchFamilyConfig({ sessionToken, shareToken });
-        } catch (configError) {
-          this.error = configError?.message ?? "family config load failed";
-          this.data = null;
-          this.source = "";
-          this.rawResponse = null;
-          return;
+        // On a scope upgrade the config is already loaded; the
+        // load-before-data invariant only binds the first load.
+        if (!this.familyConfig) {
+          try {
+            await this.fetchFamilyConfig({ sessionToken, shareToken });
+          } catch (configError) {
+            this.error = configError?.message ?? "family config load failed";
+            this.data = null;
+            this.source = "";
+            this.rawResponse = null;
+            return;
+          }
         }
 
         this.rawResponse = json;
         this.shareExpiresAt = json?._share?.expires_at ?? "";
         const payload = json?.data ?? json;
+        this.dataScope = payload?.mfcfScope ?? scope;
         this.data = normalizePortfolio(payload);
         this.source = "live";
       } catch (error) {
@@ -186,11 +206,21 @@ export const usePortfolioStore = defineStore("portfolio", {
         this.error = `${message} (fallback to mock)`;
         this.rawResponse = sampleApi;
         this.data = normalizePortfolio(sampleApi);
+        this.dataScope = "full";
         this.source = "mock";
         setFamilyConfig(sampleFamilyConfig);
         this.familyConfig = sampleFamilyConfig;
       } finally {
         this.loading = false;
+      }
+    },
+
+    // Upgrade a recent-scope dataset to the full mfcf history.
+    // Called by the screens that need every row (cash flow, FIRE
+    // simulator) when they are shown.
+    async ensureFullData() {
+      if (this.dataScope === "recent" && this.source === "live" && !this.loading) {
+        await this.fetchPortfolio("full");
       }
     },
 
