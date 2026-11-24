@@ -53,7 +53,7 @@ jobs:
         key: lean-v4.22.0-${{ hashFiles('lean_spec/lean-toolchain', 'lean_spec/lakefile.toml', 'lean_spec/AssetSpec.lean', 'lean_spec/AssetSpec/**', 'lean_spec/Main.lean') }}
     - name: Install elan (Lean 4.22.0)
       run: |
-        curl -sSfL https://elan.lean-lang.org -o /tmp/elan-init.sh
+        curl -sSfL https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -o /tmp/elan-init.sh
         sh /tmp/elan-init.sh -y --default-toolchain leanprover/lean4:v4.22.0
         echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
     - name: Verify proofs and build the oracle
