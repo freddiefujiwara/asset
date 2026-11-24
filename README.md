@@ -452,8 +452,7 @@ Calculates target assets at each month from end-of-life backward, accounting for
 ```bash
 npm install        # Install dependencies
 npm run dev        # Start development server (http://localhost:5173/asset/)
-npm run test       # Run unit tests (Vitest)
-npm run test:coverage # Run unit tests with coverage report
+npm run test       # Run unit tests with coverage report (Vitest)
 npm run build      # Build for production (output to dist/)
 npm run preview    # Preview production build
 ```
