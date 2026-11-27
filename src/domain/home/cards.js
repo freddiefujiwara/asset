@@ -124,10 +124,10 @@ export function livingCostOfMonthWithMonthly(cashFlow, monthKey, monthlyLiving =
 }
 
 /**
- * 生活費カード: 先月の生活費 vs 直近12か月平均（当月除く）。
- * 平均の窓と割り方は FIRE画面の12か月集計（getPast12MonthSummary）と同じ。
+ * 先月分と直近12か月の集計（当月除く）。明細とサーバー集計の
+ * 選択ルールをホームカードと収支の要確認リストで揃える。
  */
-export function buildLivingCostCard(cashFlow, now = new Date(), monthlyLiving = []) {
+export function summarizeLivingCostWindow(cashFlow, now, monthlyLiving) {
   const currentMonth = formatMonthKey(now);
   const lastMonth = shiftMonthKey(currentMonth, -1);
   const last = livingCostOfMonthWithMonthly(cashFlow, lastMonth, monthlyLiving);
@@ -135,17 +135,25 @@ export function buildLivingCostCard(cashFlow, now = new Date(), monthlyLiving = 
   let windowTotal = 0;
   const windowByCategory = {};
   for (let i = 1; i <= 12; i++) {
-    const monthResult = livingCostOfMonthWithMonthly(
-      cashFlow,
-      shiftMonthKey(currentMonth, -i),
-      monthlyLiving,
-    );
+    const monthResult =
+      i === 1
+        ? last
+        : livingCostOfMonthWithMonthly(cashFlow, shiftMonthKey(currentMonth, -i), monthlyLiving);
     windowTotal += monthResult.total;
     Object.entries(monthResult.byLargeCategory).forEach(([label, value]) => {
       windowByCategory[label] = (windowByCategory[label] ?? 0) + value;
     });
   }
-  const average = windowTotal / 12;
+  return { lastMonth, last, average: windowTotal / 12, windowByCategory };
+}
+
+/**
+ * 生活費カード: 先月の生活費 vs 直近12か月平均（当月除く）。
+ * 平均の窓と割り方は FIRE画面の12か月集計（getPast12MonthSummary）と同じ。
+ */
+export function buildLivingCostCard(cashFlow, now = new Date(), monthlyLiving = []) {
+  const { lastMonth, last, average, windowByCategory } =
+    summarizeLivingCostWindow(cashFlow, now, monthlyLiving);
 
   const labels = new Set([...Object.keys(windowByCategory), ...Object.keys(last.byLargeCategory)]);
   const topCategories = Array.from(labels)
