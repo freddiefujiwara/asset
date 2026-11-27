@@ -5,7 +5,7 @@ import { useFireSimulatorStore } from "@/stores/fireSimulator";
 /**
  * FIRE計算エンジンへの前提パラメータ（baseParams）の組み立て。
  * FIRE計算画面の simulationParams と同じ前提を、資産額だけ差し替えられる
- * 形で共有する。FIRE進捗画面とホーム画面（FIRE進捗の要点）が共用する。
+ * 形で共有する。FIRE計算画面、FIRE進捗画面、ホーム画面が共用する。
  * initialAssets / riskAssets は呼び出し側（ドメイン層）で差し替えるため含めない。
  */
 export function useFireBaseParams() {
@@ -32,7 +32,7 @@ export function useFireBaseParams() {
     past12MonthSummary,
   } = storeToRefs(fireSimulatorStore);
 
-  // FIRE計算画面と同じ決め方（自動推計 or 手入力）。
+  // 各画面で共通の初年度費用（自動推計 or 手入力）。
   const postFireFirstYearExtraExpense = computed(() =>
     useAutoFirstYearExtra.value
       ? autoPostFireFirstYearExtraExpense.value
@@ -59,5 +59,5 @@ export function useFireBaseParams() {
     expenseBreakdown: past12MonthSummary.value.monthlyLivingExpenses.breakdown,
   }));
 
-  return { baseParams, currentAge };
+  return { baseParams, currentAge, postFireFirstYearExtraExpense };
 }

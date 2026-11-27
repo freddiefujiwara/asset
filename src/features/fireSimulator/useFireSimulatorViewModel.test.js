@@ -2,6 +2,7 @@ import { nextTick, ref, reactive } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
 
+const { growthTableSpy } = vi.hoisted(() => ({ growthTableSpy: vi.fn() }));
 const mockData = ref({ cashFlow: [] });
 
 vi.mock("@/composables/usePortfolioData", () => ({
@@ -29,7 +30,10 @@ vi.mock("@/domain/fire", async (importOriginal) => {
       monthCount: 12,
     }),
     estimateMortgageMonthlyPayment: () => 10,
-    generateGrowthTable: () => ({ fireReachedMonth: 12, table: [{ month: 12, assets: 777 }] }),
+    generateGrowthTable: (params) => {
+      growthTableSpy(params);
+      return { fireReachedMonth: 12, table: [{ month: 12, assets: 777 }] };
+    },
     generateAnnualSimulation: () => [{ age: 40, income: 10, pension: 2, expenses: 3, investmentGain: 4, withdrawal: 5, assets: 6, cashAssets: 7, riskAssets: 8 }],
     runMonteCarloSimulation: () => ({ successRate: 0.5, p10: 1, p50: 2, p90: 3, trials: 100 }),
     calculateDaughterAssetsBreakdown: () => ({}),
@@ -37,12 +41,14 @@ vi.mock("@/domain/fire", async (importOriginal) => {
   };
 });
 
+import { useFireBaseParams } from "@/features/fireSimulator/useFireBaseParams";
 import { useFireSimulatorViewModel } from "@/features/fireSimulator/useFireSimulatorViewModel";
 
 describe("useFireSimulatorViewModel", () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     vi.useFakeTimers();
+    growthTableSpy.mockClear();
     mockData.value = { cashFlow: [] };
   });
 
@@ -55,6 +61,29 @@ describe("useFireSimulatorViewModel", () => {
     expect(vm.copyAnnualTable()).toContain("incomeWithPensionYen");
     expect(vm.copyConditionsAndAlgorithm()).toContain("algorithmConstants");
     expect(vm.copyConditionsAndAlgorithm()).toContain("mortgageMonthlyPaymentYen");
+  });
+
+  it("uses the shared FIRE inputs with simulator-specific balances", () => {
+    const vm = useFireSimulatorViewModel();
+    const { baseParams } = useFireBaseParams();
+    vm.annualReturnRate.value = 4.5;
+    vm.useAutoFirstYearExtra.value = false;
+    vm.manualPostFireFirstYearExtraExpense.value = 320000;
+
+    expect(vm.growthData.value.fireReachedMonth).toBe(12);
+    expect(growthTableSpy).toHaveBeenLastCalledWith({
+      ...baseParams.value,
+      initialAssets: 1000,
+      riskAssets: 700,
+    });
+    expect(baseParams.value.annualReturnRate).toBeCloseTo(0.045);
+    expect(vm.postFireFirstYearExtraExpense.value).toBe(320000);
+
+    vm.useAutoFirstYearExtra.value = true;
+    expect(vm.growthData.value.fireReachedMonth).toBe(12);
+    expect(growthTableSpy.mock.lastCall[0].postFireFirstYearExtraExpense)
+      .toBe(vm.postFireFirstYearExtraExpense.value);
+    expect(vm.postFireFirstYearExtraExpense.value).not.toBe(320000);
   });
 
   it("runs monte carlo only when enabled and clears results when disabled", async () => {
