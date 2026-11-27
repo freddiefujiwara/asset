@@ -2,10 +2,8 @@ import { getExpenseType } from "./classifiers";
 import { getMonthKey } from "./shared";
 import {
   LIVING_COST_ATTENTION_RATE,
-  formatMonthKey,
   listSpecialExpenses,
-  livingCostOfMonthWithMonthly,
-  shiftMonthKey,
+  summarizeLivingCostWindow,
 } from "../home/cards";
 
 /**
@@ -62,24 +60,8 @@ function topExpensesByLargeCategory(cashFlow, monthKey) {
  * }}
  */
 export function buildCashFlowReview(cashFlow, now = new Date(), monthlyLiving = []) {
-  const currentMonth = formatMonthKey(now);
-  const targetMonth = shiftMonthKey(currentMonth, -1);
-  const target = livingCostOfMonthWithMonthly(cashFlow, targetMonth, monthlyLiving);
-
-  let windowTotal = 0;
-  const windowByCategory = {};
-  for (let i = 1; i <= 12; i++) {
-    const monthResult = livingCostOfMonthWithMonthly(
-      cashFlow,
-      shiftMonthKey(currentMonth, -i),
-      monthlyLiving,
-    );
-    windowTotal += monthResult.total;
-    Object.entries(monthResult.byLargeCategory).forEach(([label, value]) => {
-      windowByCategory[label] = (windowByCategory[label] ?? 0) + value;
-    });
-  }
-  const average = windowTotal / 12;
+  const { lastMonth: targetMonth, last: target, average, windowByCategory } =
+    summarizeLivingCostWindow(cashFlow, now, monthlyLiving);
   const topExpenses = topExpensesByLargeCategory(cashFlow, targetMonth);
 
   const labels = new Set([...Object.keys(windowByCategory), ...Object.keys(target.byLargeCategory)]);
