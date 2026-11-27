@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildCashFlowReview } from "./review";
+import { buildLivingCostCard } from "../home/cards";
 
 const NOW = new Date(2026, 10, 10); // 2026-11-10 → 評価対象は先月 2026-10
 
@@ -54,6 +55,46 @@ describe("buildCashFlowReview", () => {
     expect(review.special.totalYen).toBe(50000);
     expect(review.special.items).toHaveLength(1);
     expect(review.special.items[0]).toMatchObject({ name: "旅行代金", amountYen: 50000 });
+  });
+
+  it("keeps the home and review totals aligned across a year boundary", () => {
+    const now = new Date(2027, 0, 10);
+    const cashFlow = [
+      row("2027-01-02", -999999, "食費/食料品"),
+      row("2026-12-05", -12003, "食費/食料品", "買い物"),
+      row("2026-12-12", -555, "特別な支出/旅行"),
+    ];
+    const monthlyLiving = [
+      { month: "2027-01", byCategory: { 食費: 999999 } },
+      { month: "2026-12", byCategory: { 食費: 888888 } },
+      { month: "2026-11", byCategory: { 日用品: 12000 } },
+      { month: "2026-01", byCategory: { 食費: 24000 } },
+      { month: "2025-12", byCategory: { 食費: 999999 } },
+    ];
+
+    // 明細を優先し、当月と13か月前は除外。空の月も12か月の分母に含む。
+    const card = buildLivingCostCard(cashFlow, now, monthlyLiving);
+    const review = buildCashFlowReview(cashFlow, now, monthlyLiving);
+    expect(card).toMatchObject({
+      status: "attention",
+      lastMonth: { month: "2026-12", amountYen: 12003 },
+      averageYen: 4000,
+      topCategories: [{ label: "食費", lastMonthYen: 12003, averageYen: 3000, excessYen: 9003 }],
+    });
+    expect(review).toMatchObject({
+      month: card.lastMonth.month,
+      livingCostYen: card.lastMonth.amountYen,
+      averageLivingCostYen: card.averageYen,
+      livingCostOverAverage: true,
+      categories: [{
+        label: "食費",
+        monthYen: 12003,
+        averageYen: 3000,
+        excessYen: 9003,
+        topExpenses: [{ date: "2026-12-05", name: "買い物", amountYen: 12003 }],
+      }],
+      special: { totalYen: 555 },
+    });
   });
 
   it("returns an empty review for no data", () => {
