@@ -1,4 +1,4 @@
-name: Recent expenses parity
+name: Asset dashboard parity
 
 on:
   pull_request:
@@ -34,4 +34,4 @@ jobs:
         env:
           TZ: Asia/Tokyo
           ASSET_GAS_SOURCE: ${{ github.workspace }}/asset-gas-source/src/Code.js
-        run: npx --no-install vitest run tests/recent-expenses-parity.test.js
+        run: npx --no-install vitest run tests/recent-expenses-parity.test.js tests/headline-parity.test.js
