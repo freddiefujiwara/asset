@@ -6,6 +6,7 @@ import { formatYen } from "@/domain/format";
 import { calculateAge, getUserBirthDate } from "@/domain/family";
 import { getMilestoneMonthKey } from "@/domain/familyConfig";
 import CopyButton from "@/components/CopyButton.vue";
+import { useFireBaseParams } from "@/features/fireSimulator/useFireBaseParams";
 import {
   generateGrowthTable,
   generateAnnualSimulation,
@@ -73,37 +74,17 @@ export function useFireSimulatorViewModel() {
     regularMonthlyIncome,
     annualBonus,
     monthlyIncome,
-    autoPostFireFirstYearExtraExpense,
   } = storeToRefs(fireSimulatorStore);
 
   const annualInvestment = computed(() => monthlyInvestment.value * 12);
   const annualSavings = computed(() => Math.max(0, (monthlyIncome.value - monthlyExpense.value - monthlyInvestment.value) * 12));
   const monthsOfCash = computed(() => (monthlyExpense.value > 0 ? cashAssets.value / monthlyExpense.value : 0));
 
-  const postFireFirstYearExtraExpense = computed(() =>
-    useAutoFirstYearExtra.value ? autoPostFireFirstYearExtraExpense.value : manualPostFireFirstYearExtraExpense.value,
-  );
-
+  const { baseParams, postFireFirstYearExtraExpense } = useFireBaseParams();
   const simulationParams = computed(() => ({
+    ...baseParams.value,
     initialAssets: initialAssets.value,
     riskAssets: riskAssets.value,
-    annualReturnRate: annualReturnRate.value / 100,
-    monthlyExpense: monthlyExpense.value,
-    monthlyIncome: monthlyIncome.value,
-    currentAge: currentAge.value,
-    includeInflation: includeInflation.value,
-    inflationRate: inflationRate.value / 100,
-    includeTax: includeTax.value,
-    taxRate: taxRate.value / 100,
-    withdrawalRate: withdrawalRate.value / 100,
-    mortgageMonthlyPayment: mortgageMonthlyPayment.value,
-    mortgagePayoffDate: mortgagePayoffDate.value || null,
-    postFireExtraExpense: postFireExtraExpense.value,
-    postFireFirstYearExtraExpense: postFireFirstYearExtraExpense.value,
-    retirementLumpSumAtFire: retirementLumpSumAtFire.value,
-    includePension: true,
-    monthlyInvestment: monthlyInvestment.value,
-    expenseBreakdown: past12MonthSummary.value.monthlyLivingExpenses.breakdown,
   }));
 
   const growthData = computed(() => generateGrowthTable(simulationParams.value));
@@ -232,23 +213,6 @@ export function useFireSimulatorViewModel() {
 
   const copyAnnualTable = () => JSON.stringify(buildAnnualTableJson(annualSimulationData.value), null, 2);
 
-  const copyText = async (text) => {
-    if (navigator?.clipboard?.writeText) {
-      await navigator.clipboard.writeText(text);
-      return;
-    }
-
-    const textArea = document.createElement("textarea");
-    textArea.value = text;
-    textArea.setAttribute("readonly", "");
-    textArea.style.position = "absolute";
-    textArea.style.left = "-9999px";
-    document.body.appendChild(textArea);
-    textArea.select();
-    document.execCommand("copy");
-    document.body.removeChild(textArea);
-  };
-
   return {
     loading,
     error,
@@ -308,7 +272,6 @@ export function useFireSimulatorViewModel() {
     algorithmExplanationSegments,
     copyConditionsAndAlgorithm,
     copyAnnualTable,
-    copyText,
     mortgageOptions: computed(() => createMortgageOptions()),
   };
 }
